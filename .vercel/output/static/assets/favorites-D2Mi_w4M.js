@@ -1,0 +1,1 @@
+var e=`radio.favs.v1`,t=`radio:favs`;function n(){if(typeof window>`u`)return[];try{let t=JSON.parse(window.localStorage.getItem(e)||`[]`);return Array.isArray(t)?t.map(String):[]}catch{return[]}}function r(r){let i=n(),a=i.includes(r)?i.filter(e=>e!==r):[...i,r];try{window.localStorage.setItem(e,JSON.stringify(a)),window.dispatchEvent(new Event(t))}catch{}return a}export{n,r,t};

@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Radio",
+      "hasCanvas": false,
+      "bodyTextLen": 2268,
+      "bodyTextHash": "9cf3ba33832a85eceeb02a8ab63a8dea1993a42ec770b1d620e69e6f8257d9b5",
+      "bodyTextPrefix": "RADIO AUTO Autoplay on STATIONS PLAYER RANKINGS LIBRARY ABOUT DE",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Radio",
+      "hasCanvas": false,
+      "bodyTextLen": 2252,
+      "bodyTextHash": "ffb4d66777f389d32c73bf95a94ddc043fd7e308e909cb854c4ebed69758a0d8",
+      "bodyTextPrefix": "RADIO Autoplay on STATIONS PLAYER RANKINGS LIBRARY ABOUT DESK CL",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <Suspense fallback={null}>\n      <MatchImpl routeId=\"/\">\n        <MatchView router={{...}} match={{id:\"//\",ssr:true, ...}}>\n          <SafeFragment>\n            <SafeFragment fallback={null}>\n              <CatchBoundary getResetKey={function getResetKey} errorComponent={function AppErrorComponent} ...>\n                <SafeFragment fallback={function fallback}>\n                  <MatchInnerImpl match={{id:\"//\",ssr:true, ...}}>\n                    <Lazy>\n                      <Home>\n                        <div className=\"mx-auto ma...\">\n                          <p>\n                          <h1>\n                          <p>\n                          <section>\n                          <label className=\"mt-8 block\">\n                            <span>\n                            <span className=\"relative m...\">\n                              <Search>\n                              <input\n                                className=\"input pl-10\"\n                                value=\"\"\n                                onChange={function onChange}\n                                placeholder=\"Name, tag, category\"\n-                               style={{caret-color:\"transparent\"}}\n                              >\n                          ...\n"
+      ],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}
