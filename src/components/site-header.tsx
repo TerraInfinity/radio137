@@ -1,5 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { AuthSlot, HubLinks } from "@/components/auth-slot";
+import { getChannel, stationSkin } from "@/lib/catalog";
 import { heldClaim } from "@/lib/claim";
 import { cn } from "@/lib/cn";
 import { useRadioUser } from "@/lib/radio-user";
@@ -17,7 +19,14 @@ export function SiteHeader() {
   const identity = usePlayerStore((s) => s.identity);
   const claims = usePlayerStore((s) => s.claims);
   const driving = heldClaim(claims, identity);
+  const points = usePlayerStore((s) => s.points);
+  const glaumules = usePlayerStore((s) => s.glaumules);
+  const slug = usePlayerStore((s) => s.channelSlug);
+  const ready = usePlayerStore((s) => s.ready);
+  const gateOpen = usePlayerStore((s) => s.gateOpen);
   const { isAdmin } = useRadioUser();
+  const channel = slug ? getChannel(slug) : undefined;
+  const onGlaum = Boolean(channel && stationSkin(channel) === "glaum");
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/80 backdrop-blur-sm">
@@ -55,6 +64,12 @@ export function SiteHeader() {
             </Link>
           ) : null}
         </nav>
+        {ready && !gateOpen ? (
+          <p className="hidden shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle lg:block">
+            {points} pts{onGlaum || glaumules > 0 ? ` · ${glaumules} glåümules` : ""}
+          </p>
+        ) : null}
+        <AutoplayLamp />
         <HubLinks />
         <AuthSlot />
       </div>

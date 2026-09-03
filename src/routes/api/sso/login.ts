@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { hubOrigin, mintNextCookie, requestOrigin, safeNext } from "@/lib/sso.server";
+import { loginLocation, safeNext } from "@/lib/sso.server";
 
 export const Route = createFileRoute("/api/sso/login")({
   server: {
@@ -7,16 +7,12 @@ export const Route = createFileRoute("/api/sso/login")({
       GET: ({ request }) => {
         const url = new URL(request.url);
         const next = safeNext(url.searchParams.get("next"));
-        const origin = requestOrigin(request);
-        const consume = new URL("/api/sso/consume", origin);
-        consume.searchParams.set("next", next);
-        const start = new URL("/api/sso/start", hubOrigin());
-        start.searchParams.set("returnTo", consume.toString());
+        const { location, nextCookie } = loginLocation(request, next);
         return new Response(null, {
           status: 302,
           headers: {
-            Location: start.toString(),
-            "Set-Cookie": mintNextCookie(next, request),
+            Location: location,
+            "Set-Cookie": nextCookie,
           },
         });
       },

@@ -1,9 +1,8 @@
+import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { usePlayerStore } from "@/lib/player-store";
 
 export function EnterGate() {
   const enterGate = usePlayerStore((s) => s.enterGate);
-  const autoplay = usePlayerStore((s) => s.autoplay);
-  const setAutoplay = usePlayerStore((s) => s.setAutoplay);
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-bg/95 px-6">
       <div className="max-w-md text-center">
@@ -11,12 +10,11 @@ export function EnterGate() {
         <h1 className="mt-3 font-display text-5xl font-semibold tracking-tight">Radio</h1>
         <p className="mt-4 text-muted">
           The green lamp is on. Default begins the clock. After this visit, this tab resumes wherever you left the dial.
-          Uncheck the lamp if you want silence on arrival.
+          Dim the lamp if you want silence on arrival.
         </p>
-        <label className="mt-6 inline-flex h-11 items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
-          <input type="checkbox" checked={autoplay} onChange={(event) => setAutoplay(event.target.checked)} />
-          Autoplay on
-        </label>
+        <div className="mt-6 flex justify-center">
+          <AutoplayLamp label="Autoplay on" />
+        </div>
         <div className="mt-6">
           <button
             type="button"

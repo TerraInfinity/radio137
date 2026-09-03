@@ -4,7 +4,9 @@ import {
   exchangeSsoCode,
   mintSsoCookie,
   readNextFromCookie,
+  readSsoUser,
   safeNext,
+  safeRedirectPath,
 } from "@/lib/sso.server";
 
 function escapeHtml(message: string) {
@@ -26,26 +28,29 @@ function errorPage(message: string) {
   );
 }
 
+function redirectHome(path: string, cookies: string[]) {
+  const headers = new Headers({ Location: path });
+  for (const cookie of cookies) headers.append("Set-Cookie", cookie);
+  return new Response(null, { status: 302, headers });
+}
+
 export const Route = createFileRoute("/api/sso/consume")({
   server: {
     handlers: {
       GET: async ({ request }) => {
         const url = new URL(request.url);
-        const code = url.searchParams.get("code");
+        const code = url.searchParams.get("code")?.trim() ?? "";
         const next = safeNext(url.searchParams.get("next") || readNextFromCookie(request));
+        const path = safeRedirectPath(next, request);
         if (!code) return errorPage("Missing code from the hub.");
+        const existing = await readSsoUser(request);
+        if (existing) {
+          return redirectHome(path, [clearNextCookie(request)]);
+        }
         try {
           const user = await exchangeSsoCode(code);
           const cookie = await mintSsoCookie(user, request);
-          const resolved = new URL(next, request.url);
-          const safeLocation =
-            resolved.pathname.startsWith("/") && !resolved.pathname.startsWith("//")
-              ? `${resolved.pathname}${resolved.search}`
-              : "/";
-          const headers = new Headers({ Location: safeLocation });
-          headers.append("Set-Cookie", cookie);
-          headers.append("Set-Cookie", clearNextCookie(request));
-          return new Response(null, { status: 302, headers });
+          return redirectHome(path, [cookie, clearNextCookie(request)]);
         } catch (error) {
           return errorPage(error instanceof Error ? error.message : "Hub exchange failed.");
         }

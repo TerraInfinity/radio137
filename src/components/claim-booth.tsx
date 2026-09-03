@@ -26,7 +26,9 @@ export function ClaimBooth({ channel }: { channel: Channel }) {
       </button>
       {open ? (
         <div className="border-t border-line p-3">
-          <p className="text-sm text-muted">The network is quiet. Claim only if you are driving this desk.</p>
+          <p className="text-sm text-muted">
+            Listeners join the shared station clock. Claim the booth to skip and cue; everyone else stays locked to the clock until you release.
+          </p>
           <label className="mt-3 block">
             <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">Handle</span>
             <input

@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { AdminAddTrack, AdminTrackTools } from "@/components/admin-track-tools";
 import { formatClock } from "@/lib/cn";
+import { durationOf } from "@/lib/playback";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Track } from "@/lib/types";
 
@@ -68,7 +69,7 @@ export function UpcomingList({
               >
                 <span className="w-3.5 shrink-0 font-mono text-[10px] tabular-nums text-subtle">{index + 1}</span>
                 <span className="min-w-0 flex-1 truncate text-sm text-muted">{item.title}</span>
-                <span className="shrink-0 font-mono text-[10px] tabular-nums text-subtle">{formatClock(item.durationSec)}</span>
+                <span className="shrink-0 font-mono text-[10px] tabular-nums text-subtle">{formatClock(durationOf(item))}</span>
               </button>
               <Link
                 to="/player/$id"

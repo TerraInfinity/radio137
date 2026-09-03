@@ -106,7 +106,7 @@ var HEADERS = { TSS_SHELL: "X-TSS_SHELL" };
 * the dev styles URL for route-scoped CSS collection.
 */
 async function getStartManifest(matchedRoutes) {
-	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-UhIWATac.mjs");
+	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-FTiq47hv.mjs");
 	const startManifest = tsrStartManifest();
 	let routes = startManifest.routes;
 	routes[rootRouteId];
@@ -126,57 +126,81 @@ async function getStartManifest(matchedRoutes) {
 	};
 }
 var manifest = {
+	"039455f170174f83176030122752131d5c9de179f843bd66bcc7f975a4720bf0": {
+		functionName: "listMyFavorites_createServerFn_handler",
+		importer: () => import("./social-api-D0rQ0AHg.mjs")
+	},
 	"08659e0d0d60384b044868cdfd6b5d78aac7aba6ca3e76a712a57aac1b061266": {
 		functionName: "addStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
+	},
+	"1bad9c20212fb739ea13d7879e0b1c774851aade5573e4f7ca52fcedd500d550": {
+		functionName: "listStationChat_createServerFn_handler",
+		importer: () => import("./social-api-D0rQ0AHg.mjs")
+	},
+	"33b02d65bba8d133fa56e02858c9d159e244ea83c4eb483cd2c2b6dd0b10bb63": {
+		functionName: "bumpTrackView_createServerFn_handler",
+		importer: () => import("./social-api-D0rQ0AHg.mjs")
+	},
+	"613b8c42e93a79bb0b67e0ea6912b9473afa49225fd950065b80b3dc2be5f2c4": {
+		functionName: "toggleFavoriteTrack_createServerFn_handler",
+		importer: () => import("./social-api-D0rQ0AHg.mjs")
 	},
 	"6419abad04b105db7e36894252b6619b53542483e9295a713c9ad8fd0458c6d0": {
 		functionName: "moveR2Object_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
 	},
 	"86faca5244608013bd67686cf60e5d0459a82e02de3fa9da95267f70f32d0bd4": {
 		functionName: "reorderStationTracks_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
 	},
 	"a0f574ca851bffce43b4e3ba655b29babab6d5b0703b3873a41409a03e7b9a6a": {
 		functionName: "hideStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
 	},
 	"ad177eb156e0e962cf763c344be8866b84009abc7a6c31f2269e1048d8e105ad": {
 		functionName: "pingServices_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
+	},
+	"b249dd9adefe7c79e424e8c9c31771aadfe41f573346771cb1adaaca54c53616": {
+		functionName: "postStationChat_createServerFn_handler",
+		importer: () => import("./social-api-D0rQ0AHg.mjs")
 	},
 	"b9c9fe0cca0befd3ae8bedbf69fee8d4a08b690b7d33de85aa2f47a155c3c7f0": {
 		functionName: "deleteR2Object_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
+	},
+	"bd429980c9d23aa02b69708d64446997683f3214c7b2ddc527fd991042d50b4d": {
+		functionName: "bumpTrackLike_createServerFn_handler",
+		importer: () => import("./social-api-D0rQ0AHg.mjs")
 	},
 	"cc74c64dc2667ff889d7baf82b14c6704c54a443ca298f5c60de9cf63700e054": {
 		functionName: "saveStation_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
 	},
 	"ce752a9c60416a0748de8ae86a006017f54ced857f2581ba1a9f7cfcce8bb3a9": {
 		functionName: "listCatalogEdits_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
 	},
 	"d9c9172f364a7e534585135887b704f2b3b59298313c4af8e00a092debec0967": {
 		functionName: "deleteStationFile_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
 	},
 	"d9e89e6e17ea4381b3ec922098d3fcb3e864b4b3b07789c439e701ed259ef683": {
 		functionName: "getRadioSession_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
 	},
 	"da98c26cacb974e0e1405aa77e85814e3a2aec5b3a4e0b9e2e42c4119a20f587": {
 		functionName: "patchStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
 	},
 	"df9d243e1b860c4496bba86a34cad4e87c50b6b7b199b0acf683fa5bc37e5c1f": {
 		functionName: "listStationR2_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
 	},
 	"e4f922a88d85017fd6365e5b5442c3930c1905e0e4755d162c604c57f6992e91": {
 		functionName: "restoreStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-mHN2gRAL.mjs")
+		importer: () => import("./desk-api-IS74bn7o.mjs")
 	}
 };
 async function getServerFnById(id, access) {
@@ -1446,7 +1470,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-DCyqcLgO.mjs").then((n) => n.t),
+		import("./router-CEym-ghm.mjs").then((n) => n.t),
 		import("./start-5Z2QO8AU.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);

@@ -1,4 +1,5 @@
 import seed from "@/data/catalog.json";
+import { durationOf, rememberDuration } from "@/lib/playback";
 import type { Catalog, Channel, StationKind, Track } from "@/lib/types";
 
 const seedCatalog = seed as Catalog;
@@ -14,6 +15,14 @@ export function getCatalog(): Catalog {
 
 export function setLiveCatalog(next: Catalog) {
   catalog = next;
+}
+
+export function patchTrackDuration(trackId: string, seconds: number) {
+  rememberDuration(trackId, seconds);
+}
+
+export function trackDuration(track: Track): number {
+  return durationOf(track);
 }
 
 export function normalizeKind(value: string | null | undefined): StationKind {
@@ -73,11 +82,7 @@ export function getPlayableTracks(channel: Channel | undefined | null): Track[] 
   if (!channel || channel.enabled === false) return [];
   const adult = isChannelNsfw(channel);
   return channel.tracks.filter(
-    (track) =>
-      track.enabled !== false &&
-      track.durationSec > 0 &&
-      Boolean(track.audioUrl) &&
-      (adult || !isAdultTrack(track)),
+    (track) => track.enabled !== false && track.durationSec > 0 && Boolean(track.audioUrl) && (adult || !isAdultTrack(track)),
   );
 }
 

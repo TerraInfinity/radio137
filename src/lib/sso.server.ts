@@ -2,8 +2,18 @@ import { jwtVerify, SignJWT } from "jose";
 import { getRequest } from "@tanstack/react-start/server";
 import { isAdminEmail, normalizeEmail } from "@/lib/admins";
 import type { EnvLamp } from "@/lib/env-lamps";
+import {
+  consumeReturnTo,
+  DEFAULT_SSO_HUB,
+  hubStartUrl,
+  normalizeHubOrigin,
+  publicOriginFromHost,
+  safeNext,
+  ssoCookieDomain,
+} from "@/lib/sso";
 
 export type { EnvLamp } from "@/lib/env-lamps";
+export { isRelativeNext, safeNext } from "@/lib/sso";
 
 export const SSO_COOKIE = "radio_sso";
 export const SSO_NEXT_COOKIE = "radio_sso_next";
@@ -25,44 +35,45 @@ function extraAdminEmails(): string[] {
     .filter(Boolean);
 }
 
+function envTrim(name: string): string {
+  return process.env[name]?.trim() ?? "";
+}
+
 export function hubOrigin(): string {
-  return (process.env.SSO_HUB || process.env.AUTH_URL || "https://terrainfinity.ca").replace(/\/$/, "");
+  return normalizeHubOrigin(envTrim("SSO_HUB") || envTrim("HUB_ORIGIN") || DEFAULT_SSO_HUB);
 }
 
 function sessionSecret(): Uint8Array {
-  const raw = process.env.AUTH_SECRET?.trim() || process.env.BETTER_AUTH_SECRET?.trim() || "radio-preview-sso-secret";
+  const raw = envTrim("AUTH_SECRET") || envTrim("BETTER_AUTH_SECRET") || "radio-preview-sso-secret";
   return new TextEncoder().encode(raw);
 }
 
-export function requestOrigin(request: Request): string {
+function hostHeader(request: Request): string {
   const url = new URL(request.url);
-  const proto = request.headers.get("x-forwarded-proto") || url.protocol.replace(":", "") || "https";
-  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || url.host;
-  return `${proto}://${host}`;
+  return request.headers.get("x-forwarded-host") || request.headers.get("host") || url.host;
 }
 
-function cookieDomain(request: Request): string | undefined {
-  const host = (request.headers.get("x-forwarded-host") || request.headers.get("host") || "").split(":")[0];
-  if (host === "terrainfinity.ca" || host.endsWith(".terrainfinity.ca")) return ".terrainfinity.ca";
-  return undefined;
+function protoHeader(request: Request): string {
+  const url = new URL(request.url);
+  return request.headers.get("x-forwarded-proto") || url.protocol.replace(":", "") || "https";
 }
 
-export function isRelativeNext(next: string | null | undefined): next is string {
-  if (!next) return false;
-  if (!next.startsWith("/")) return false;
-  if (next.startsWith("//") || next.includes("\\")) return false;
-  if (next.includes("://")) return false;
-  return true;
+export function requestOrigin(request: Request): string {
+  return publicOriginFromHost(hostHeader(request), protoHeader(request));
 }
 
-export function safeNext(next: string | null | undefined): string {
-  return isRelativeNext(next) ? next : "/";
+export function publicOrigin(request: Request): string {
+  return requestOrigin(request);
+}
+
+function cookieDomainFor(request: Request): string | undefined {
+  return ssoCookieDomain(hostHeader(request), envTrim("AUTH_COOKIE_DOMAIN"));
 }
 
 function serializeCookie(name: string, value: string, request: Request, maxAge: number): string {
   const parts = [`${name}=${value}`, "Path=/", "HttpOnly", "SameSite=Lax"];
-  if (requestOrigin(request).startsWith("https://")) parts.push("Secure");
-  const domain = cookieDomain(request);
+  if (publicOrigin(request).startsWith("https://")) parts.push("Secure");
+  const domain = cookieDomainFor(request);
   if (domain) parts.push(`Domain=${domain}`);
   parts.push(`Max-Age=${maxAge}`);
   return parts.join("; ");
@@ -162,7 +173,7 @@ export async function readSsoUser(request?: Request): Promise<SsoUser | null> {
 export async function readHubUser(request?: Request): Promise<SsoUser | null> {
   const req = request ?? getRequest();
   if (!req) return null;
-  if (!process.env.AUTH_SECRET?.trim()) return null;
+  if (!envTrim("AUTH_SECRET")) return null;
   const header = req.headers.get("cookie");
   if (!header) return null;
   for (const part of header.split(";")) {
@@ -191,8 +202,8 @@ function asSsoUser(raw: unknown): SsoUser | null {
   };
 }
 
-export async function exchangeSsoCode(code: string): Promise<SsoUser> {
-  const res = await fetch(`${hubOrigin()}/api/sso/exchange`, {
+async function postHubCode(path: "/api/sso/redeem" | "/api/sso/exchange", code: string): Promise<{ ok: boolean; status: number; user: SsoUser | null; retry: boolean }> {
+  const res = await fetch(`${hubOrigin()}${path}`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify({ code }),
@@ -204,10 +215,42 @@ export async function exchangeSsoCode(code: string): Promise<SsoUser> {
   } catch {
     json = null;
   }
-  if (!res.ok) throw new Error(`SSO exchange failed (${res.status})`);
   const user = asSsoUser(json);
-  if (!user) throw new Error("SSO exchange returned no user");
-  return user;
+  return {
+    ok: res.ok && Boolean(user),
+    status: res.status,
+    user,
+    retry: res.status === 404 || res.status === 405 || res.status >= 500,
+  };
+}
+
+export async function exchangeSsoCode(code: string): Promise<SsoUser> {
+  const redeem = await postHubCode("/api/sso/redeem", code);
+  if (redeem.ok && redeem.user) return redeem.user;
+  if (redeem.retry || !redeem.ok) {
+    const exchange = await postHubCode("/api/sso/exchange", code);
+    if (exchange.ok && exchange.user) return exchange.user;
+    throw new Error(`SSO exchange failed (${exchange.status || redeem.status})`);
+  }
+  throw new Error("SSO exchange returned no user");
+}
+
+export function loginLocation(request: Request, next: string): { location: string; nextCookie: string } {
+  const origin = publicOrigin(request);
+  const safe = safeNext(next);
+  const returnTo = consumeReturnTo(origin, safe);
+  return {
+    location: hubStartUrl(hubOrigin(), returnTo),
+    nextCookie: mintNextCookie(safe, request),
+  };
+}
+
+export function safeRedirectPath(next: string, request: Request): string {
+  const resolved = new URL(safeNext(next), publicOrigin(request));
+  if (resolved.pathname.startsWith("/") && !resolved.pathname.startsWith("//")) {
+    return `${resolved.pathname}${resolved.search}`;
+  }
+  return "/";
 }
 
 export async function resolveRadioUser(bearerToken?: string): Promise<RadioUser | null> {
@@ -252,31 +295,22 @@ export async function requireAdmin(bearerToken?: string): Promise<RadioUser> {
 }
 
 export function r2Configured(): boolean {
-  return Boolean(
-    process.env.R2_ACCOUNT_ID?.trim() &&
-      process.env.R2_ACCESS_KEY_ID?.trim() &&
-      process.env.R2_SECRET_ACCESS_KEY?.trim(),
-  );
+  return Boolean(envTrim("R2_ACCOUNT_ID") && envTrim("R2_ACCESS_KEY_ID") && envTrim("R2_SECRET_ACCESS_KEY"));
 }
 
 export function logoutLocation(request: Request): string {
-  const origin = requestOrigin(request);
   const hub = new URL("/api/sso/logout", hubOrigin());
-  const host = new URL(origin).host;
-  const returnTo =
-    host === "radio.terrainfinity.ca" || host.endsWith(".radio.terrainfinity.ca")
-      ? "https://radio.terrainfinity.ca/"
-      : `${origin}/`;
-  hub.searchParams.set("returnTo", returnTo);
+  hub.searchParams.set("returnTo", `${publicOrigin(request)}/`);
   return hub.toString();
 }
 
 export function envLamps(): EnvLamp[] {
-  const present = (name: string) => Boolean(process.env[name]?.trim());
+  const present = (name: string) => Boolean(envTrim(name));
   return [
-    { key: "AUTH_SECRET", label: "Auth secret", group: "SSO", set: present("AUTH_SECRET"), required: true, hint: "Must match the Terrainfinity hub." },
-    { key: "AUTH_URL", label: "Auth URL", group: "SSO", set: present("AUTH_URL"), required: true, hint: "https://terrainfinity.ca" },
-    { key: "SSO_HUB", label: "SSO hub", group: "SSO", set: present("SSO_HUB"), required: false, hint: "Defaults to AUTH_URL or https://terrainfinity.ca" },
+    { key: "SSO_HUB", label: "SSO hub", group: "SSO", set: present("SSO_HUB") || present("HUB_ORIGIN"), required: true, hint: "https://www.terrainfinity.ca — Google lives here." },
+    { key: "AUTH_SECRET", label: "Auth secret", group: "SSO", set: present("AUTH_SECRET"), required: true, hint: "Same secret as the hub if sharing the terrainfinity cookie." },
+    { key: "AUTH_COOKIE_DOMAIN", label: "Cookie domain", group: "SSO", set: present("AUTH_COOKIE_DOMAIN"), required: false, hint: ".terrainfinity.ca on radio.terrainfinity.ca only. Never on localhost, grok, or cyber-athens." },
+    { key: "AUTH_URL", label: "Auth URL", group: "SSO", set: present("AUTH_URL"), required: false, hint: "Do not set this to the hub. Radio mounts /api/auth/* for the Grok session." },
     { key: "DATABASE_URL", label: "Postgres", group: "Data", set: present("DATABASE_URL"), required: true, hint: "Shared Neon / Postgres with the hub." },
     { key: "R2_ACCOUNT_ID", label: "R2 account", group: "R2", set: present("R2_ACCOUNT_ID"), required: true, hint: "Cloudflare account id." },
     { key: "R2_ACCESS_KEY_ID", label: "R2 access key", group: "R2", set: present("R2_ACCESS_KEY_ID"), required: true, hint: "R2 API token access key." },

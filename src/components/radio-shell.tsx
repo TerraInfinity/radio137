@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { Atmosphere } from "@/components/atmosphere";
 import { EnterGate } from "@/components/enter-gate";
+import { LoveLayer } from "@/components/love-layer";
 import { MiniPlayer } from "@/components/mini-player";
 import { SiteHeader } from "@/components/site-header";
+import { SsoCodeCatcher } from "@/components/sso-code-catcher";
 import { getChannel, stationSkin } from "@/lib/catalog";
 import { usePlayerStore } from "@/lib/player-store";
 
@@ -20,7 +22,9 @@ export function RadioShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="relative min-h-dvh">
+      <SsoCodeCatcher />
       <Atmosphere skin={skin} />
+      <LoveLayer />
       <div className="relative z-10">
         <SiteHeader />
         {children}

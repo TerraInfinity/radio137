@@ -704,7 +704,8 @@ function ServicesBoard({ r2Configured, lamps }: { r2Configured: boolean; lamps: 
       <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">R2 {r2Configured ? "live" : "missing"}</p>
       <ul className="mt-4 max-w-prose space-y-2 text-sm text-muted">
         <li>AUTH_SECRET must match the Terrainfinity hub so radio can mint and read the shared session.</li>
-        <li>AUTH_URL should be https://terrainfinity.ca. SSO_HUB is optional and defaults there.</li>
+        <li>SSO_HUB must be https://www.terrainfinity.ca. Do not set AUTH_URL to the hub — Radio already mounts /api/auth/* for the Grok session.</li>
+        <li>AUTH_COOKIE_DOMAIN=.terrainfinity.ca only on radio.terrainfinity.ca. radio.cyber-athens.ca uses the consume handoff instead of a shared cookie.</li>
         <li>DATABASE_URL is the shared Postgres with the hub — playlist and station edits live here.</li>
         <li>R2_ACCOUNT_ID + R2_ACCESS_KEY_ID + R2_SECRET_ACCESS_KEY open the media bucket. R2_BUCKET defaults to media-empire-radio.</li>
       </ul>

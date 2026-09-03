@@ -2,11 +2,12 @@ import { AdminStationEdit } from "@/components/admin-track-tools";
 import { ClaimBooth } from "@/components/claim-booth";
 import { ModePill } from "@/components/mode-pill";
 import { NowPlayingCard } from "@/components/now-playing-card";
+import { StationChat } from "@/components/station-chat";
 import { StationVisual } from "@/components/station-visual";
 import { UpcomingList } from "@/components/upcoming-list";
 import { getPlayableTracks, kindHint, normalizeKind, stationSkin } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
-import { liveCursor } from "@/lib/playback";
+import { resolveLivePlayhead } from "@/lib/playback";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel } from "@/lib/types";
 
@@ -15,11 +16,12 @@ export function ChannelView({ channel }: { channel: Channel }) {
   const slug = usePlayerStore((s) => s.channelSlug);
   const track = usePlayerStore((s) => s.track);
   const status = usePlayerStore((s) => s.status);
+  const glaumules = usePlayerStore((s) => s.glaumules);
   const playable = getPlayableTracks(channel);
   const kind = normalizeKind(channel.kind || channel.mode);
   const live = kind === "live";
   const here = slug === channel.slug;
-  const now = here ? track : live ? liveCursor(playable, Date.now(), channel.slug)?.track ?? playable[0] : playable[0];
+  const now = here ? track : live ? resolveLivePlayhead(playable, Date.now(), channel.slug)?.track ?? playable[0] : playable[0];
   const upcoming = playable.filter((item) => item.id !== now?.id);
   const skin = stationSkin(channel);
   const statusLabel = !channel.enabled ? "Off air" : playable.length === 0 ? "Empty desk" : here ? status : kindHint(kind);
@@ -37,12 +39,21 @@ export function ChannelView({ channel }: { channel: Channel }) {
         <ModePill kind={channel.kind} mode={channel.mode} enabled={channel.enabled} nsfw={channel.nsfw} />
       </div>
       <p className="mt-3 max-w-prose text-muted">{channel.description}</p>
+      {skin === "glaum" ? <p className="glaum-sponsor mt-2 font-mono text-[10px] uppercase">Sponsored by Shrimp™</p> : null}
       <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">{kindHint(kind)}</p>
+      {channel.glaumules ? (
+        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-glaum">
+          {glaumules} glåümules collected · tap the purple bubbles
+        </p>
+      ) : null}
       <div className="mt-4">
         <button
           type="button"
           onClick={() => void tuneIn(channel.slug, { forcePlay: true })}
-          className="inline-flex h-12 min-w-36 items-center justify-center rounded-md bg-fg px-5 font-mono text-[12px] uppercase tracking-[0.16em] text-bg"
+          className={cn(
+            "inline-flex h-12 min-w-36 items-center justify-center rounded-md bg-fg px-5 font-mono text-[12px] uppercase tracking-[0.16em] text-bg",
+            skin === "glaum" && "btn-glaum",
+          )}
         >
           Tune in
         </button>
@@ -51,6 +62,7 @@ export function ChannelView({ channel }: { channel: Channel }) {
         <NowPlayingCard channel={channel} track={now ?? null} statusLabel={statusLabel} />
       </div>
       <UpcomingList slug={channel.slug} upcoming={upcoming} live={live} cover={channel.cover} />
+      <StationChat slug={channel.slug} />
       <ClaimBooth channel={channel} />
       <AdminStationEdit channel={channel} />
     </div>

@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { AdminTrackTools } from "@/components/admin-track-tools";
 import { CoverArt } from "@/components/cover-art";
+import { TrackActions } from "@/components/track-actions";
 import { isAdultTrack, isChannelNsfw } from "@/lib/catalog";
-import { cn } from "@/lib/cn";
 import type { Channel, Track } from "@/lib/types";
 
 export function NowPlayingCard({
@@ -24,7 +24,7 @@ export function NowPlayingCard({
     );
   }
   return (
-    <section className={cn("rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-border)]")}>
+    <section className="rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-border)]">
       <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ember">Now playing</p>
       <div className="mt-3 flex gap-4">
         <CoverArt src={track.coverUrl || channel.cover} alt="" className="size-24 shrink-0 rounded-md" />
@@ -36,6 +36,7 @@ export function NowPlayingCard({
           </h2>
           <p className="mt-1 text-muted">{track.artist}</p>
           <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">{channel.name}</p>
+          <TrackActions trackId={track.id} />
         </div>
       </div>
       <AdminTrackTools slug={channel.slug} track={track} />
