@@ -19,7 +19,7 @@ function escapeHtml(message: string) {
 function errorPage(message: string) {
   const safe = escapeHtml(message);
   return new Response(
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Sign in \u00b7 Radio</title>
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Sign in · Radio</title>
 <style>body{margin:0;min-height:100dvh;background:#070605;color:#e8e2d6;font-family:"IBM Plex Sans",sans-serif;display:grid;place-items:center;padding:2rem}a{color:#c9a36a}</style>
 </head><body><main><p>Frequency</p><h1>Sign-in missed</h1><p>${safe}</p><p><a href="/">Back to stations</a></p></main></body></html>`,
     { status: 400, headers: { "content-type": "text/html; charset=utf-8" } },

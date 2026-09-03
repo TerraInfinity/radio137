@@ -1,6 +1,6 @@
 import { a as __toCommonJS, t as __commonJSMin } from "../_runtime.mjs";
 import { a as require_retry, c as require_checksum, d as require_config, f as require_client$1, i as require_dist_cjs, l as require_serde, o as require_protocols, p as require_schema, r as require_client, u as require_endpoints } from "./@aws-sdk/checksums+[...].mjs";
-import { a as dist_es_exports, d as require_protocols$1, f as dist_es_exports$1, o as init_dist_es, p as init_dist_es$1, u as require_httpAuthSchemes } from "./@aws-sdk/client-s3+[...].mjs";
+import { d as require_httpAuthSchemes, f as require_protocols$1, m as init_dist_es$1, o as dist_es_exports, p as dist_es_exports$1, s as init_dist_es } from "./@aws-sdk/client-s3+[...].mjs";
 //#region node_modules/@aws-sdk/nested-clients/dist-cjs/submodules/signin/index.js
 var require_signin = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var { awsEndpointFunctions, emitWarningIfUnsupportedVersion: emitWarningIfUnsupportedVersion$1, createDefaultUserAgentProvider, NODE_APP_ID_CONFIG_OPTIONS, getAwsRegionExtensionConfiguration, resolveAwsRegionExtensionConfiguration, resolveUserAgentConfig, resolveHostHeaderConfig, getUserAgentPlugin, getHostHeaderPlugin, getLoggerPlugin, getRecursionDetectionPlugin } = require_client();

@@ -9,30 +9,20 @@ export const Route = createFileRoute("/player/")({
 });
 
 function PlayerIndex() {
+  usePlayerStore((s) => s.catalog);
   const songs = listPublicSongs();
-  const cueTrack = usePlayerStore((s) => s.cueTrack);
-
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Cuts</p>
-      <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight">Player</h1>
-      <p className="mt-3 text-muted">Public songs on the dial. 18+ cuts stay off this list.</p>
+    <div className="mx-auto max-w-3xl px-4 py-8 pb-44">
+      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Directory</p>
+      <h1 className="mt-2 font-display text-4xl font-semibold">Cuts</h1>
       <ul className="mt-6 divide-y divide-line">
-        {songs.map(({ track, channel }) => (
+        {songs.slice(0, 80).map(({ track, channel }) => (
           <li key={track.id} className="flex items-center gap-3 py-3">
-            <Link to="/player/$id" params={{ id: track.id }} className="min-w-0 flex-1">
-              <p className="truncate font-display text-lg font-semibold">{track.title}</p>
-              <p className="truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-                {formatClock(track.durationSec)} · {channel.name}
-              </p>
+            <Link to="/player/$id" params={{ id: track.id }} className="min-w-0 flex-1 truncate font-display text-lg">
+              {track.title}
             </Link>
-            <button
-              type="button"
-              onClick={() => void cueTrack(channel.slug, track.id)}
-              className="inline-flex h-11 items-center px-2 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
-            >
-              Play
-            </button>
+            <span className="hidden truncate text-sm text-muted sm:inline">{channel.name}</span>
+            <span className="font-mono text-[11px] text-subtle">{formatClock(track.durationSec)}</span>
           </li>
         ))}
       </ul>

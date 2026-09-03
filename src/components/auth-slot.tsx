@@ -17,7 +17,7 @@ export function AuthSlot() {
 
   if (!user) {
     if (gateSession) {
-      return <div className="h-11 w-24 shrink-0 rounded-md bg-bg-elevated" />;
+      return <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Signed in</span>;
     }
     return (
       <a
@@ -47,14 +47,8 @@ export function AuthSlot() {
       <span className="hidden max-w-[11rem] truncate font-mono text-[10px] uppercase tracking-[0.12em] text-muted lg:inline">
         {label}
       </span>
-      {isAdmin ? (
-        <span className="hidden font-mono text-[10px] uppercase tracking-[0.14em] text-gold sm:inline">C</span>
-      ) : null}
       {gateSession ? null : (
-        <a
-          href="/logout"
-          className="inline-flex h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle hover:text-fg"
-        >
+        <a href="/logout" className="inline-flex h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle hover:text-fg">
           Sign out
         </a>
       )}
@@ -65,16 +59,10 @@ export function AuthSlot() {
 export function HubLinks() {
   return (
     <span className="hidden items-center gap-2 md:flex">
-      <a
-        href="https://terrainfinity.ca"
-        className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle hover:text-gold"
-      >
+      <a href="https://terrainfinity.ca" className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle hover:text-gold">
         Hub
       </a>
-      <a
-        href="https://cyber-athens.ca"
-        className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle hover:text-gold"
-      >
+      <a href="https://cyber-athens.ca" className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle hover:text-gold">
         Athens
       </a>
     </span>

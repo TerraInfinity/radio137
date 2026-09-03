@@ -1,22 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-async function logoutResponse(request: Request) {
-  const { clearSsoCookie, logoutLocation } = await import("@/lib/sso.server");
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: logoutLocation(request),
-      "Set-Cookie": clearSsoCookie(request),
-    },
-  });
-}
-
 export const Route = createFileRoute("/logout")({
   server: {
     handlers: {
-      GET: ({ request }) => logoutResponse(request),
-      POST: ({ request }) => logoutResponse(request),
+      GET: async ({ request }) => {
+        const { clearSsoCookie, logoutLocation } = await import("@/lib/sso.server");
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: logoutLocation(request),
+            "Set-Cookie": clearSsoCookie(request),
+          },
+        });
+      },
+      POST: async ({ request }) => {
+        const { clearSsoCookie, logoutLocation } = await import("@/lib/sso.server");
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: logoutLocation(request),
+            "Set-Cookie": clearSsoCookie(request),
+          },
+        });
+      },
     },
   },
   component: LogoutFallback,

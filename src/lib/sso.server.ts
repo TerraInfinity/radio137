@@ -1,6 +1,9 @@
 import { jwtVerify, SignJWT } from "jose";
 import { getRequest } from "@tanstack/react-start/server";
 import { isAdminEmail, normalizeEmail } from "@/lib/admins";
+import type { EnvLamp } from "@/lib/env-lamps";
+
+export type { EnvLamp } from "@/lib/env-lamps";
 
 export const SSO_COOKIE = "radio_sso";
 export const SSO_NEXT_COOKIE = "radio_sso_next";
@@ -27,10 +30,7 @@ export function hubOrigin(): string {
 }
 
 function sessionSecret(): Uint8Array {
-  const raw =
-    process.env.AUTH_SECRET?.trim() ||
-    process.env.BETTER_AUTH_SECRET?.trim() ||
-    "radio-preview-sso-secret";
+  const raw = process.env.AUTH_SECRET?.trim() || process.env.BETTER_AUTH_SECRET?.trim() || "radio-preview-sso-secret";
   return new TextEncoder().encode(raw);
 }
 
@@ -61,8 +61,7 @@ export function safeNext(next: string | null | undefined): string {
 
 function serializeCookie(name: string, value: string, request: Request, maxAge: number): string {
   const parts = [`${name}=${value}`, "Path=/", "HttpOnly", "SameSite=Lax"];
-  const origin = requestOrigin(request);
-  if (origin.startsWith("https://")) parts.push("Secure");
+  if (requestOrigin(request).startsWith("https://")) parts.push("Secure");
   const domain = cookieDomain(request);
   if (domain) parts.push(`Domain=${domain}`);
   parts.push(`Max-Age=${maxAge}`);
@@ -160,7 +159,6 @@ export async function readSsoUser(request?: Request): Promise<SsoUser | null> {
   return userFromJwt(token);
 }
 
-/** Hub cookies on .terrainfinity.ca signed with the shared AUTH_SECRET. */
 export async function readHubUser(request?: Request): Promise<SsoUser | null> {
   const req = request ?? getRequest();
   if (!req) return null;
@@ -206,9 +204,7 @@ export async function exchangeSsoCode(code: string): Promise<SsoUser> {
   } catch {
     json = null;
   }
-  if (!res.ok) {
-    throw new Error(`SSO exchange failed (${res.status})`);
-  }
+  if (!res.ok) throw new Error(`SSO exchange failed (${res.status})`);
   const user = asSsoUser(json);
   if (!user) throw new Error("SSO exchange returned no user");
   return user;
@@ -216,13 +212,9 @@ export async function exchangeSsoCode(code: string): Promise<SsoUser> {
 
 export async function resolveRadioUser(bearerToken?: string): Promise<RadioUser | null> {
   const sso = await readSsoUser();
-  if (sso) {
-    return { ...sso, isAdmin: isAdminEmail(sso.email, extraAdminEmails()), source: "sso" };
-  }
+  if (sso) return { ...sso, isAdmin: isAdminEmail(sso.email, extraAdminEmails()), source: "sso" };
   const hub = await readHubUser();
-  if (hub) {
-    return { ...hub, isAdmin: isAdminEmail(hub.email, extraAdminEmails()), source: "hub" };
-  }
+  if (hub) return { ...hub, isAdmin: isAdminEmail(hub.email, extraAdminEmails()), source: "hub" };
   const { getSessionUser } = await import("@/lib/auth/verify.server");
   const session = await getSessionUser(bearerToken);
   if (!session?.email) return null;
@@ -277,4 +269,20 @@ export function logoutLocation(request: Request): string {
       : `${origin}/`;
   hub.searchParams.set("returnTo", returnTo);
   return hub.toString();
+}
+
+export function envLamps(): EnvLamp[] {
+  const present = (name: string) => Boolean(process.env[name]?.trim());
+  return [
+    { key: "AUTH_SECRET", label: "Auth secret", group: "SSO", set: present("AUTH_SECRET"), required: true, hint: "Must match the Terrainfinity hub." },
+    { key: "AUTH_URL", label: "Auth URL", group: "SSO", set: present("AUTH_URL"), required: true, hint: "https://terrainfinity.ca" },
+    { key: "SSO_HUB", label: "SSO hub", group: "SSO", set: present("SSO_HUB"), required: false, hint: "Defaults to AUTH_URL or https://terrainfinity.ca" },
+    { key: "DATABASE_URL", label: "Postgres", group: "Data", set: present("DATABASE_URL"), required: true, hint: "Shared Neon / Postgres with the hub." },
+    { key: "R2_ACCOUNT_ID", label: "R2 account", group: "R2", set: present("R2_ACCOUNT_ID"), required: true, hint: "Cloudflare account id." },
+    { key: "R2_ACCESS_KEY_ID", label: "R2 access key", group: "R2", set: present("R2_ACCESS_KEY_ID"), required: true, hint: "R2 API token access key." },
+    { key: "R2_SECRET_ACCESS_KEY", label: "R2 secret", group: "R2", set: present("R2_SECRET_ACCESS_KEY"), required: true, hint: "R2 API token secret." },
+    { key: "R2_BUCKET", label: "R2 bucket", group: "R2", set: present("R2_BUCKET"), required: false, hint: "Defaults to media-empire-radio." },
+    { key: "R2_PUBLIC_BASE_URL", label: "R2 public base", group: "R2", set: present("R2_PUBLIC_BASE_URL"), required: false, hint: "Defaults to https://r2.terrainfinity.ca" },
+    { key: "ADMIN_EMAILS", label: "Extra C emails", group: "Desk", set: present("ADMIN_EMAILS"), required: false, hint: "Comma list on top of the two C accounts." },
+  ];
 }

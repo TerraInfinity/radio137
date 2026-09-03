@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAdmin } from "@/lib/sso.server";
 import { defaultPrefixForSlug, putR2Object, r2Configured, sanitizeUploadName } from "@/lib/r2.server";
-import { addTrack, listEdits } from "@/lib/catalog-edits.server";
+import { addTrack, listEdits, listStationEdits } from "@/lib/catalog-edits.server";
+import { assertSameSiteRequest } from "@/lib/auth/isolation.server";
 
 const MAX_BYTES = 80 * 1024 * 1024;
 
@@ -10,7 +11,6 @@ export const Route = createFileRoute("/api/desk/upload")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const { assertSameSiteRequest } = await import("@/lib/auth/isolation.server");
           assertSameSiteRequest();
           const user = await requireAdmin();
           if (!r2Configured()) {
@@ -41,11 +41,11 @@ export const Route = createFileRoute("/api/desk/upload")({
             coverUrl,
             r2Key: object.key,
           });
-          const edits = await listEdits();
-          return Response.json({ ok: true, object, edit, edits });
+          const tracks = await listEdits();
+          const stations = await listStationEdits();
+          return Response.json({ ok: true, object, edit, tracks, stations });
         } catch (error) {
-          const status =
-            typeof error === "object" && error && "status" in error ? Number((error as { status: number }).status) : 500;
+          const status = typeof error === "object" && error && "status" in error ? Number((error as { status: number }).status) : 500;
           return Response.json({ error: error instanceof Error ? error.message : "Upload failed" }, { status: status || 500 });
         }
       },

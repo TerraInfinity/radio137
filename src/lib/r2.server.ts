@@ -1,4 +1,10 @@
-import { DeleteObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  CopyObjectCommand,
+  DeleteObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -10,16 +16,16 @@ function bucket(): string {
   return process.env.R2_BUCKET?.trim() || "media-empire-radio";
 }
 
+export function r2PublicBase(): string {
+  return (process.env.R2_PUBLIC_BASE_URL?.trim() || "https://r2.terrainfinity.ca").replace(/\/$/, "");
+}
+
 export function r2Configured(): boolean {
   return Boolean(
     process.env.R2_ACCOUNT_ID?.trim() &&
       process.env.R2_ACCESS_KEY_ID?.trim() &&
       process.env.R2_SECRET_ACCESS_KEY?.trim(),
   );
-}
-
-export function r2PublicBase(): string {
-  return (process.env.R2_PUBLIC_BASE_URL?.trim() || "https://r2.terrainfinity.ca").replace(/\/$/, "");
 }
 
 function client(): S3Client {
@@ -40,7 +46,13 @@ function publicUrlForKey(key: string): string {
   return `${r2PublicBase()}/${key.split("/").map(encodeURIComponent).join("/")}`;
 }
 
-export async function listR2Prefix(prefix: string, maxKeys = 200): Promise<R2Object[]> {
+function cleanKey(key: string): string {
+  const cleaned = key.replace(/^\/+/, "").replace(/\\/g, "/");
+  if (!cleaned || cleaned.includes("..")) throw new Error("Invalid R2 key");
+  return cleaned;
+}
+
+export async function listR2Prefix(prefix: string, maxKeys = 400): Promise<R2Object[]> {
   const cleaned = prefix.replace(/^\/+/, "");
   const out: R2Object[] = [];
   let token: string | undefined;
@@ -56,12 +68,7 @@ export async function listR2Prefix(prefix: string, maxKeys = 200): Promise<R2Obj
     );
     for (const item of page.Contents ?? []) {
       if (!item.Key || item.Key.endsWith("/")) continue;
-      if (!/\.(mp3|wav|flac|m4a|ogg|aac)$/i.test(item.Key)) continue;
-      out.push({
-        key: item.Key,
-        size: item.Size ?? 0,
-        url: publicUrlForKey(item.Key),
-      });
+      out.push({ key: item.Key, size: item.Size ?? 0, url: publicUrlForKey(item.Key) });
       if (out.length >= maxKeys) return out;
     }
     token = page.IsTruncated ? page.NextContinuationToken : undefined;
@@ -70,9 +77,21 @@ export async function listR2Prefix(prefix: string, maxKeys = 200): Promise<R2Obj
 }
 
 export async function deleteR2Key(key: string): Promise<void> {
-  const cleaned = key.replace(/^\/+/, "");
-  if (!cleaned || cleaned.includes("..")) throw new Error("Invalid R2 key");
-  await client().send(new DeleteObjectCommand({ Bucket: bucket(), Key: cleaned }));
+  await client().send(new DeleteObjectCommand({ Bucket: bucket(), Key: cleanKey(key) }));
+}
+
+export async function moveR2Key(from: string, to: string): Promise<R2Object> {
+  const source = cleanKey(from);
+  const dest = cleanKey(to);
+  await client().send(
+    new CopyObjectCommand({
+      Bucket: bucket(),
+      CopySource: `/${bucket()}/${source}`,
+      Key: dest,
+    }),
+  );
+  if (source !== dest) await deleteR2Key(source);
+  return { key: dest, size: 0, url: publicUrlForKey(dest) };
 }
 
 export function defaultPrefixForSlug(slug: string): string {
@@ -85,8 +104,7 @@ export function sanitizeUploadName(name: string): string {
 }
 
 export async function putR2Object(key: string, body: Uint8Array, contentType: string): Promise<R2Object> {
-  const cleaned = key.replace(/^\/+/, "");
-  if (!cleaned || cleaned.includes("..")) throw new Error("Invalid R2 key");
+  const cleaned = cleanKey(key);
   await client().send(
     new PutObjectCommand({
       Bucket: bucket(),

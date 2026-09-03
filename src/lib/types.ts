@@ -1,8 +1,4 @@
-export type OriginalPlatform = "suno" | "soundcloud" | "youtube" | "other";
-export type ChannelMode = "live" | "on-demand";
-export type ChannelKind = "live" | "on-demand" | "fixed" | "experience";
-export type TrackPlayback = "file" | "soundcloud" | "youtube" | "suno";
-export type ChannelSkin = "none" | "glaum" | "waheguru";
+export type StationKind = "live" | "ondemand" | "fixed";
 
 export type Track = {
   id: string;
@@ -10,78 +6,48 @@ export type Track = {
   artist: string;
   durationSec: number;
   audioUrl: string;
-  coverUrl: string;
-  nsfw: boolean;
-  enabled: boolean;
+  coverUrl?: string;
+  nsfw?: boolean;
+  enabled?: boolean;
+  playback?: string;
   originalUrl?: string;
-  originalPlatform?: OriginalPlatform;
-  playback?: TrackPlayback;
+  originalPlatform?: string;
 };
 
 export type Channel = {
   slug: string;
   name: string;
   energy: string;
-  kind: ChannelKind;
-  mode: ChannelMode;
+  mode: StationKind | string;
+  kind: StationKind | string;
   cover: string;
-  animationUrl: string;
   description: string;
   enabled: boolean;
-  tracks: Track[];
   tags: string[];
   category: string;
   featured: boolean;
+  featuredRank?: number;
   claimable: boolean;
-  skin: ChannelSkin;
-  loveBubbles: boolean;
-  glaumules: boolean;
-  spotlightTrackId: string;
-  isDefault: boolean;
+  skin: string;
+  loveBubbles?: boolean;
+  glaumules?: boolean;
   nsfw: boolean;
-  embedUrl: string;
-  videoUrl: string;
-  mix: string;
-};
-
-export type SiteTheme = {
-  clockwork: boolean;
-  sand: boolean;
-  intensity: number;
+  isDefault?: boolean;
+  animationUrl?: string;
+  embedUrl?: string;
+  videoUrl?: string;
+  mix?: string;
+  spotlightTrackId?: string;
+  tracks: Track[];
 };
 
 export type Catalog = {
   network: string;
   defaultSlug: string;
-  theme: SiteTheme;
-  hostShare: boolean;
+  theme?: { clockwork?: boolean; sand?: boolean; intensity?: number };
+  hostShare?: boolean;
   channels: Channel[];
 };
 
-export type HostGroove = {
-  slug: string;
-  trackTitle: string;
-  name: string;
-  live: boolean;
-  at: number;
-};
-
-export type PresenceSnapshot = {
-  live: Record<string, number>;
-  viewers: Record<string, number>;
-  listens: Record<string, number>;
-  views: Record<string, number>;
-  host: HostGroove | null;
-};
-
-export type ClaimRecord = {
-  claimantId: string | null;
-  claimantName: string | null;
-  claimedAt: number | null;
-  expiresAt: number | null;
-};
-
-export type Identity = {
-  id: string;
-  name: string;
-};
+export type Identity = { id: string; name: string };
+export type ClaimRecord = { claimantId: string; name: string; expiresAt: number };

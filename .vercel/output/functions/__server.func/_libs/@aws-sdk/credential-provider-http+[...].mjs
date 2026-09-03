@@ -1,6 +1,6 @@
 import { r as __exportAll } from "../../_runtime.mjs";
 import { d as require_config, l as require_serde, o as require_protocols, r as require_client } from "./checksums+[...].mjs";
-import { o as init_dist_es, s as NodeHttpHandler } from "./client-s3+[...].mjs";
+import { c as NodeHttpHandler, s as init_dist_es } from "./client-s3+[...].mjs";
 import fsPromises from "node:fs/promises";
 //#region node_modules/@aws-sdk/credential-provider-http/dist-es/fromHttp/checkUrl.js
 var import_serde = require_serde();

@@ -12,11 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as DeskRouteImport } from './routes/desk'
-import { Route as EmbedRouteImport } from './routes/embed'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LogoutRouteImport } from './routes/logout'
-import { Route as RankingsRouteImport } from './routes/rankings'
 import { Route as ChannelSlugRouteImport } from './routes/channel/$slug'
 import { Route as PlayerIndexRouteImport } from './routes/player/index'
 import { Route as PlayerIdRouteImport } from './routes/player/$id'
@@ -42,11 +40,6 @@ const DeskRoute = DeskRouteImport.update({
   path: '/desk',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EmbedRoute = EmbedRouteImport.update({
-  id: '/embed',
-  path: '/embed',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
@@ -60,11 +53,6 @@ const LoginRoute = LoginRouteImport.update({
 const LogoutRoute = LogoutRouteImport.update({
   id: '/logout',
   path: '/logout',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RankingsRoute = RankingsRouteImport.update({
-  id: '/rankings',
-  path: '/rankings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChannelSlugRoute = ChannelSlugRouteImport.update({
@@ -117,11 +105,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
-  '/embed': typeof EmbedRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
-  '/rankings': typeof RankingsRoute
   '/channel/$slug': typeof ChannelSlugRoute
   '/player/$id': typeof PlayerIdRoute
   '/player/': typeof PlayerIndexRoute
@@ -136,11 +122,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
-  '/embed': typeof EmbedRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
-  '/rankings': typeof RankingsRoute
   '/channel/$slug': typeof ChannelSlugRoute
   '/player/$id': typeof PlayerIdRoute
   '/player': typeof PlayerIndexRoute
@@ -156,11 +140,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
-  '/embed': typeof EmbedRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
-  '/rankings': typeof RankingsRoute
   '/channel/$slug': typeof ChannelSlugRoute
   '/player/$id': typeof PlayerIdRoute
   '/player/': typeof PlayerIndexRoute
@@ -177,11 +159,9 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/desk'
-    | '/embed'
     | '/library'
     | '/login'
     | '/logout'
-    | '/rankings'
     | '/channel/$slug'
     | '/player/$id'
     | '/player/'
@@ -196,11 +176,9 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/desk'
-    | '/embed'
     | '/library'
     | '/login'
     | '/logout'
-    | '/rankings'
     | '/channel/$slug'
     | '/player/$id'
     | '/player'
@@ -215,11 +193,9 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/desk'
-    | '/embed'
     | '/library'
     | '/login'
     | '/logout'
-    | '/rankings'
     | '/channel/$slug'
     | '/player/$id'
     | '/player/'
@@ -235,11 +211,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   DeskRoute: typeof DeskRoute
-  EmbedRoute: typeof EmbedRoute
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
   LogoutRoute: typeof LogoutRoute
-  RankingsRoute: typeof RankingsRoute
   ChannelSlugRoute: typeof ChannelSlugRoute
   PlayerIdRoute: typeof PlayerIdRoute
   PlayerIndexRoute: typeof PlayerIndexRoute
@@ -274,13 +248,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeskRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/embed': {
-      id: '/embed'
-      path: '/embed'
-      fullPath: '/embed'
-      preLoaderRoute: typeof EmbedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/library': {
       id: '/library'
       path: '/library'
@@ -300,13 +267,6 @@ declare module '@tanstack/react-router' {
       path: '/logout'
       fullPath: '/logout'
       preLoaderRoute: typeof LogoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/rankings': {
-      id: '/rankings'
-      path: '/rankings'
-      fullPath: '/rankings'
-      preLoaderRoute: typeof RankingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/channel/$slug': {
@@ -379,11 +339,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   DeskRoute: DeskRoute,
-  EmbedRoute: EmbedRoute,
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
   LogoutRoute: LogoutRoute,
-  RankingsRoute: RankingsRoute,
   ChannelSlugRoute: ChannelSlugRoute,
   PlayerIdRoute: PlayerIdRoute,
   PlayerIndexRoute: PlayerIndexRoute,

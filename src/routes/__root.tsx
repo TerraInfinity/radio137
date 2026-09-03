@@ -15,7 +15,7 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#070605" },
       {
         name: "description",
-        content: "A dark-elf clockwork radio. Live clocks, on-demand vaults, and a first frequency called Default.",
+        content: "A dark-elf clockwork radio. Live clocks, on-demand vaults, and fixed start-to-finish frequencies.",
       },
     ],
     links: [

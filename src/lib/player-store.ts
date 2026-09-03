@@ -1,5 +1,15 @@
 import { create } from "zustand";
-import { getCatalog, getChannel, getPlayableTracks, getSeedCatalog, isAdultTrack, isChannelNsfw, setLiveCatalog } from "@/lib/catalog";
+import {
+  getCatalog,
+  getChannel,
+  getPlayableTracks,
+  getSeedCatalog,
+  isAdultTrack,
+  isChannelNsfw,
+  normalizeKind,
+  setLiveCatalog,
+} from "@/lib/catalog";
+import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { liveCursor, neighborTrack } from "@/lib/playback";
 import { loadPersisted, savePersisted } from "@/lib/storage";
 import type { Catalog, Channel, ClaimRecord, Identity, Track } from "@/lib/types";
@@ -43,7 +53,6 @@ type PlayerState = {
 };
 
 let audio: HTMLAudioElement | null = null;
-let loadGen = 0;
 
 function getAudio() {
   if (typeof window === "undefined") return null;
@@ -116,21 +125,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     });
     const el = getAudio();
     if (el) el.volume = p.volume;
-    if (typeof document !== "undefined") {
-      document.documentElement.classList.toggle("is-dj", false);
-    }
-    if (p.visited && p.lastSlug) {
-      void get().tuneIn(p.lastSlug);
-    }
-    void Promise.all([import("@/lib/desk-api"), import("@/lib/catalog-edits")])
-      .then(([{ listCatalogEdits }, { applyCatalogEdits }]) =>
-        listCatalogEdits().then((edits) => {
-          if (!edits.length) return;
-          get().replaceCatalog(applyCatalogEdits(getSeedCatalog(), edits));
-        }),
-      )
+    if (p.visited && p.lastSlug) void get().tuneIn(p.lastSlug);
+    void import("@/lib/desk-api")
+      .then(({ listCatalogEdits }) => listCatalogEdits())
+      .then((data) => {
+        get().replaceCatalog(applyCatalogEdits(getSeedCatalog(), data.tracks, data.stations));
+      })
       .catch(() => {
-        /* catalog seed is enough */
+        /* seed is enough */
       });
   },
 
@@ -158,10 +160,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
     if (opts?.forcePlay) set({ autoplay: true });
-    const live = channel.kind === "live" ? liveCursor(playable, Date.now(), slug) : null;
-    const track = live?.track ?? playable[0];
-    const offset = live?.offsetSec ?? 0;
-    await loadTrack(slug, track, offset, get().autoplay || Boolean(opts?.forcePlay), set, get);
+    const kind = normalizeKind(channel.kind || channel.mode);
+    if (kind === "live") {
+      const live = liveCursor(playable, Date.now(), slug);
+      const track = live?.track ?? playable[0];
+      const offset = live?.offsetSec ?? 0;
+      await loadTrack(slug, track, offset, get().autoplay || Boolean(opts?.forcePlay), set);
+    } else {
+      await loadTrack(slug, playable[0], 0, get().autoplay || Boolean(opts?.forcePlay), set);
+    }
     set({ lastSlug: slug, visited: true, gateOpen: false });
     persist();
   },
@@ -174,7 +181,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       await get().tuneIn(slug);
       return;
     }
-    await loadTrack(slug, track, 0, true, set, get);
+    await loadTrack(slug, track, 0, true, set);
   },
 
   togglePlay: async () => {
@@ -197,54 +204,64 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (state.channelSlug) await get().tuneIn(state.channelSlug, { forcePlay: true });
   },
 
-  next: async (reason = "user") => {
-    const state = get();
-    const channel = channelOf(state.channelSlug);
+  next: async (reason) => {
+    const slug = get().channelSlug;
+    if (!slug) return;
+    const channel = channelOf(slug);
     if (!channel) return;
-    if (reason === "user" && !state.skipAllowed(channel.slug)) return;
     const playable = getPlayableTracks(channel);
-    const nextTrack = neighborTrack(playable, state.track?.id ?? null, 1);
-    if (!nextTrack) return;
-    await loadTrack(channel.slug, nextTrack, 0, true, set, get);
+    const current = get().track;
+    const kind = normalizeKind(channel.kind || channel.mode);
+    if (kind === "live" && reason === "ended") {
+      const live = liveCursor(playable, Date.now(), slug);
+      if (live) await loadTrack(slug, live.track, live.offsetSec, get().autoplay, set);
+      return;
+    }
+    if (kind === "fixed" && reason === "ended") {
+      const nxt = current ? neighborTrack(playable, current.id, 1) : playable[0];
+      if (nxt) await loadTrack(slug, nxt, 0, true, set);
+      else {
+        getAudio()?.pause();
+        set({ status: "paused" });
+      }
+      return;
+    }
+    if (!get().skipAllowed(slug) && reason === "user") return;
+    const nxt = current ? neighborTrack(playable, current.id, 1) : playable[0];
+    if (nxt) await loadTrack(slug, nxt, 0, true, set);
+    else if (playable[0]) await loadTrack(slug, playable[0], 0, true, set);
   },
 
   prev: async () => {
-    const state = get();
-    const channel = channelOf(state.channelSlug);
-    if (!channel || !state.skipAllowed(channel.slug)) return;
-    if (state.currentTime > 3) {
-      const el = getAudio();
-      if (el) el.currentTime = 0;
-      set({ currentTime: 0 });
-      return;
-    }
+    const slug = get().channelSlug;
+    if (!slug || !get().skipAllowed(slug)) return;
+    const channel = channelOf(slug);
+    if (!channel) return;
     const playable = getPlayableTracks(channel);
-    const prevTrack = neighborTrack(playable, state.track?.id ?? null, -1);
-    if (!prevTrack) return;
-    await loadTrack(channel.slug, prevTrack, 0, true, set, get);
+    const current = get().track;
+    const prev = current ? neighborTrack(playable, current.id, -1) : playable[0];
+    if (prev) await loadTrack(slug, prev, 0, true, set);
   },
 
   seek: (seconds) => {
     const el = getAudio();
     if (!el) return;
-    const slug = get().channelSlug;
-    if (slug && !get().skipAllowed(slug)) return;
-    el.currentTime = seconds;
-    set({ currentTime: seconds });
+    el.currentTime = Math.max(0, seconds);
+    set({ currentTime: el.currentTime });
   },
 
   setVolume: (volume) => {
-    const next = Math.min(1, Math.max(0, volume));
     const el = getAudio();
-    if (el) el.volume = get().muted ? 0 : next;
-    set({ volume: next });
+    const next = Math.min(1, Math.max(0, volume));
+    if (el) el.volume = next;
+    set({ volume: next, muted: next === 0 });
     persist();
   },
 
   toggleMute: () => {
-    const muted = !get().muted;
     const el = getAudio();
-    if (el) el.volume = muted ? 0 : get().volume;
+    const muted = !get().muted;
+    if (el) el.muted = muted;
     set({ muted });
   },
 
@@ -259,43 +276,32 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   setIdentityName: (name) => {
-    const trimmed = name.trim().slice(0, 32);
-    if (!trimmed) return;
-    set({ identity: { id: `guest:${trimmed.toLowerCase()}`, name: trimmed } });
+    const trimmed = name.trim().slice(0, 24);
+    set({ identity: trimmed ? { id: `guest:${trimmed.toLowerCase()}`, name: trimmed } : null });
     persist();
   },
 
   claimChannel: (slug, minutes) => {
     const identity = get().identity;
     if (!identity) return;
-    const channel = channelOf(slug);
-    if (!channel?.claimable) return;
-    const taken = Object.entries(get().claims).find(([, claim]) => claim.claimantId && (claim.expiresAt ?? 0) > Date.now());
-    if (taken && taken[0] !== slug && taken[1].claimantId !== identity.id) {
-      /* one claim at a time — release previous owned */
-    }
-    const claims = { ...get().claims };
-    for (const [key, claim] of Object.entries(claims)) {
-      if (claim.claimantId === identity.id) claims[key] = { claimantId: null, claimantName: null, claimedAt: null, expiresAt: null };
-    }
-    claims[slug] = {
-      claimantId: identity.id,
-      claimantName: identity.name,
-      claimedAt: Date.now(),
-      expiresAt: Date.now() + minutes * 60_000,
-    };
-    set({ claims, autoplay: true });
-    if (typeof document !== "undefined") document.documentElement.classList.add("is-dj");
-    persist();
+    set({
+      claims: {
+        ...get().claims,
+        [slug]: { claimantId: identity.id, name: identity.name, expiresAt: Date.now() + minutes * 60_000 },
+      },
+    });
   },
 
   releaseClaim: (slug) => {
-    const claims = { ...get().claims, [slug]: { claimantId: null, claimantName: null, claimedAt: null, expiresAt: null } };
-    set({ claims });
-    if (typeof document !== "undefined") document.documentElement.classList.remove("is-dj");
+    const next = { ...get().claims };
+    delete next[slug];
+    set({ claims: next });
   },
 
   skipAllowed: (slug) => {
+    const channel = channelOf(slug);
+    const kind = channel ? normalizeKind(channel.kind || channel.mode) : "live";
+    if (kind !== "live") return true;
     const claim = get().claims[slug];
     if (!claim?.claimantId || (claim.expiresAt ?? 0) < Date.now()) return true;
     return claim.claimantId === get().identity?.id;
@@ -313,35 +319,20 @@ async function loadTrack(
   offset: number,
   play: boolean,
   set: (partial: Partial<PlayerState>) => void,
-  get: () => PlayerState,
 ) {
-  const gen = ++loadGen;
-  const channel = channelOf(slug);
-  if (isAdultTrack(track) && (!channel || !isChannelNsfw(channel))) {
-    set({ track: null, status: "off-air", channelSlug: slug });
-    return;
-  }
-  set({
-    channelSlug: slug,
-    track,
-    status: "loading",
-    currentTime: offset,
-    duration: track.durationSec,
-  });
   const el = getAudio();
+  set({ channelSlug: slug, track, status: "loading", currentTime: offset, duration: track.durationSec });
   if (!el) return;
   el.src = track.audioUrl;
-  el.volume = get().muted ? 0 : get().volume;
+  el.currentTime = offset;
+  if (!play) {
+    set({ status: "paused" });
+    return;
+  }
   try {
-    el.currentTime = offset;
-    if (play) await el.play();
-    if (gen !== loadGen) return;
-    set({
-      status: play && !el.paused ? "playing" : "paused",
-      duration: Number.isFinite(el.duration) && el.duration > 0 ? el.duration : track.durationSec,
-    });
+    await el.play();
+    set({ status: "playing" });
   } catch {
-    if (gen !== loadGen) return;
-    set({ status: play ? "paused" : "paused" });
+    set({ status: "paused" });
   }
 }

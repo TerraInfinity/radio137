@@ -8619,6 +8619,24 @@ var _ep0 = {
 		name: "Key"
 	}
 };
+var _ep1 = {
+	DisableS3ExpressSessionAuth: {
+		type: "staticContextParams",
+		value: true
+	},
+	Bucket: {
+		type: "contextParams",
+		name: "Bucket"
+	},
+	Key: {
+		type: "contextParams",
+		name: "Key"
+	},
+	CopySource: {
+		type: "contextParams",
+		name: "CopySource"
+	}
+};
 var _ep4 = {
 	DisableS3ExpressSessionAuth: {
 		type: "staticContextParams",
@@ -8640,6 +8658,7 @@ var _ep8 = {
 	}
 };
 var _mw0 = (Command, cs, config, o) => [(0, import_s3.getThrow200ExceptionsPlugin)(config)];
+var _mw1 = (Command, cs, config, o) => [(0, import_s3.getThrow200ExceptionsPlugin)(config), (0, import_s3.getSsecPlugin)(config)];
 var _mw11 = (Command, cs, config, o) => [
 	(0, import_flexible_checksums.getFlexibleChecksumsPlugin)(config, {
 		requestAlgorithmMember: {
@@ -8922,6 +8941,7 @@ var ObjectAlreadyInActiveTierError = class ObjectAlreadyInActiveTierError extend
 //#region node_modules/@aws-sdk/client-s3/dist-es/schemas/schemas_0.js
 var _ACL_ = "ACL";
 var _AD = "AccessDenied";
+var _ADn = "AnnotationDirective";
 var _AKI = "AccessKeyId";
 var _ALE = "AnnotationLimitExceeded";
 var _ANTL = "AnnotationNameTooLong";
@@ -8949,15 +8969,28 @@ var _CLo = "ContentLength";
 var _CM = "Content-MD5";
 var _CMD = "ChecksumMD5";
 var _CMDo = "ContentMD5";
+var _CO = "CopyObject";
+var _COO = "CopyObjectOutput";
+var _COR = "CopyObjectResult";
+var _CORo = "CopyObjectRequest";
 var _CP = "CommonPrefix";
 var _CPL = "CommonPrefixList";
 var _CPom = "CommonPrefixes";
 var _CSHA = "ChecksumSHA1";
 var _CSHAh = "ChecksumSHA256";
 var _CSHAhe = "ChecksumSHA512";
+var _CSIM = "CopySourceIfMatch";
+var _CSIMS = "CopySourceIfModifiedSince";
+var _CSINM = "CopySourceIfNoneMatch";
+var _CSIUS = "CopySourceIfUnmodifiedSince";
 var _CSO = "CreateSessionOutput";
 var _CSR = "CreateSessionResult";
 var _CSRr = "CreateSessionRequest";
+var _CSSSECA = "CopySourceSSECustomerAlgorithm";
+var _CSSSECK = "CopySourceSSECustomerKey";
+var _CSSSECKMD = "CopySourceSSECustomerKeyMD5";
+var _CSVI = "CopySourceVersionId";
+var _CSo = "CopySource";
 var _CSr = "CreateSession";
 var _CT = "ChecksumType";
 var _CT_ = "Content-Type";
@@ -8975,6 +9008,7 @@ var _DOR = "DeleteObjectRequest";
 var _DOel = "DeleteObject";
 var _Deli = "Delimiter";
 var _EBO = "ExpectedBucketOwner";
+var _ESBO = "ExpectedSourceBucketOwner";
 var _ET = "ETag";
 var _ETM = "EncryptionTypeMismatch";
 var _ETnc = "EncodingType";
@@ -9008,6 +9042,7 @@ var _LOV = "ListObjectsV2";
 var _LOVO = "ListObjectsV2Output";
 var _LOVR = "ListObjectsV2Request";
 var _M = "Metadata";
+var _MD = "MetadataDirective";
 var _MFA = "MFA";
 var _MK = "MaxKeys";
 var _N = "Name";
@@ -9049,6 +9084,7 @@ var _SSEKMSEC = "SSEKMSEncryptionContext";
 var _SSEKMSKI = "SSEKMSKeyId";
 var _ST = "SessionToken";
 var _Si = "Size";
+var _TD = "TaggingDirective";
 var _TMP = "TooManyParts";
 var _Tag = "Tagging";
 var _UMT = "UnsupportedMediaType";
@@ -9077,6 +9113,7 @@ var _xF = "xmlFlattened";
 var _xN = "xmlName";
 var _xaa = "x-amz-acl";
 var _xabgr = "x-amz-bypass-governance-retention";
+var _xaca = "x-amz-checksum-algorithm";
 var _xacc = "x-amz-checksum-crc32";
 var _xacc_ = "x-amz-checksum-crc32c";
 var _xacc__ = "x-amz-checksum-crc64nvme";
@@ -9084,7 +9121,16 @@ var _xacm = "x-amz-checksum-md5";
 var _xacs = "x-amz-checksum-sha1";
 var _xacs_ = "x-amz-checksum-sha256";
 var _xacs__ = "x-amz-checksum-sha512";
+var _xacs___ = "x-amz-copy-source";
+var _xacsim = "x-amz-copy-source-if-match";
+var _xacsims = "x-amz-copy-source-if-modified-since";
+var _xacsinm = "x-amz-copy-source-if-none-match";
+var _xacsius = "x-amz-copy-source-if-unmodified-since";
 var _xacsm = "x-amz-create-session-mode";
+var _xacssseca = "x-amz-copy-source-server-side-encryption-customer-algorithm";
+var _xacssseck = "x-amz-copy-source-server-side-encryption-customer-key";
+var _xacssseckM = "x-amz-copy-source-server-side-encryption-customer-key-MD5";
+var _xacsvi = "x-amz-copy-source-version-id";
 var _xact = "x-amz-checksum-type";
 var _xacx = "x-amz-checksum-xxhash64";
 var _xacx_ = "x-amz-checksum-xxhash3";
@@ -9100,6 +9146,8 @@ var _xaimlmt = "x-amz-if-match-last-modified-time";
 var _xaims = "x-amz-if-match-size";
 var _xam = "x-amz-meta-";
 var _xam_ = "x-amz-mfa";
+var _xamd = "x-amz-metadata-directive";
+var _xaoad = "x-amz-object-annotation-directive";
 var _xaollh = "x-amz-object-lock-legal-hold";
 var _xaolm = "x-amz-object-lock-mode";
 var _xaolrud = "x-amz-object-lock-retain-until-date";
@@ -9109,6 +9157,7 @@ var _xarc = "x-amz-request-charged";
 var _xarp = "x-amz-request-payer";
 var _xasc = "x-amz-storage-class";
 var _xasca = "x-amz-sdk-checksum-algorithm";
+var _xasebo = "x-amz-source-expected-bucket-owner";
 var _xasse = "x-amz-server-side-encryption";
 var _xasseakki = "x-amz-server-side-encryption-aws-kms-key-id";
 var _xassebke = "x-amz-server-side-encryption-bucket-key-enabled";
@@ -9117,6 +9166,7 @@ var _xasseca = "x-amz-server-side-encryption-customer-algorithm";
 var _xasseck = "x-amz-server-side-encryption-customer-key";
 var _xasseckM = "x-amz-server-side-encryption-customer-key-MD5";
 var _xat = "x-amz-tagging";
+var _xatd = "x-amz-tagging-directive";
 var _xavi = "x-amz-version-id";
 var _xawob = "x-amz-write-offset-bytes";
 var _xawrl = "x-amz-website-redirect-location";
@@ -9382,6 +9432,13 @@ var UnsupportedMediaType$ = [
 ];
 n0_registry.registerError(UnsupportedMediaType$, UnsupportedMediaType);
 var errorTypeRegistries = [_s_registry, n0_registry];
+var CopySourceSSECustomerKey = [
+	0,
+	n0,
+	_CSSSECK,
+	8,
+	0
+];
 var SessionCredentialValue = [
 	0,
 	n0,
@@ -9424,6 +9481,173 @@ var CommonPrefix$ = [
 	0,
 	[_P],
 	[0]
+];
+var CopyObjectOutput$ = [
+	3,
+	n0,
+	_COO,
+	0,
+	[
+		_COR,
+		_Ex,
+		_CSVI,
+		_VI,
+		_SSE,
+		_SSECA,
+		_SSECKMD,
+		_SSEKMSKI,
+		_SSEKMSEC,
+		_BKE,
+		_RC
+	],
+	[
+		[() => CopyObjectResult$, 16],
+		[0, { [_hH]: _xae }],
+		[0, { [_hH]: _xacsvi }],
+		[0, { [_hH]: _xavi }],
+		[0, { [_hH]: _xasse }],
+		[0, { [_hH]: _xasseca }],
+		[0, { [_hH]: _xasseckM }],
+		[() => SSEKMSKeyId, { [_hH]: _xasseakki }],
+		[() => SSEKMSEncryptionContext, { [_hH]: _xassec }],
+		[2, { [_hH]: _xassebke }],
+		[0, { [_hH]: _xarc }]
+	]
+];
+var CopyObjectRequest$ = [
+	3,
+	n0,
+	_CORo,
+	0,
+	[
+		_B,
+		_CSo,
+		_K,
+		_ACL_,
+		_CC,
+		_CA,
+		_CDo,
+		_CEo,
+		_CL,
+		_CTo,
+		_CSIM,
+		_CSIMS,
+		_CSINM,
+		_CSIUS,
+		_Exp,
+		_GFC,
+		_GR,
+		_GRACP,
+		_GWACP,
+		_IM,
+		_INM,
+		_M,
+		_MD,
+		_TD,
+		_ADn,
+		_SSE,
+		_SC,
+		_WRL,
+		_SSECA,
+		_SSECK,
+		_SSECKMD,
+		_SSEKMSKI,
+		_SSEKMSEC,
+		_BKE,
+		_CSSSECA,
+		_CSSSECK,
+		_CSSSECKMD,
+		_RP,
+		_Tag,
+		_OLM,
+		_OLRUD,
+		_OLLHS,
+		_EBO,
+		_ESBO
+	],
+	[
+		[0, 1],
+		[0, { [_hH]: _xacs___ }],
+		[0, 1],
+		[0, { [_hH]: _xaa }],
+		[0, { [_hH]: _CC_ }],
+		[0, { [_hH]: _xaca }],
+		[0, { [_hH]: _CD_ }],
+		[0, { [_hH]: _CE_ }],
+		[0, { [_hH]: _CL_ }],
+		[0, { [_hH]: _CT_ }],
+		[0, { [_hH]: _xacsim }],
+		[4, { [_hH]: _xacsims }],
+		[0, { [_hH]: _xacsinm }],
+		[4, { [_hH]: _xacsius }],
+		[4, { [_hH]: _Exp }],
+		[0, { [_hH]: _xagfc }],
+		[0, { [_hH]: _xagr }],
+		[0, { [_hH]: _xagra }],
+		[0, { [_hH]: _xagwa }],
+		[0, { [_hH]: _IM_ }],
+		[0, { [_hH]: _INM_ }],
+		[128, { [_hPH]: _xam }],
+		[0, { [_hH]: _xamd }],
+		[0, { [_hH]: _xatd }],
+		[0, { [_hH]: _xaoad }],
+		[0, { [_hH]: _xasse }],
+		[0, { [_hH]: _xasc }],
+		[0, { [_hH]: _xawrl }],
+		[0, { [_hH]: _xasseca }],
+		[() => SSECustomerKey, { [_hH]: _xasseck }],
+		[0, { [_hH]: _xasseckM }],
+		[() => SSEKMSKeyId, { [_hH]: _xasseakki }],
+		[() => SSEKMSEncryptionContext, { [_hH]: _xassec }],
+		[2, { [_hH]: _xassebke }],
+		[0, { [_hH]: _xacssseca }],
+		[() => CopySourceSSECustomerKey, { [_hH]: _xacssseck }],
+		[0, { [_hH]: _xacssseckM }],
+		[0, { [_hH]: _xarp }],
+		[0, { [_hH]: _xat }],
+		[0, { [_hH]: _xaolm }],
+		[5, { [_hH]: _xaolrud }],
+		[0, { [_hH]: _xaollh }],
+		[0, { [_hH]: _xaebo }],
+		[0, { [_hH]: _xasebo }]
+	],
+	3
+];
+var CopyObjectResult$ = [
+	3,
+	n0,
+	_COR,
+	0,
+	[
+		_ET,
+		_LM,
+		_CT,
+		_CCRC,
+		_CCRCC,
+		_CCRCNVME,
+		_CSHA,
+		_CSHAh,
+		_CSHAhe,
+		_CMD,
+		_CXXHASH,
+		_CXXHASHh,
+		_CXXHASHhe
+	],
+	[
+		0,
+		4,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0
+	]
 ];
 var CreateSessionOutput$ = [
 	3,
@@ -9818,6 +10042,18 @@ var ObjectList = [
 	_OLb,
 	0,
 	[() => _Object$, 0]
+];
+var CopyObject$ = [
+	9,
+	n0,
+	_CO,
+	{ [_h]: [
+		"PUT",
+		"/{Key+}?x-id=CopyObject",
+		200
+	] },
+	() => CopyObjectRequest$,
+	() => CopyObjectOutput$
 ];
 var CreateSession$ = [
 	9,
@@ -11087,6 +11323,9 @@ var S3Client = class extends import_client.Client {
 	}
 };
 //#endregion
+//#region node_modules/@aws-sdk/client-s3/dist-es/commands/CopyObjectCommand.js
+var CopyObjectCommand = class extends command(_ep1, _mw1, "CopyObject", CopyObject$) {};
+//#endregion
 //#region node_modules/@aws-sdk/client-s3/dist-es/commands/DeleteObjectCommand.js
 var DeleteObjectCommand = class extends command(_ep0, _mw0, "DeleteObject", DeleteObject$) {};
 //#endregion
@@ -11096,4 +11335,4 @@ var ListObjectsV2Command = class extends command(_ep8, _mw0, "ListObjectsV2", Li
 //#region node_modules/@aws-sdk/client-s3/dist-es/commands/PutObjectCommand.js
 var PutObjectCommand = class extends command(_ep0, _mw11, "PutObject", PutObject$) {};
 //#endregion
-export { dist_es_exports as a, init_node_http_handler as c, require_protocols as d, dist_es_exports$3 as f, S3Client as i, dist_es_exports$1 as l, ListObjectsV2Command as n, init_dist_es as o, init_dist_es$2 as p, DeleteObjectCommand as r, NodeHttpHandler as s, PutObjectCommand as t, require_httpAuthSchemes as u };
+export { S3Client as a, NodeHttpHandler as c, require_httpAuthSchemes as d, require_protocols as f, CopyObjectCommand as i, init_node_http_handler as l, init_dist_es$2 as m, ListObjectsV2Command as n, dist_es_exports as o, dist_es_exports$3 as p, DeleteObjectCommand as r, init_dist_es as s, PutObjectCommand as t, dist_es_exports$1 as u };

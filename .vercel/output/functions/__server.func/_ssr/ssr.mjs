@@ -1,6 +1,6 @@
 import { r as __exportAll } from "../_runtime.mjs";
-import { t as __exportAll$1 } from "./rolldown-runtime-D7D4PA-g.mjs";
 import { A as executeRewriteInput, B as require_react, D as resolveManifestAssetLink, E as getStylesheetHref, F as isRedirect, I as isResolvedRedirect, L as parseRedirect, O as resolveManifestCssLink, R as rootRouteId, T as getScriptPreloadAttrs, a as isSsrResponse, b as require_jsx_runtime, c as stripSsrResponseBody, f as RouterProvider, i as disposeSsrResponseDetached, j as invariant, k as _getRenderedMatches, n as bindSsrResponseToRequest, o as normalizeSsrResponse, r as defineHandlerCallback, s as replaceSsrResponse, t as renderRouterToStream, z as isNotFound } from "../_libs/@tanstack/react-router+[...].mjs";
+import { t as __exportAll$1 } from "./rolldown-runtime-D7D4PA-g.mjs";
 import { n as createMemoryHistory } from "../_libs/tanstack__history.mjs";
 import { a as getOrigin, c as createSerializationAdapter, d as toCrossJSONAsync, f as toCrossJSONStream, i as getNormalizedURL, l as makeSerovalPlugin, n as mergeHeaders, o as defaultSerovalPlugins, r as attachRouterServerSsrUtils, s as createRawStreamRPCPlugin, t as waitForRequest, u as fromJSON } from "../_libs/@tanstack/router-core+[...].mjs";
 import { n as setCookie, r as toResponse, t as H3Event } from "../_libs/h3-v2+rou3.mjs";
@@ -106,7 +106,7 @@ var HEADERS = { TSS_SHELL: "X-TSS_SHELL" };
 * the dev styles URL for route-scoped CSS collection.
 */
 async function getStartManifest(matchedRoutes) {
-	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-VhaL5gFh.mjs");
+	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-UhIWATac.mjs");
 	const startManifest = tsrStartManifest();
 	let routes = startManifest.routes;
 	routes[rootRouteId];
@@ -128,31 +128,55 @@ async function getStartManifest(matchedRoutes) {
 var manifest = {
 	"08659e0d0d60384b044868cdfd6b5d78aac7aba6ca3e76a712a57aac1b061266": {
 		functionName: "addStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-gqBjZjhb.mjs")
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
+	},
+	"6419abad04b105db7e36894252b6619b53542483e9295a713c9ad8fd0458c6d0": {
+		functionName: "moveR2Object_createServerFn_handler",
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
+	},
+	"86faca5244608013bd67686cf60e5d0459a82e02de3fa9da95267f70f32d0bd4": {
+		functionName: "reorderStationTracks_createServerFn_handler",
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
 	},
 	"a0f574ca851bffce43b4e3ba655b29babab6d5b0703b3873a41409a03e7b9a6a": {
 		functionName: "hideStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-gqBjZjhb.mjs")
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
+	},
+	"ad177eb156e0e962cf763c344be8866b84009abc7a6c31f2269e1048d8e105ad": {
+		functionName: "pingServices_createServerFn_handler",
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
+	},
+	"b9c9fe0cca0befd3ae8bedbf69fee8d4a08b690b7d33de85aa2f47a155c3c7f0": {
+		functionName: "deleteR2Object_createServerFn_handler",
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
+	},
+	"cc74c64dc2667ff889d7baf82b14c6704c54a443ca298f5c60de9cf63700e054": {
+		functionName: "saveStation_createServerFn_handler",
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
 	},
 	"ce752a9c60416a0748de8ae86a006017f54ced857f2581ba1a9f7cfcce8bb3a9": {
 		functionName: "listCatalogEdits_createServerFn_handler",
-		importer: () => import("./desk-api-gqBjZjhb.mjs")
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
 	},
 	"d9c9172f364a7e534585135887b704f2b3b59298313c4af8e00a092debec0967": {
 		functionName: "deleteStationFile_createServerFn_handler",
-		importer: () => import("./desk-api-gqBjZjhb.mjs")
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
 	},
 	"d9e89e6e17ea4381b3ec922098d3fcb3e864b4b3b07789c439e701ed259ef683": {
 		functionName: "getRadioSession_createServerFn_handler",
-		importer: () => import("./desk-api-gqBjZjhb.mjs")
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
+	},
+	"da98c26cacb974e0e1405aa77e85814e3a2aec5b3a4e0b9e2e42c4119a20f587": {
+		functionName: "patchStationTrack_createServerFn_handler",
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
 	},
 	"df9d243e1b860c4496bba86a34cad4e87c50b6b7b199b0acf683fa5bc37e5c1f": {
 		functionName: "listStationR2_createServerFn_handler",
-		importer: () => import("./desk-api-gqBjZjhb.mjs")
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
 	},
 	"e4f922a88d85017fd6365e5b5442c3930c1905e0e4755d162c604c57f6992e91": {
 		functionName: "restoreStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-gqBjZjhb.mjs")
+		importer: () => import("./desk-api-mHN2gRAL.mjs")
 	}
 };
 async function getServerFnById(id, access) {
@@ -1422,7 +1446,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-ICW3tdWz.mjs").then((n) => n.t),
+		import("./router-DCyqcLgO.mjs").then((n) => n.t),
 		import("./start-5Z2QO8AU.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);

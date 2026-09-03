@@ -27,13 +27,9 @@ function SongPage() {
       <div className="mx-auto max-w-3xl px-4 py-16">
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-ember">Missing cut</p>
         <h1 className="mt-3 font-display text-4xl font-semibold">No such song</h1>
-        <Link to="/player" className="mt-6 inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-          Song directory
-        </Link>
       </div>
     );
   }
-
   if (song.locked) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16">
@@ -42,24 +38,16 @@ function SongPage() {
       </div>
     );
   }
-
   const playingHere = trackNow?.id === song.track.id && status === "playing";
-
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <div className="mx-auto max-w-3xl px-4 py-8 pb-44">
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Player</p>
       <div className="mt-6 flex gap-5">
-        <CoverArt
-          src={song.track.coverUrl || song.channel.cover}
-          alt=""
-          className="size-32 shrink-0 rounded-lg sm:size-40"
-        />
+        <CoverArt src={song.track.coverUrl || song.channel.cover} alt="" className="size-32 shrink-0 rounded-lg sm:size-40" />
         <div className="min-w-0">
           <h1 className="font-display text-4xl font-semibold tracking-tight">{song.track.title}</h1>
           <p className="mt-2 text-muted">{song.track.artist}</p>
-          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">
-            {formatClock(song.track.durationSec)}
-          </p>
+          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">{formatClock(song.track.durationSec)}</p>
         </div>
       </div>
       <div className="mt-6 flex flex-wrap gap-2">
@@ -71,11 +59,7 @@ function SongPage() {
           <Play className="size-4" />
           {playingHere ? "Playing" : "Play"}
         </button>
-        <Link
-          to="/channel/$slug"
-          params={{ slug: song.channel.slug }}
-          className="inline-flex h-12 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
-        >
+        <Link to="/channel/$slug" params={{ slug: song.channel.slug }} className="inline-flex h-12 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
           {song.channel.name}
         </Link>
       </div>

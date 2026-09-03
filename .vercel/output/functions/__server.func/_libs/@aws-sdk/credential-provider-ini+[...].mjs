@@ -18,7 +18,7 @@ var resolveCredentialSource = (credentialSource, profileName, logger) => {
 		},
 		Environment: async (options) => {
 			logger?.debug("@aws-sdk/credential-provider-ini - credential_source is Environment");
-			const { fromEnv } = await import("./client-s3+[...].mjs").then((n) => n.l);
+			const { fromEnv } = await import("./client-s3+[...].mjs").then((n) => n.u);
 			return async () => fromEnv(options)().then(setNamedProvider);
 		}
 	};

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useCurrentUserState, type AppUser } from "@/lib/auth/use-current-user";
 import { isAdminEmail } from "@/lib/admins";
 import { getRadioSession } from "@/lib/desk-api";
+import type { EnvLamp } from "@/lib/env-lamps";
 
 export type RadioClientUser = {
   id: string;
@@ -26,6 +27,7 @@ export function useRadioUser() {
   const [remote, setRemote] = useState<{
     user: RadioClientUser | null;
     r2Configured: boolean;
+    lamps: EnvLamp[];
   } | null>(null);
   const [remotePending, setRemotePending] = useState(true);
 
@@ -45,11 +47,12 @@ export function useRadioUser() {
               }
             : null,
           r2Configured: data.r2Configured,
+          lamps: data.lamps ?? [],
         });
       })
       .catch(() => {
         if (!alive) return;
-        setRemote({ user: null, r2Configured: false });
+        setRemote({ user: null, r2Configured: false, lamps: [] });
       })
       .finally(() => {
         if (alive) setRemotePending(false);
@@ -69,6 +72,7 @@ export function useRadioUser() {
     user,
     isAdmin: Boolean(user?.isAdmin),
     r2Configured: Boolean(remote?.r2Configured),
+    lamps: remote?.lamps ?? [],
     isPending: ba.isPending || remotePending,
   };
 }

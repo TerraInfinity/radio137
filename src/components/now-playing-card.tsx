@@ -9,14 +9,10 @@ export function NowPlayingCard({
   channel,
   track,
   statusLabel,
-  driving = false,
-  held = false,
 }: {
   channel: Channel;
   track: Track | null;
   statusLabel: string;
-  driving?: boolean;
-  held?: boolean;
 }) {
   const lockedCut = Boolean(track && isAdultTrack(track) && !isChannelNsfw(channel));
   if (!track || lockedCut) {
@@ -27,12 +23,9 @@ export function NowPlayingCard({
       </section>
     );
   }
-
   return (
-    <section className={cn("rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-border)]", (driving || held) && "booth-live")}>
-      <p className={cn("font-mono text-[10px] uppercase tracking-[0.18em]", driving || held ? "text-buzz" : "text-ember")}>
-        {driving ? "Driving" : held ? "DJ held" : "Now playing"}
-      </p>
+    <section className={cn("rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-border)]")}>
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ember">Now playing</p>
       <div className="mt-3 flex gap-4">
         <CoverArt src={track.coverUrl || channel.cover} alt="" className="size-24 shrink-0 rounded-md" />
         <div className="min-w-0 flex-1">

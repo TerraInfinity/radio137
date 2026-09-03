@@ -5,11 +5,7 @@ export function r2KeyFromAudioUrl(url: string): string | null {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase();
-    if (
-      host === "r2.terrainfinity.ca" ||
-      host.endsWith(".r2.dev") ||
-      host.endsWith(".r2.cloudflarestorage.com")
-    ) {
+    if (host === "r2.terrainfinity.ca" || host.endsWith(".r2.dev") || host.endsWith(".r2.cloudflarestorage.com")) {
       const key = decodeURIComponent(parsed.pathname.replace(/^\/+/, ""));
       return key || null;
     }

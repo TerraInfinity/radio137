@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { AdminAddTrack, AdminTrackTools } from "@/components/admin-track-tools";
-import { cn, formatClock } from "@/lib/cn";
+import { formatClock } from "@/lib/cn";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Track } from "@/lib/types";
 
@@ -54,39 +54,8 @@ export function UpcomingList({
           </button>
         ) : null}
       </div>
-
-      {!skipAllowed ? (
-        <p className="px-3 pb-1 font-mono text-[10px] uppercase tracking-[0.12em] text-buzz">Skip locked</p>
-      ) : null}
-
       {upcoming.length === 0 ? (
         <p className="px-3 pb-3 text-sm text-muted">Empty queue.</p>
-      ) : expanded ? (
-        <ol className="divide-y divide-line border-t border-line">
-          {visible.map((item) => (
-            <li key={item.id} className="flex items-center gap-1 px-2">
-              <button
-                type="button"
-                disabled={!skipAllowed}
-                onClick={() => void cueTrack(slug, item.id)}
-                className="flex min-h-11 min-w-0 flex-1 items-baseline justify-between gap-3 px-1 py-2 text-left disabled:opacity-60"
-              >
-                <span className="truncate font-display text-lg">{item.title}</span>
-                <span className="shrink-0 font-mono text-[11px] tabular-nums text-subtle">
-                  {formatClock(item.durationSec)}
-                </span>
-              </button>
-              <Link
-                to="/player/$id"
-                params={{ id: item.id }}
-                className="inline-flex h-11 shrink-0 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
-              >
-                Open
-              </Link>
-              <AdminTrackTools slug={slug} track={item} compact />
-            </li>
-          ))}
-        </ol>
       ) : (
         <ol className="border-t border-line px-3 py-1">
           {visible.map((item, index) => (
@@ -99,10 +68,15 @@ export function UpcomingList({
               >
                 <span className="w-3.5 shrink-0 font-mono text-[10px] tabular-nums text-subtle">{index + 1}</span>
                 <span className="min-w-0 flex-1 truncate text-sm text-muted">{item.title}</span>
-                <span className="shrink-0 font-mono text-[10px] tabular-nums text-subtle">
-                  {formatClock(item.durationSec)}
-                </span>
+                <span className="shrink-0 font-mono text-[10px] tabular-nums text-subtle">{formatClock(item.durationSec)}</span>
               </button>
+              <Link
+                to="/player/$id"
+                params={{ id: item.id }}
+                className="inline-flex h-11 shrink-0 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+              >
+                Open
+              </Link>
               <AdminTrackTools slug={slug} track={item} compact />
             </li>
           ))}

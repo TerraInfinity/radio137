@@ -1,4 +1,4 @@
-const KEY = "radio.persist.v2";
+const KEY = "radio.persist.v3";
 
 export type Persisted = {
   autoplay: boolean;
@@ -9,7 +9,7 @@ export type Persisted = {
   identityName: string | null;
 };
 
-const empty: Persisted = {
+const defaults: Persisted = {
   autoplay: true,
   lastSlug: null,
   visited: false,
@@ -19,20 +19,21 @@ const empty: Persisted = {
 };
 
 export function loadPersisted(): Persisted {
-  if (typeof window === "undefined") return empty;
+  if (typeof window === "undefined") return defaults;
   try {
     const raw = window.localStorage.getItem(KEY);
-    if (!raw) return empty;
-    return { ...empty, ...(JSON.parse(raw) as Partial<Persisted>) };
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw) as Partial<Persisted>;
+    return { ...defaults, ...parsed };
   } catch {
-    return empty;
+    return defaults;
   }
 }
 
-export function savePersisted(next: Persisted) {
+export function savePersisted(value: Persisted) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(next));
+    window.localStorage.setItem(KEY, JSON.stringify(value));
   } catch {
     /* ignore */
   }
