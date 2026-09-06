@@ -7,6 +7,7 @@ import {
   DEFAULT_SSO_HUB,
   hubStartUrl,
   normalizeHubOrigin,
+  pickPublicHostHeader,
   publicOriginFromHost,
   safeNext,
   ssoCookieDomain,
@@ -48,9 +49,37 @@ function sessionSecret(): Uint8Array {
   return new TextEncoder().encode(raw);
 }
 
+function configuredPublicOrigin(): string {
+  return envTrim("SSO_PUBLIC_ORIGIN") || envTrim("PUBLIC_ORIGIN") || envTrim("RADIO_PUBLIC_ORIGIN");
+}
+
 function hostHeader(request: Request): string {
   const url = new URL(request.url);
-  return request.headers.get("x-forwarded-host") || request.headers.get("host") || url.host;
+  let refererHost = "";
+  const referer = request.headers.get("referer");
+  if (referer) {
+    try {
+      refererHost = new URL(referer).host;
+    } catch {
+      /* ignore */
+    }
+  }
+  let originHost = "";
+  const origin = request.headers.get("origin");
+  if (origin) {
+    try {
+      originHost = new URL(origin).host;
+    } catch {
+      /* ignore */
+    }
+  }
+  return pickPublicHostHeader([
+    request.headers.get("x-forwarded-host"),
+    request.headers.get("host"),
+    originHost,
+    refererHost,
+    url.host,
+  ]);
 }
 
 function protoHeader(request: Request): string {
@@ -59,7 +88,7 @@ function protoHeader(request: Request): string {
 }
 
 export function requestOrigin(request: Request): string {
-  return publicOriginFromHost(hostHeader(request), protoHeader(request));
+  return publicOriginFromHost(hostHeader(request), protoHeader(request), configuredPublicOrigin());
 }
 
 export function publicOrigin(request: Request): string {
