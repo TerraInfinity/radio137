@@ -249,15 +249,22 @@ export async function patchTrack(
 ) {
   if (input.slug || input.aliases) {
     const { slugify } = await import("@/lib/cn");
-    const { slugTaken } = await import("@/lib/song-url");
+    const { isReservedPublicPath, slugTaken } = await import("@/lib/song-url");
     const catalog = await liveCatalog();
     const want = slugify(input.slug || "");
+    if (want && isReservedPublicPath(want)) {
+      throw new Error(`“${want}” is a reserved path. Use another public URL ending.`);
+    }
     if (want && slugTaken(catalog, want, input.trackId)) {
       throw new Error(`Slug “${want}” is already used by another cut`);
     }
     for (const alias of (input.aliases || "").split(/[,;\n]+/)) {
       const key = slugify(alias);
-      if (key && slugTaken(catalog, key, input.trackId)) {
+      if (!key) continue;
+      if (isReservedPublicPath(key)) {
+        throw new Error(`Alias “${key}” is a reserved path (player, channel, desk, library, login, about, api…). Pick another ending.`);
+      }
+      if (slugTaken(catalog, key, input.trackId)) {
         throw new Error(`Alias “${key}” is already used by another cut`);
       }
     }

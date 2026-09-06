@@ -7,6 +7,7 @@ import { ShareLink } from "@/components/share-link";
 import { TrackActions } from "@/components/track-actions";
 import { getSong, stationsForSong } from "@/lib/catalog";
 import { formatClock } from "@/lib/cn";
+import { ensureLiveCatalog } from "@/lib/live-catalog";
 import { downloadName } from "@/lib/search";
 import { ssoLoginHref, useRadioUser } from "@/lib/radio-user";
 import { songKey, songPath } from "@/lib/song-url";
@@ -14,7 +15,12 @@ import { usePlayerStore } from "@/lib/player-store";
 
 export const Route = createFileRoute("/player/$id")({
   component: SongPage,
-  beforeLoad: ({ params }) => {
+  beforeLoad: async ({ params }) => {
+    try {
+      await ensureLiveCatalog();
+    } catch {
+      /* seed catalog */
+    }
     const song = getSong(params.id);
     if (!song) return;
     const canonical = songKey(song.track);
@@ -102,6 +108,19 @@ function SongPage() {
       <div className="mt-4">
         <ShareLink path={songPath(song.track)} title={song.track.title} />
       </div>
+      {song.track.aliases && song.track.aliases.length > 0 ? (
+        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+          Short links{" "}
+          {song.track.aliases.map((alias, index) => (
+            <span key={alias}>
+              {index ? " · " : ""}
+              <a href={`/${alias}`} className="text-gold">
+                /{alias}
+              </a>
+            </span>
+          ))}
+        </p>
+      ) : null}
       <div className="mt-6 flex flex-wrap gap-2">
         <button
           type="button"

@@ -191,15 +191,17 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
             placeholder={slugify(title) || "karma-7-hari-singh-ong-namo"}
           />
           <span className="mt-1 block font-mono text-[10px] text-subtle">/player/{slugify(publicSlug || title) || "…"}</span>
-          <span className="mt-1 block text-sm text-muted">Blank uses the song title. Station ids are not public URLs.</span>
+          <span className="mt-1 block text-sm text-muted">Canonical player URL. Blank uses the song title. Same on radio.cyber-athens.ca and radio.terrainfinity.ca.</span>
           <button type="button" onClick={() => setPublicSlug(slugify(title))} className="mt-1 inline-flex h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
             Use title
           </button>
         </label>
         <label className="block">
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Aliases</span>
-          <input className="input mt-1" value={aliases} onChange={(event) => setAliases(event.target.value)} placeholder="ong-namo, karma-7" />
-          <span className="mt-1 block text-sm text-muted">Extra endings that open this same cut. Directory copies still keep their files.</span>
+          <input className="input mt-1" value={aliases} onChange={(event) => setAliases(event.target.value)} placeholder="hari, gong, ong-namo" />
+          <span className="mt-1 block text-sm text-muted">
+            Extra URL endings guests can type. hari → /hari and /player/hari both open this cut on radio.cyber-athens.ca and radio.terrainfinity.ca. Comma-separated. Does not rename the file or the display title.
+          </span>
         </label>
         <label className="block">
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Tags</span>
