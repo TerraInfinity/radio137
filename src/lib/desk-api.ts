@@ -99,7 +99,11 @@ export const patchStationTrack = createServerFn({ method: "POST" })
         title: z.string().optional(),
         artist: z.string().optional(),
         audioUrl: z.string().optional(),
+        coverUrl: z.string().optional(),
         durationSec: z.number().optional(),
+        tags: z.string().optional(),
+        slug: z.string().optional(),
+        aliases: z.string().optional(),
       })
       .parse(input),
   )
@@ -107,6 +111,17 @@ export const patchStationTrack = createServerFn({ method: "POST" })
     const { patchTrack } = await import("@/lib/catalog-edits.server");
     const edit = await patchTrack(context.user, data);
     return { edit, ...(await snapshot()) };
+  });
+
+export const renameStationFile = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z.object({ channelSlug: z.string().min(1), trackId: z.string().min(1), toKey: z.string().min(1) }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { renameTrackFile } = await import("@/lib/catalog-edits.server");
+    const object = await renameTrackFile(context.user, data);
+    return { object, ...(await snapshot()) };
   });
 
 export const reorderStationTracks = createServerFn({ method: "POST" })
@@ -117,6 +132,33 @@ export const reorderStationTracks = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { reorderTracks } = await import("@/lib/catalog-edits.server");
     await reorderTracks(context.user, data.channelSlug, data.trackIds);
+    return snapshot();
+  });
+
+export const placeStationTrack = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z
+      .object({
+        fromSlug: z.string().min(1),
+        trackId: z.string().min(1),
+        toSlug: z.string().min(1),
+        mode: z.enum(["copy", "move"]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { placeTrack } = await import("@/lib/catalog-edits.server");
+    await placeTrack(context.user, data);
+    return snapshot();
+  });
+
+export const setFeaturedRail = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) => z.object({ slugs: z.array(z.string()) }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { setFeaturedOrder } = await import("@/lib/catalog-edits.server");
+    await setFeaturedOrder(context.user, data.slugs);
     return snapshot();
   });
 
@@ -168,6 +210,8 @@ export const saveStation = createServerFn({ method: "POST" })
         enabled: z.boolean().optional(),
         nsfw: z.boolean().optional(),
         tags: z.string().optional(),
+        shuffle: z.enum(["off", "optional", "on"]).optional(),
+        claimable: z.boolean().optional(),
       })
       .parse(input),
   )
@@ -216,6 +260,55 @@ export const deleteR2Object = createServerFn({ method: "POST" })
     const { deleteR2Key } = await import("@/lib/r2.server");
     await deleteR2Key(data.key);
     return { ok: true as const };
+  });
+
+export const listCutGroups = createServerFn({ method: "GET" }).handler(async () => {
+  const { listCutGroups: list } = await import("@/lib/cuts.server");
+  return { groups: await list() };
+});
+
+export const mergeStationCuts = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z.object({ canonicalId: z.string().min(1), memberIds: z.array(z.string().min(1)).min(1) }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { mergeCuts } = await import("@/lib/cuts.server");
+    const groups = await mergeCuts(context.user, data.canonicalId, data.memberIds);
+    return { groups };
+  });
+
+export const mergeStationCutClusters = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clusters: z.array(z.object({ canonicalId: z.string().min(1), memberIds: z.array(z.string().min(1)).min(1) })).min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { mergeCutClusters } = await import("@/lib/cuts.server");
+    const groups = await mergeCutClusters(context.user, data.clusters);
+    return { groups };
+  });
+
+export const unmergeStationCut = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) => z.object({ memberId: z.string().min(1) }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { unmergeCut } = await import("@/lib/cuts.server");
+    const groups = await unmergeCut(context.user, data.memberId);
+    return { groups };
+  });
+
+export const dissolveStationCut = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) => z.object({ canonicalId: z.string().min(1) }).parse(input))
+  .handler(async ({ data }) => {
+    const { dissolveCut } = await import("@/lib/cuts.server");
+    const groups = await dissolveCut(data.canonicalId);
+    return { groups };
   });
 
 export const pingServices = createServerFn({ method: "GET" })

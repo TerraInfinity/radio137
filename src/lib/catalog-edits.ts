@@ -1,5 +1,6 @@
 import type { Catalog, Channel, Track } from "@/lib/types";
-import { normalizeKind } from "@/lib/catalog";
+import { normalizeKind, normalizeShuffle, parseTags } from "@/lib/catalog";
+import { parseAliases } from "@/lib/song-url";
 
 export type CatalogEdit = {
   channelSlug: string;
@@ -14,6 +15,9 @@ export type CatalogEdit = {
   audioUrl: string | null;
   coverUrl: string | null;
   r2Key: string | null;
+  tags: string | null;
+  slug: string | null;
+  aliases: string | null;
 };
 
 export type StationEdit = {
@@ -32,6 +36,8 @@ export type StationEdit = {
   enabled: boolean | null;
   nsfw: boolean | null;
   tags: string | null;
+  shuffle: string | null;
+  claimable: boolean | null;
 };
 
 export function applyCatalogEdits(
@@ -80,6 +86,9 @@ export function applyCatalogEdits(
         coverUrl: patch?.coverUrl || track.coverUrl,
         durationSec: patch?.durationSec && patch.durationSec > 0 ? patch.durationSec : track.durationSec,
         enabled: gone ? false : track.enabled,
+        tags: patch?.tags != null ? parseTags(patch.tags) : track.tags,
+        slug: patch?.slug != null ? patch.slug || undefined : track.slug,
+        aliases: patch?.aliases != null ? parseAliases(patch.aliases) : track.aliases,
       };
       return next;
     });
@@ -97,6 +106,9 @@ export function applyCatalogEdits(
             nsfw: false,
             enabled: true,
             playback: "file",
+            tags: parseTags(edit.tags),
+            slug: edit.slug || undefined,
+            aliases: parseAliases(edit.aliases),
           }),
         ),
     );
@@ -124,6 +136,8 @@ export function applyCatalogEdits(
       enabled: station?.hidden ? false : (station?.enabled ?? channel.enabled),
       nsfw: station?.nsfw ?? channel.nsfw,
       tags: station?.tags ? station.tags.split(",").map((item) => item.trim()).filter(Boolean) : channel.tags,
+      shuffle: station?.shuffle ? normalizeShuffle(station.shuffle) : normalizeShuffle(channel.shuffle),
+      claimable: station?.claimable ?? channel.claimable,
       tracks: ordered,
     };
   });
@@ -144,6 +158,9 @@ export function applyCatalogEdits(
         nsfw: false,
         enabled: true,
         playback: "file",
+        tags: parseTags(edit.tags),
+        slug: edit.slug || undefined,
+        aliases: parseAliases(edit.aliases),
       }));
       const hasOrder = extra.some((edit) => edit.sortOrder != null);
       const ordered = hasOrder
@@ -167,9 +184,10 @@ export function applyCatalogEdits(
         category: station.category || "Custom",
         featured: station.featured ?? false,
         featuredRank: station.featuredRank ?? 99,
-        claimable: false,
+        claimable: station.claimable ?? false,
         skin: "none",
         nsfw: station.nsfw ?? false,
+        shuffle: normalizeShuffle(station.shuffle),
         tracks: ordered,
       };
     });

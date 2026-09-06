@@ -1,6 +1,7 @@
 import seed from "@/data/catalog.json";
 import { durationOf, rememberDuration } from "@/lib/playback";
-import type { Catalog, Channel, StationKind, Track } from "@/lib/types";
+import { findSong } from "@/lib/song-url";
+import type { Catalog, Channel, ShuffleMode, StationKind, Track } from "@/lib/types";
 
 const seedCatalog = seed as Catalog;
 let catalog = seedCatalog;
@@ -46,6 +47,50 @@ export function kindHint(kind: string): string {
   return "Clockwork. Shared station clock.";
 }
 
+export function normalizeShuffle(value: string | null | undefined): ShuffleMode {
+  const raw = (value ?? "").toLowerCase().trim();
+  if (raw === "on" || raw === "always" || raw === "true" || raw === "shuffle") return "on";
+  if (raw === "off" || raw === "false" || raw === "none") return "off";
+  if (raw === "optional" || raw === "allow" || raw === "listener") return "optional";
+  return "optional";
+}
+
+export function shuffleLabel(mode: ShuffleMode): string {
+  if (mode === "on") return "Always shuffle";
+  if (mode === "off") return "Playlist order";
+  return "Listeners can shuffle";
+}
+
+export function shuffleHint(mode: ShuffleMode): string {
+  if (mode === "on") return "Every listener hears a shuffled mix. The next cut is never the one that just played.";
+  if (mode === "off") return "Locked playlist order — for start-to-finish experiences. No shuffle toggle.";
+  return "Guests can flip between playlist order and a mix. Experiences that need a sequence should stay on playlist order.";
+}
+
+export function shuffleActive(channel: Channel | undefined | null, listenerPref: boolean): boolean {
+  if (!channel) return false;
+  const mode = normalizeShuffle(channel.shuffle);
+  if (mode === "on") return true;
+  if (mode === "off") return false;
+  return listenerPref;
+}
+
+export function parseTags(value: string | null | undefined): string[] {
+  if (!value) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of value.split(/[,;]+/)) {
+    const tag = raw.trim().replace(/\s+/g, " ");
+    if (!tag) continue;
+    const key = tag.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(tag);
+    if (out.length >= 16) break;
+  }
+  return out;
+}
+
 export function listChannels(): Channel[] {
   return catalog.channels;
 }
@@ -86,10 +131,10 @@ export function getPlayableTracks(channel: Channel | undefined | null): Track[] 
   );
 }
 
-export function listPublicSongs(): Array<{ track: Track; channel: Channel }> {
+export function listPublicSongs(source: Catalog = catalog): Array<{ track: Track; channel: Channel }> {
   const rows: Array<{ track: Track; channel: Channel }> = [];
   const seen = new Set<string>();
-  for (const channel of catalog.channels) {
+  for (const channel of source.channels) {
     if (!channel.enabled || isChannelNsfw(channel)) continue;
     for (const track of getPlayableTracks(channel)) {
       if (seen.has(track.id)) continue;
@@ -101,11 +146,13 @@ export function listPublicSongs(): Array<{ track: Track; channel: Channel }> {
 }
 
 export function getSong(id: string) {
-  for (const channel of catalog.channels) {
-    const track = channel.tracks.find((item) => item.id === id);
-    if (track) return { track, channel, locked: isAdultTrack(track) && !isChannelNsfw(channel) };
-  }
-  return null;
+  const found = findSong(catalog, id);
+  if (!found) return null;
+  return { ...found, locked: isAdultTrack(found.track) && !isChannelNsfw(found.channel) };
+}
+
+export function stationsForSong(id: string): Channel[] {
+  return catalog.channels.filter((channel) => channel.enabled && channel.tracks.some((track) => track.id === id && track.enabled !== false));
 }
 
 export function stationSkin(channel: Channel): "glaum" | "waheguru" | "buzz" | "none" {

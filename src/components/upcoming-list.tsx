@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { AdminAddTrack, AdminTrackTools } from "@/components/admin-track-tools";
 import { formatClock } from "@/lib/cn";
 import { durationOf } from "@/lib/playback";
+import { songKey } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Track } from "@/lib/types";
 
@@ -73,7 +74,7 @@ export function UpcomingList({
               </button>
               <Link
                 to="/player/$id"
-                params={{ id: item.id }}
+                params={{ id: songKey(item) }}
                 className="inline-flex h-11 shrink-0 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
               >
                 Open

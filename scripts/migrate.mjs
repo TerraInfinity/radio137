@@ -18,7 +18,7 @@ import { dirname, join } from "node:path";
 import pg from "pg";
 import { pendingMigrations } from "./migration-plan.mjs";
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseUrl = (process.env.DATABASE_URL || "").trim();
 if (!databaseUrl) {
   console.log(
     "[migrate] DATABASE_URL not set — skipping (the PGLite fallback migrates itself).",
@@ -28,6 +28,42 @@ if (!databaseUrl) {
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "migrations");
 
+function sqlStatements(text) {
+  const stripped = text
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .map((line) => (line.trim().startsWith("--") ? "" : line))
+    .join("\n");
+  return stripped
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function isIgnorable(err) {
+  const code = err?.code;
+  const message = String(err?.message || "");
+  return (
+    code === "42701" ||
+    code === "42P07" ||
+    code === "42710" ||
+    /already exists/i.test(message)
+  );
+}
+
+async function connect(pool, attempts = 3) {
+  let last;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await pool.connect();
+    } catch (err) {
+      last = err;
+      await new Promise((resolve) => setTimeout(resolve, 400 * (i + 1)));
+    }
+  }
+  throw last;
+}
+
 async function main() {
   let entries;
   try {
@@ -36,14 +72,17 @@ async function main() {
     console.log("[migrate] no migrations/ directory — nothing to do.");
     return;
   }
-  // An app with no schema of its own must not pay for a database connection.
   if (pendingMigrations(entries, []).length === 0) {
     console.log("[migrate] no migrations — nothing to do.");
     return;
   }
 
-  const pool = new pg.Pool({ connectionString: databaseUrl, max: 1 });
-  const client = await pool.connect();
+  const pool = new pg.Pool({
+    connectionString: databaseUrl,
+    max: 1,
+    connectionTimeoutMillis: 20000,
+  });
+  const client = await connect(pool);
   try {
     await client.query(
       "CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())",
@@ -57,9 +96,17 @@ async function main() {
       const text = await readFile(join(migrationsDir, name), "utf8");
       try {
         await client.query("BEGIN");
-        // pg's simple-query protocol runs a whole multi-statement file at once.
-        await client.query(text);
-        await client.query("INSERT INTO _migrations (name) VALUES ($1)", [name]);
+        for (const stmt of sqlStatements(text)) {
+          try {
+            await client.query(stmt);
+          } catch (err) {
+            if (!isIgnorable(err)) throw err;
+          }
+        }
+        await client.query(
+          "INSERT INTO _migrations (name) VALUES ($1) ON CONFLICT (name) DO NOTHING",
+          [name],
+        );
         await client.query("COMMIT");
       } catch (err) {
         console.error(`[migrate] error applying ${name}`);
@@ -82,7 +129,6 @@ async function main() {
 
 main().catch((err) => {
   console.error("[migrate] failed:", err?.message || err);
-  // pg errors carry the context needed to debug a bad SQL file.
   for (const key of ["code", "detail", "hint", "position", "where"]) {
     if (err?.[key] != null) console.error(`[migrate]   ${key}: ${err[key]}`);
   }

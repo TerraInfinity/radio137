@@ -134,6 +134,34 @@ export function neighborTrack(tracks: Track[], id: string, dir: 1 | -1, wrap = f
   return tracks[next];
 }
 
+/** Next cut in playlist order. Never returns `fromId` unless the desk has only one playable. */
+export function nextForward(tracks: Track[], fromId: string | null | undefined, avoidId?: string | null): Track | null {
+  if (tracks.length === 0) return null;
+  const start = fromId ? tracks.findIndex((track) => track.id === fromId) : -1;
+  for (let n = 1; n <= tracks.length; n++) {
+    const track = tracks[(Math.max(start, 0) + n) % tracks.length];
+    if (!track) continue;
+    if (track.id === fromId && tracks.length > 1) continue;
+    if (avoidId && track.id === avoidId && tracks.length > 1) continue;
+    return track;
+  }
+  return tracks[0] ?? null;
+}
+
+/** Random next cut. Avoids the current id and a short recent window so a mix does not stutter. */
+export function nextShuffled(tracks: Track[], fromId: string | null | undefined, recent: readonly string[] = []): Track | null {
+  if (tracks.length === 0) return null;
+  if (tracks.length === 1) return tracks[0];
+  const hold = Math.min(Math.max(1, Math.floor(tracks.length / 4)), 8);
+  const banned = new Set<string>();
+  if (fromId) banned.add(fromId);
+  for (const id of recent.slice(-hold)) banned.add(id);
+  const pool = tracks.filter((track) => !banned.has(track.id));
+  const source = pool.length > 0 ? pool : tracks.filter((track) => track.id !== fromId);
+  const pick = source.length > 0 ? source : tracks;
+  return pick[Math.floor(Math.random() * pick.length)] ?? tracks[0];
+}
+
 /** Walk forward from a cut when this file's audio is spent but leftover seconds remain. */
 export function walkFrom(
   tracks: Track[],

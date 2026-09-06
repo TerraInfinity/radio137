@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Pause, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { CoverArt } from "@/components/cover-art";
+import { ShuffleToggle } from "@/components/shuffle-toggle";
 import { TrackActions } from "@/components/track-actions";
 import { getChannel, stationSkin } from "@/lib/catalog";
 import { cn, formatClock } from "@/lib/cn";
@@ -66,6 +67,7 @@ export function MiniPlayer() {
             </p>
           </div>
           <AutoplayLamp />
+          {channel ? <ShuffleToggle channel={channel} compact /> : null}
           <button
             type="button"
             disabled={!canSkip}

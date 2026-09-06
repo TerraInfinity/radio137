@@ -9,11 +9,14 @@ import {
   normalizeKind,
   patchTrackDuration,
   setLiveCatalog,
+  shuffleActive,
   stationSkin,
+  normalizeShuffle,
 } from "@/lib/catalog";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
-import { durationOf, neighborTrack, rememberDuration, resolveLivePlayhead, walkFrom } from "@/lib/playback";
-import { radioEngine } from "@/lib/radio-engine";
+import type { CutGroup } from "@/lib/cuts";
+import { durationOf, neighborTrack, nextForward, nextShuffled, rememberDuration, resolveLivePlayhead, walkFrom } from "@/lib/playback";
+import { endPad, radioEngine } from "@/lib/radio-engine";
 import { loadPersisted, savePersisted } from "@/lib/storage";
 import type { Catalog, Channel, ClaimRecord, Identity, Track } from "@/lib/types";
 
@@ -42,6 +45,9 @@ type PlayerState = {
   favorites: string[];
   views: Record<string, number>;
   likeCounts: Record<string, number>;
+  shuffle: boolean;
+  shuffleBySlug: Record<string, boolean>;
+  cutGroups: CutGroup[];
   hydrate: () => void;
   enterGate: () => void;
   tuneIn: (slug: string, opts?: { forcePlay?: boolean }) => Promise<void>;
@@ -53,12 +59,14 @@ type PlayerState = {
   setVolume: (volume: number) => void;
   toggleMute: () => void;
   setAutoplay: (value: boolean) => void;
+  toggleShuffle: (slug?: string) => void;
   setPlayerCollapsed: (value: boolean) => void;
   setIdentityName: (name: string) => void;
   claimChannel: (slug: string, minutes: number) => void;
   releaseClaim: (slug: string) => void;
   skipAllowed: (slug: string) => boolean;
   replaceCatalog: (catalog: Catalog) => void;
+  replaceCutGroups: (groups: CutGroup[]) => void;
   toggleLike: (trackId: string) => void;
   toggleFavorite: (trackId: string) => void;
   collectGlaumule: (amount?: number) => void;
@@ -69,8 +77,9 @@ let consecutiveErrors = 0;
 let loadLock: Promise<void> | null = null;
 let engineBound = false;
 let justEndedId: string | null = null;
-let localDetour = false;
+let userPaused = false;
 const viewed = new Set<string>();
+const recents: string[] = [];
 
 function persist() {
   const s = usePlayerStore.getState();
@@ -85,6 +94,7 @@ function persist() {
     glaumules: s.glaumules,
     liked: s.liked,
     favorites: s.favorites,
+    shuffleBySlug: s.shuffleBySlug,
   });
 }
 
@@ -101,6 +111,20 @@ function drivingDesk(slug: string | null): boolean {
   return claim.claimantId === state.identity?.id;
 }
 
+function rememberRecent(id: string) {
+  if (recents[recents.length - 1] === id) return;
+  recents.push(id);
+  if (recents.length > 40) recents.splice(0, recents.length - 40);
+}
+
+function pickNext(channel: Channel | undefined, playable: Track[], currentId: string | null | undefined): Track | null {
+  const pref = channel ? Boolean(usePlayerStore.getState().shuffleBySlug[channel.slug]) : false;
+  if (channel && shuffleActive(channel, pref)) {
+    return nextShuffled(playable, currentId, recents);
+  }
+  return nextForward(playable, currentId, justEndedId);
+}
+
 function bindEngine() {
   if (engineBound || typeof window === "undefined") return;
   engineBound = true;
@@ -113,13 +137,16 @@ function bindEngine() {
         duration: duration > 0 ? duration : usePlayerStore.getState().duration,
       });
     },
-    onEnded: (measured) => {
+    onEnded: (measured, fileDuration) => {
       const track = usePlayerStore.getState().track;
-      if (track && measured > 0.25) {
-        rememberDuration(track.id, measured);
-        patchTrackDuration(track.id, measured);
-        justEndedId = track.id;
+      const known = fileDuration > 0 ? fileDuration : measured;
+      const pad = endPad(known);
+      const natural = known > 0 && known - measured <= Math.max(pad, 1.5);
+      if (track && natural && measured > 0.25) {
+        rememberDuration(track.id, Math.min(known, Math.max(measured, 0.25)));
+        patchTrackDuration(track.id, Math.min(known, measured));
       }
+      if (track) justEndedId = track.id;
       void usePlayerStore.getState().next("ended");
     },
     onError: () => {
@@ -135,22 +162,15 @@ async function loadTrack(
   play: boolean,
   set: (partial: Partial<PlayerState>) => void,
   hops = 0,
+  mode: "join" | "flow" = "flow",
 ) {
   bindEngine();
   if (justEndedId && track.id === justEndedId && hops === 0) {
     const channel = channelOf(slug);
     const playable = getPlayableTracks(channel);
-    const kind = channel ? normalizeKind(channel.kind || channel.mode) : "live";
-    if (kind === "live" && !drivingDesk(slug)) {
-      const head = resolveLivePlayhead(playable, Date.now(), slug, justEndedId);
-      if (head && head.track.id !== track.id) {
-        await loadTrack(slug, head.track, head.offsetSec, play, set, hops + 1);
-        return;
-      }
-    }
-    const nxt = neighborTrack(playable, track.id, 1, true);
+    const nxt = pickNext(channel, playable, track.id);
     if (nxt && nxt.id !== track.id) {
-      await loadTrack(slug, nxt, 0, play, set, hops + 1);
+      await loadTrack(slug, nxt, 0, play, set, hops + 1, "flow");
       return;
     }
   }
@@ -169,30 +189,31 @@ async function loadTrack(
     return;
   }
   if (result.kind === "skip") {
-    rememberDuration(track.id, result.duration);
-    patchTrackDuration(track.id, result.duration);
-    if (hops >= 16) {
-      const channel = channelOf(slug);
-      const playable = getPlayableTracks(channel);
-      const nxt = neighborTrack(playable, track.id, 1, true);
-      if (nxt && nxt.id !== track.id) {
-        await loadTrack(slug, nxt, 0, play, set, hops + 1);
-        return;
-      }
-      set({ status: play ? "playing" : "paused", duration: result.duration });
-      return;
+    if (result.duration > 0.25) {
+      rememberDuration(track.id, result.duration);
+      patchTrackDuration(track.id, result.duration);
     }
-    const leftover = result.leftover;
     const channel = channelOf(slug);
     const playable = getPlayableTracks(channel);
-    const walked = walkFrom(playable, track.id, leftover, justEndedId);
-    if (walked && walked.track.id !== track.id) {
-      await loadTrack(slug, walked.track, walked.offsetSec, play, set, hops + 1);
+    if (hops >= 16) {
+    const nxt = pickNext(channel, playable, track.id);
+    if (nxt && nxt.id !== track.id) {
+      await loadTrack(slug, nxt, 0, play, set, hops + 1, "flow");
       return;
     }
-    const nxt = neighborTrack(playable, track.id, 1, true);
+    set({ status: play ? "playing" : "paused", duration: result.duration });
+    return;
+    }
+    if (mode === "join") {
+      const walked = walkFrom(playable, track.id, result.leftover, justEndedId);
+      if (walked && walked.track.id !== track.id) {
+        await loadTrack(slug, walked.track, walked.offsetSec, play, set, hops + 1, "join");
+        return;
+      }
+    }
+    const nxt = pickNext(channel, playable, track.id);
     if (nxt && nxt.id !== track.id) {
-      await loadTrack(slug, nxt, 0, play, set, hops + 1);
+      await loadTrack(slug, nxt, 0, play, set, hops + 1, "flow");
       return;
     }
     set({ status: "paused", duration: result.duration });
@@ -203,12 +224,17 @@ async function loadTrack(
   consecutiveErrors = 0;
   if (justEndedId && track.id !== justEndedId) justEndedId = null;
   const playing = play && !radioEngine.snapshot().paused;
+  if (playing) userPaused = false;
+  rememberRecent(track.id);
   set({
     status: playing ? "playing" : "paused",
     currentTime: result.currentTime,
     duration: result.duration,
   });
   if (playing) usePlayerStore.getState().bumpView(track.id);
+  const channel = channelOf(slug);
+  const nxt = pickNext(channel, getPlayableTracks(channel), track.id);
+  if (nxt?.audioUrl && nxt.id !== track.id) radioEngine.warm(nxt.audioUrl);
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -234,6 +260,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   favorites: [],
   views: {},
   likeCounts: {},
+  shuffle: false,
+  shuffleBySlug: {},
+  cutGroups: [],
 
   hydrate: () => {
     bindEngine();
@@ -252,13 +281,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       glaumules: p.glaumules,
       liked: p.liked,
       favorites: p.favorites,
+      shuffleBySlug: p.shuffleBySlug,
     });
     radioEngine.setGain(p.volume, false);
     if (p.visited && p.lastSlug) void get().tuneIn(p.lastSlug);
     void import("@/lib/desk-api")
-      .then(({ listCatalogEdits }) => listCatalogEdits())
-      .then((data) => {
+      .then(({ listCatalogEdits, listCutGroups }) => Promise.all([listCatalogEdits(), listCutGroups()]))
+      .then(([data, cuts]) => {
         get().replaceCatalog(applyCatalogEdits(getSeedCatalog(), data.tracks, data.stations));
+        get().replaceCutGroups(cuts.groups);
       })
       .catch(() => {
         /* seed is enough */
@@ -278,7 +309,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             glaumules: s.glaumules,
             autoplay: s.autoplay,
             justEndedId,
-            localDetour,
+            userPaused,
             driving: drivingDesk(s.channelSlug),
           };
         },
@@ -335,23 +366,30 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       set({ channelSlug: slug, track: null, status: "off-air" });
       return;
     }
-    if (opts?.forcePlay) set({ autoplay: true });
-    const play = get().autoplay || Boolean(opts?.forcePlay);
+    if (opts?.forcePlay) {
+      set({ autoplay: true });
+      userPaused = false;
+    }
+    const play = !userPaused && (get().autoplay || Boolean(opts?.forcePlay));
     const kind = normalizeKind(channel.kind || channel.mode);
-    localDetour = false;
+    const mixing = shuffleActive(channel, Boolean(get().shuffleBySlug[slug]));
+    if (slug !== get().channelSlug) justEndedId = null;
     const run = async () => {
       if (kind === "live") {
         const head = resolveLivePlayhead(playable, Date.now(), slug, justEndedId);
         const track = head?.track ?? playable[0];
         const offset = head?.offsetSec ?? 0;
-        await loadTrack(slug, track, offset, play, set);
+        await loadTrack(slug, track, offset, play, set, 0, "join");
+      } else if (mixing) {
+        const track = nextShuffled(playable, null, recents) ?? playable[0];
+        await loadTrack(slug, track, 0, play, set, 0, "flow");
       } else {
-        await loadTrack(slug, playable[0], 0, play, set);
+        await loadTrack(slug, playable[0], 0, play, set, 0, "flow");
       }
     };
-    loadLock = run();
+    loadLock = Promise.resolve(loadLock).then(run, run);
     await loadLock;
-    set({ lastSlug: slug, visited: true, gateOpen: false });
+    set({ lastSlug: slug, visited: true, gateOpen: false, shuffle: mixing });
     persist();
   },
 
@@ -363,17 +401,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       await get().tuneIn(slug);
       return;
     }
-    await loadTrack(slug, track, 0, true, set);
-    localDetour = true;
+    await loadTrack(slug, track, 0, true, set, 0, "flow");
+    userPaused = false;
   },
 
   togglePlay: async () => {
     const state = get();
     if (state.status === "playing") {
+      userPaused = true;
       radioEngine.pause();
       set({ status: "paused" });
       return;
     }
+    userPaused = false;
     if (state.track) {
       const ok = await radioEngine.resume();
       set({ status: ok ? "playing" : "paused" });
@@ -383,52 +423,48 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   next: async (reason) => {
-    const slug = get().channelSlug;
-    if (!slug) return;
-    const channel = channelOf(slug);
-    if (!channel) return;
-    const playable = getPlayableTracks(channel);
-    const current = get().track;
-    const kind = normalizeKind(channel.kind || channel.mode);
-    if (reason === "error") {
-      consecutiveErrors += 1;
-      if (consecutiveErrors > 8) {
-        set({ status: "missing" });
-        return;
-      }
-      const nxt = current ? neighborTrack(playable, current.id, 1, true) : playable[0];
-      if (nxt) await loadTrack(slug, nxt, 0, true, set);
-      return;
-    }
-    if (kind === "live" && reason === "ended") {
-      const play = get().autoplay;
-      if (drivingDesk(slug)) {
-        const nxt = current ? neighborTrack(playable, current.id, 1, true) : playable[0];
-        if (nxt && nxt.id !== current?.id) {
-          await loadTrack(slug, nxt, 0, play, set);
+    const run = async () => {
+      const slug = get().channelSlug;
+      if (!slug) return;
+      const channel = channelOf(slug);
+      if (!channel) return;
+      const playable = getPlayableTracks(channel);
+      const current = get().track;
+      const kind = normalizeKind(channel.kind || channel.mode);
+      if (reason === "error") {
+        consecutiveErrors += 1;
+        if (consecutiveErrors > 8) {
+          set({ status: "missing" });
           return;
         }
+        const nxt = pickNext(channel, playable, current?.id);
+        if (nxt) await loadTrack(slug, nxt, 0, true, set, 0, "flow");
+        return;
       }
-      localDetour = false;
-      const head = resolveLivePlayhead(playable, Date.now(), slug, current?.id ?? justEndedId);
-      if (head) await loadTrack(slug, head.track, head.offsetSec, play, set);
-      return;
-    }
-    if (kind === "fixed" && reason === "ended") {
-      const nxt = current ? neighborTrack(playable, current.id, 1, false) : playable[0];
-      if (nxt) await loadTrack(slug, nxt, 0, true, set);
-      else {
-        radioEngine.pause();
-        set({ status: "paused" });
+      const mixing = shuffleActive(channel, Boolean(get().shuffleBySlug[slug]));
+      if (reason === "ended") {
+        const play = !userPaused;
+        if (!mixing && kind === "fixed") {
+          const nxt = current ? neighborTrack(playable, current.id, 1, false) : playable[0];
+          if (nxt) await loadTrack(slug, nxt, 0, true, set, 0, "flow");
+          else {
+            radioEngine.pause();
+            set({ status: "paused" });
+          }
+          return;
+        }
+        const nxt = pickNext(channel, playable, current?.id);
+        if (nxt) await loadTrack(slug, nxt, 0, play, set, 0, "flow");
+        return;
       }
-      return;
-    }
-    if (!get().skipAllowed(slug) && reason === "user") return;
-    if (reason === "user") localDetour = true;
-    const wrap = kind !== "fixed";
-    const nxt = current ? neighborTrack(playable, current.id, 1, wrap) : playable[0];
-    if (nxt) await loadTrack(slug, nxt, 0, true, set);
-    else if (playable[0]) await loadTrack(slug, playable[0], 0, true, set);
+      if (!get().skipAllowed(slug) && reason === "user") return;
+      if (reason === "user") userPaused = false;
+      const nxt = pickNext(channel, playable, current?.id);
+      if (nxt) await loadTrack(slug, nxt, 0, true, set, 0, "flow");
+      else if (playable[0]) await loadTrack(slug, playable[0], 0, true, set, 0, "flow");
+    };
+    loadLock = Promise.resolve(loadLock).then(run, run);
+    await loadLock;
   },
 
   prev: async () => {
@@ -438,11 +474,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (!channel) return;
     const playable = getPlayableTracks(channel);
     const current = get().track;
+    const mixing = shuffleActive(channel, Boolean(get().shuffleBySlug[slug]));
+    if (mixing && recents.length > 1) {
+      const currentId = current?.id;
+      let prior = recents.length - 1;
+      if (recents[prior] === currentId) prior -= 1;
+      const id = prior >= 0 ? recents[prior] : null;
+      const prevTrack = id ? playable.find((item) => item.id === id) : null;
+      if (prevTrack) {
+        userPaused = false;
+        recents.splice(prior + 1);
+        await loadTrack(slug, prevTrack, 0, true, set, 0, "flow");
+        return;
+      }
+    }
     const wrap = normalizeKind(channel.kind || channel.mode) !== "fixed";
     const prev = current ? neighborTrack(playable, current.id, -1, wrap) : playable[0];
     if (prev) {
-      localDetour = true;
-      await loadTrack(slug, prev, 0, true, set);
+      userPaused = false;
+      await loadTrack(slug, prev, 0, true, set, 0, "flow");
     }
   },
 
@@ -473,6 +523,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   setAutoplay: (value) => {
     set({ autoplay: value });
+    persist();
+  },
+
+  toggleShuffle: (slugArg) => {
+    const slug = slugArg || get().channelSlug;
+    const channel = channelOf(slug);
+    if (!channel || !slug) return;
+    const mode = normalizeShuffle(channel.shuffle);
+    if (mode === "off" || mode === "on") return;
+    const next = !shuffleActive(channel, Boolean(get().shuffleBySlug[slug]));
+    const shuffleBySlug = { ...get().shuffleBySlug, [slug]: next };
+    if (get().channelSlug === slug) set({ shuffle: next, shuffleBySlug });
+    else set({ shuffleBySlug });
     persist();
   },
 
@@ -515,8 +578,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   replaceCatalog: (catalog) => {
     setLiveCatalog(catalog);
-    set({ catalog });
+    const slug = get().channelSlug;
+    const channel = slug ? catalog.channels.find((item) => item.slug === slug) : undefined;
+    set({
+      catalog,
+      shuffle: shuffleActive(channel, Boolean(slug && get().shuffleBySlug[slug])),
+    });
   },
+
+  replaceCutGroups: (groups) => set({ cutGroups: groups }),
 
   toggleLike: (trackId) => {
     const liked = new Set(get().liked);
