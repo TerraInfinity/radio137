@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/player/c-s-karma-dharma-frequency-012",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Karma #7 Hari Singh (Ong Namo Guru Dev Namo) · Radio",
+      "hasCanvas": false,
+      "bodyTextLen": 421,
+      "bodyTextHash": "8792371d4f887914b1d2d66030fd94300d93763a749b110e94c07760d0338a02",
+      "bodyTextPrefix": "RADIO STATIONS PLAYER LIBRARY ABOUT AUTO HUB ATHENS CUT Karma #7",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/qa-karma-share.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Karma #7 Hari Singh (Ong Namo Guru Dev Namo) · Radio",
+      "hasCanvas": false,
+      "bodyTextLen": 451,
+      "bodyTextHash": "29c96383a272255272ee685418b244c79eb337b7cff249e845cfd9392fbd9713",
+      "bodyTextPrefix": "RADIO STATIONS PLAYER LIBRARY ABOUT AUTO SIGN IN WITH GOOGLE CUT",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/qa-karma-share-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/qa-karma-share.json"
+}

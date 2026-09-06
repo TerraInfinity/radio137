@@ -1,0 +1,60 @@
+const KEY = "radio.persist.v4";
+const LEGACY = "radio.persist.v3";
+
+export type Persisted = {
+  autoplay: boolean;
+  lastSlug: string | null;
+  visited: boolean;
+  playerCollapsed: boolean;
+  volume: number;
+  identityName: string | null;
+  points: number;
+  glaumules: number;
+  liked: string[];
+  favorites: string[];
+  shuffleBySlug: Record<string, boolean>;
+};
+
+const defaults: Persisted = {
+  autoplay: true,
+  lastSlug: null,
+  visited: false,
+  playerCollapsed: true,
+  volume: 0.85,
+  identityName: null,
+  points: 0,
+  glaumules: 0,
+  liked: [],
+  favorites: [],
+  shuffleBySlug: {},
+};
+
+export function loadPersisted(): Persisted {
+  if (typeof window === "undefined") return defaults;
+  try {
+    const raw = window.localStorage.getItem(KEY) || window.localStorage.getItem(LEGACY);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw) as Partial<Persisted>;
+    return {
+      ...defaults,
+      ...parsed,
+      liked: Array.isArray(parsed.liked) ? parsed.liked : [],
+      favorites: Array.isArray(parsed.favorites) ? parsed.favorites : [],
+      shuffleBySlug:
+        parsed.shuffleBySlug && typeof parsed.shuffleBySlug === "object" ? parsed.shuffleBySlug : {},
+      points: Number.isFinite(parsed.points) ? Number(parsed.points) : 0,
+      glaumules: Number.isFinite(parsed.glaumules) ? Number(parsed.glaumules) : 0,
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+export function savePersisted(value: Persisted) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(value));
+  } catch {
+    /* ignore */
+  }
+}

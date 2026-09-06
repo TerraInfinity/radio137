@@ -19,13 +19,6 @@ import dns from "node:dns";
 import pg from "pg";
 import { pendingMigrations } from "./migration-plan.mjs";
 
-<<<<<<< HEAD
-=======
-// Vercel build machines often resolve Neon to IPv6 and get ENETUNREACH.
-// Prefer IPv4; runtime db.ts still applies pending migrations if we soft-skip.
-dns.setDefaultResultOrder("ipv4first");
-
->>>>>>> 9eb4b17fa178d8fa452171c58a45ba36d63876fe
 const databaseUrl = (process.env.DATABASE_URL || "").trim();
 if (!databaseUrl) {
   console.log(
@@ -64,7 +57,6 @@ function isIgnorable(err) {
   );
 }
 
-<<<<<<< HEAD
 function isNetworkError(err) {
   const code = err?.code;
   const message = String(err?.message || err || "");
@@ -81,8 +73,6 @@ function isNetworkError(err) {
   );
 }
 
-=======
->>>>>>> 9eb4b17fa178d8fa452171c58a45ba36d63876fe
 async function connect(pool, attempts = 3) {
   let last;
   for (let i = 0; i < attempts; i++) {
@@ -159,15 +149,6 @@ async function main() {
   }
 }
 
-const NETWORK_CODES = new Set([
-  "ENETUNREACH",
-  "EHOSTUNREACH",
-  "ETIMEDOUT",
-  "ECONNREFUSED",
-  "ENOTFOUND",
-  "EAI_AGAIN",
-]);
-
 main().catch((err) => {
   if (isNetworkError(err)) {
     console.warn(
@@ -179,12 +160,6 @@ main().catch((err) => {
   console.error("[migrate] failed:", err?.message || err);
   for (const key of ["code", "detail", "hint", "position", "where"]) {
     if (err?.[key] != null) console.error(`[migrate]   ${key}: ${err[key]}`);
-  }
-  // Don't fail the Vercel build on transient/unreachable DB — the app migrates
-  // at runtime via src/lib/db.ts once the function can reach Postgres.
-  if (NETWORK_CODES.has(err?.code) || /ENETUNREACH|ETIMEDOUT|ECONNREFUSED/i.test(String(err?.message || ""))) {
-    console.warn("[migrate] network unreachable — skipping so the deploy can finish; runtime will migrate.");
-    process.exit(0);
   }
   process.exit(1);
 });

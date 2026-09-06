@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Radio",
+      "hasCanvas": false,
+      "bodyTextLen": 3369,
+      "bodyTextHash": "d9128dff71dbee202e8e217a9c8549c112488e93a6ecd2d064e1997cfd0a9acc",
+      "bodyTextPrefix": "RADIO STATIONS PLAYER LIBRARY ABOUT AUTO HUB ATHENS CLOCKWORK TE",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Radio",
+      "hasCanvas": false,
+      "bodyTextLen": 3358,
+      "bodyTextHash": "06de3c5d6436141342d11021b2d4d2d9bc0c62d8368b3279a15d6756f4002234",
+      "bodyTextPrefix": "RADIO STATIONS PLAYER LIBRARY ABOUT AUTO CLOCKWORK TEMPLE Radio ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}
