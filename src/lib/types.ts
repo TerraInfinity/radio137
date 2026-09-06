@@ -1,4 +1,5 @@
 export type StationKind = "live" | "ondemand" | "fixed";
+export type ShuffleMode = "off" | "optional" | "on";
 
 export type Track = {
   id: string;
@@ -12,6 +13,9 @@ export type Track = {
   playback?: string;
   originalUrl?: string;
   originalPlatform?: string;
+  tags?: string[];
+  slug?: string;
+  aliases?: string[];
 };
 
 export type Channel = {
@@ -33,6 +37,7 @@ export type Channel = {
   glaumules?: boolean;
   nsfw: boolean;
   isDefault?: boolean;
+  shuffle?: ShuffleMode;
   animationUrl?: string;
   embedUrl?: string;
   videoUrl?: string;

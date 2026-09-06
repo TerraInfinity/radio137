@@ -27,7 +27,7 @@ export function ClaimBooth({ channel }: { channel: Channel }) {
       {open ? (
         <div className="border-t border-line p-3">
           <p className="text-sm text-muted">
-            Listeners join the shared station clock. Claim the booth to skip and cue; everyone else stays locked to the clock until you release.
+            Tune in joins the station clock so the room starts together. After that the desk plays forward through the list — it will not jump back. Claim the booth to skip and cue; without a claim, skip is open.
           </p>
           <label className="mt-3 block">
             <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">Handle</span>

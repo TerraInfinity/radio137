@@ -2,12 +2,15 @@ import { AdminStationEdit } from "@/components/admin-track-tools";
 import { ClaimBooth } from "@/components/claim-booth";
 import { ModePill } from "@/components/mode-pill";
 import { NowPlayingCard } from "@/components/now-playing-card";
+import { ShuffleToggle } from "@/components/shuffle-toggle";
+import { ShareLink } from "@/components/share-link";
 import { StationChat } from "@/components/station-chat";
+import { StationPlaylist } from "@/components/station-playlist";
 import { StationVisual } from "@/components/station-visual";
-import { UpcomingList } from "@/components/upcoming-list";
 import { getPlayableTracks, kindHint, normalizeKind, stationSkin } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
 import { resolveLivePlayhead } from "@/lib/playback";
+import { stationPath } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel } from "@/lib/types";
 
@@ -22,7 +25,6 @@ export function ChannelView({ channel }: { channel: Channel }) {
   const live = kind === "live";
   const here = slug === channel.slug;
   const now = here ? track : live ? resolveLivePlayhead(playable, Date.now(), channel.slug)?.track ?? playable[0] : playable[0];
-  const upcoming = playable.filter((item) => item.id !== now?.id);
   const skin = stationSkin(channel);
   const statusLabel = !channel.enabled ? "Off air" : playable.length === 0 ? "Empty desk" : here ? status : kindHint(kind);
 
@@ -58,10 +60,16 @@ export function ChannelView({ channel }: { channel: Channel }) {
           Tune in
         </button>
       </div>
+      <div className="mt-4">
+        <ShareLink path={stationPath(channel)} title={channel.name} />
+      </div>
+      <div className="mt-6">
+        <ShuffleToggle channel={channel} />
+      </div>
       <div className="mt-8">
         <NowPlayingCard channel={channel} track={now ?? null} statusLabel={statusLabel} />
       </div>
-      <UpcomingList slug={channel.slug} upcoming={upcoming} live={live} cover={channel.cover} />
+      <StationPlaylist channel={channel} />
       <StationChat slug={channel.slug} />
       <ClaimBooth channel={channel} />
       <AdminStationEdit channel={channel} />

@@ -1,4 +1,6 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Search } from "lucide-react";
+import { FormEvent, useState } from "react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { AuthSlot, HubLinks } from "@/components/auth-slot";
 import { getChannel, stationSkin } from "@/lib/catalog";
@@ -27,6 +29,14 @@ export function SiteHeader() {
   const { isAdmin } = useRadioUser();
   const channel = slug ? getChannel(slug) : undefined;
   const onGlaum = Boolean(channel && stationSkin(channel) === "glaum");
+  const navigate = useNavigate();
+  const [q, setQ] = useState("");
+
+  function goSearch(event: FormEvent) {
+    event.preventDefault();
+    const next = q.trim();
+    void navigate({ to: "/", search: { q: next || undefined } });
+  }
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/80 backdrop-blur-sm">
@@ -64,6 +74,17 @@ export function SiteHeader() {
             </Link>
           ) : null}
         </nav>
+        <form onSubmit={goSearch} className="relative hidden min-w-40 max-w-56 flex-1 md:block">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-subtle" />
+          <input
+            className="input h-11 pl-8 text-sm"
+            value={q}
+            onChange={(event) => setQ(event.target.value)}
+            placeholder="Songs, stations"
+            type="search"
+            aria-label="Search songs and stations"
+          />
+        </form>
         {ready && !gateOpen ? (
           <p className="hidden shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle lg:block">
             {points} pts{onGlaum || glaumules > 0 ? ` · ${glaumules} glåümules` : ""}

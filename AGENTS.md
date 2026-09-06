@@ -167,7 +167,9 @@ missing. Postgres and Better Auth are pre-wired in `src/lib`, **opt-in per app**
   runtime filesystem writes, server-only Node APIs at import time, dev-only deps,
   hard-coded hosts/ports/secrets (`.grok/references/deploy-target.md`).
 - **Never create a `.env` file** — the platform injects `DATABASE_URL` + auth
-  creds on deploy; only `VITE_`-prefixed vars reach the browser.
+  creds on deploy; only `VITE_`-prefixed vars reach the browser. For this Radio
+  app on Vercel, production `DATABASE_URL` should be the Supabase **pooler**
+  (`*.pooler.supabase.com`), not the direct `db.<ref>.supabase.co` host.
 - **`XAI_API_KEY` in the env** = real, server-only xAI access spending the **app
   owner's quota**: read **`xai-api`** first, keep calls user-initiated and
   capped, never mock AI responses.

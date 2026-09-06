@@ -26,3 +26,12 @@ export function fileLocationLabel(url: string): string {
     return url;
   }
 }
+
+export function audioPathParts(url: string): { folder: string; filename: string; stem: string } {
+  const path = fileLocationLabel(url);
+  const slash = path.lastIndexOf("/");
+  const filename = (slash >= 0 ? path.slice(slash + 1) : path) || path;
+  const folder = slash >= 0 ? path.slice(0, slash) : "";
+  const stem = filename.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/-\d{4,}$/, "");
+  return { folder, filename, stem };
+}

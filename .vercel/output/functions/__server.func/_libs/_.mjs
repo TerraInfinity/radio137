@@ -1,2 +1,2 @@
-import { d as desk_api_exports } from "../_ssr/router-CEym-ghm.mjs";
+import { p as desk_api_exports } from "../_ssr/router-Cp-QOkSx.mjs";
 export { desk_api_exports as i };

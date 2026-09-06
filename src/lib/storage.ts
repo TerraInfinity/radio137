@@ -12,6 +12,7 @@ export type Persisted = {
   glaumules: number;
   liked: string[];
   favorites: string[];
+  shuffleBySlug: Record<string, boolean>;
 };
 
 const defaults: Persisted = {
@@ -25,6 +26,7 @@ const defaults: Persisted = {
   glaumules: 0,
   liked: [],
   favorites: [],
+  shuffleBySlug: {},
 };
 
 export function loadPersisted(): Persisted {
@@ -38,6 +40,8 @@ export function loadPersisted(): Persisted {
       ...parsed,
       liked: Array.isArray(parsed.liked) ? parsed.liked : [],
       favorites: Array.isArray(parsed.favorites) ? parsed.favorites : [],
+      shuffleBySlug:
+        parsed.shuffleBySlug && typeof parsed.shuffleBySlug === "object" ? parsed.shuffleBySlug : {},
       points: Number.isFinite(parsed.points) ? Number(parsed.points) : 0,
       glaumules: Number.isFinite(parsed.glaumules) ? Number(parsed.glaumules) : 0,
     };

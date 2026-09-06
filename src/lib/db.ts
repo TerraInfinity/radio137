@@ -87,13 +87,19 @@ function toSql(run: Run): Sql {
 
 function createNeonSql(): Promise<Sql> {
   globalRef.__pgSqlPromise__ ??= (async () => {
-    // Regular Postgres driver: node-postgres (`pg`) — works directly with Neon's
-    // pooled endpoint. One pool per process; warm serverless instances reuse it.
+    // Regular Postgres driver: node-postgres (`pg`) — works with Neon, Supabase
+    // pooler, or any Postgres URL. One pool per process; warm instances reuse it.
+    // Prefer A records: db.*.supabase.co is often IPv6-only and Vercel then fails
+    // with getaddrinfo ENOTFOUND / ENETUNREACH. Production DATABASE_URL should
+    // still use *.pooler.supabase.com when deploying on Vercel.
+    const dns = await import("node:dns");
+    dns.setDefaultResultOrder("ipv4first");
     const { Pool, types } = await import("pg");
     types.setTypeParser(OID_INT8, Number);
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
     const pool = new Pool({ connectionString: databaseUrl });
+    await applyPgMigrations(pool);
     return toSql(async <T>(text: string, params: unknown[]) => {
       const res = await pool.query(text, params);
       return res.rows as T[];
@@ -103,6 +109,64 @@ function createNeonSql(): Promise<Sql> {
     throw err;
   });
   return globalRef.__pgSqlPromise__;
+}
+
+function sqlStatements(text: string): string[] {
+  const stripped = text
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .map((line) => (line.trim().startsWith("--") ? "" : line))
+    .join("\n");
+  return stripped
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function isIgnorableMigrationError(err: unknown): boolean {
+  const code = err && typeof err === "object" && "code" in err ? String((err as { code?: unknown }).code) : "";
+  const message = err instanceof Error ? err.message : String(err ?? "");
+  return code === "42701" || code === "42P07" || code === "42710" || /already exists/i.test(message);
+}
+
+/** Apply pending migrations/*.sql on first connect (covers a skipped build-time migrate). */
+async function applyPgMigrations(pool: import("pg").Pool): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      "CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+    );
+    const applied = (await client.query("SELECT name FROM _migrations")).rows.map((row: { name: string }) => row.name);
+    const migrations = import.meta.glob("/migrations/*.sql", {
+      query: "?raw",
+      import: "default",
+      eager: true,
+    }) as Record<string, string>;
+    for (const { name, path } of pendingMigrations(Object.keys(migrations), applied)) {
+      const text = migrations[path];
+      try {
+        await client.query("BEGIN");
+        for (const stmt of sqlStatements(text)) {
+          try {
+            await client.query(stmt);
+          } catch (err) {
+            if (!isIgnorableMigrationError(err)) throw err;
+          }
+        }
+        await client.query("INSERT INTO _migrations (name) VALUES ($1) ON CONFLICT (name) DO NOTHING", [name]);
+        await client.query("COMMIT");
+      } catch (err) {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          /* connection died — keep the original error */
+        }
+        throw err;
+      }
+    }
+  } finally {
+    client.release();
+  }
 }
 
 async function createPgliteSql(): Promise<Sql> {
@@ -214,7 +278,8 @@ export async function getPglite(): Promise<import("@electric-sql/pglite").PGlite
  *
  * - **PGLite** (preview / no `DATABASE_URL`): open the in-memory DB and apply
  *   `migrations/*.sql`. Idempotent — concurrent callers share one promise.
- * - **Neon**: no-op (pool is created lazily on first query).
+ * - **Postgres** (`DATABASE_URL` set): pool is created lazily on first query,
+ *   preferring IPv4 DNS, and pending `migrations/*.sql` are applied then.
  *
  * Vite `configureServer` awaits this at dev startup; production imports of this
  * module kick it off immediately (see bottom of file).

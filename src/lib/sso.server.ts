@@ -311,7 +311,7 @@ export function envLamps(): EnvLamp[] {
     { key: "AUTH_SECRET", label: "Auth secret", group: "SSO", set: present("AUTH_SECRET"), required: true, hint: "Same secret as the hub if sharing the terrainfinity cookie." },
     { key: "AUTH_COOKIE_DOMAIN", label: "Cookie domain", group: "SSO", set: present("AUTH_COOKIE_DOMAIN"), required: false, hint: ".terrainfinity.ca on radio.terrainfinity.ca only. Never on localhost, grok, or cyber-athens." },
     { key: "AUTH_URL", label: "Auth URL", group: "SSO", set: present("AUTH_URL"), required: false, hint: "Do not set this to the hub. Radio mounts /api/auth/* for the Grok session." },
-    { key: "DATABASE_URL", label: "Postgres", group: "Data", set: present("DATABASE_URL"), required: true, hint: "Shared Neon / Postgres with the hub." },
+    { key: "DATABASE_URL", label: "Postgres", group: "Data", set: present("DATABASE_URL"), required: true, hint: "Supabase pooler (*.pooler.supabase.com) on Vercel. Direct db.<ref>.supabase.co is often IPv6-only." },
     { key: "R2_ACCOUNT_ID", label: "R2 account", group: "R2", set: present("R2_ACCOUNT_ID"), required: true, hint: "Cloudflare account id." },
     { key: "R2_ACCESS_KEY_ID", label: "R2 access key", group: "R2", set: present("R2_ACCESS_KEY_ID"), required: true, hint: "R2 API token access key." },
     { key: "R2_SECRET_ACCESS_KEY", label: "R2 secret", group: "R2", set: present("R2_SECRET_ACCESS_KEY"), required: true, hint: "R2 API token secret." },

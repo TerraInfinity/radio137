@@ -16,7 +16,7 @@ export type EngineResult =
 
 type Handlers = {
   onTime: (currentTime: number, duration: number) => void;
-  onEnded: (measuredDuration: number) => void;
+  onEnded: (measuredDuration: number, fileDuration: number) => void;
   onError: () => void;
 };
 
@@ -53,6 +53,8 @@ export class RadioEngine {
   private lastAdvanceAt = 0;
   private watchdog: number | null = null;
   private handlers: Handlers | null = null;
+  private warmer: HTMLAudioElement | null = null;
+  private warmUrl = "";
 
   attach(handlers: Handlers) {
     this.handlers = handlers;
@@ -116,6 +118,22 @@ export class RadioEngine {
     el.muted = muted;
   }
 
+  /** Decode the next cut in the background so the handoff starts at 0:00, not mid-file. */
+  warm(url: string) {
+    if (typeof window === "undefined" || !url || url === this.warmUrl) return;
+    this.warmUrl = url;
+    if (!this.warmer) {
+      this.warmer = new Audio();
+      this.warmer.preload = "auto";
+    }
+    try {
+      this.warmer.src = url;
+      this.warmer.load();
+    } catch {
+      /* ignore */
+    }
+  }
+
   async load(opts: EngineLoad): Promise<EngineResult> {
     const el = this.ensure();
     if (!el) return { kind: "stale" };
@@ -151,26 +169,21 @@ export class RadioEngine {
     }
     const duration = Number.isFinite(el.duration) && el.duration > 0.2 ? el.duration : 0;
     const pad = endPad(duration || opts.offsetSec);
-    if (duration > 0 && opts.offsetSec >= duration - pad) {
+    const joinOffset = Math.max(0, opts.offsetSec);
+    // Never skip a fresh start (offset 0) — leftover from the previous file must not eat this one.
+    if (joinOffset > 0.2 && duration > 0 && joinOffset >= duration - pad) {
       this.loading = false;
-      return { kind: "skip", leftover: Math.max(0, opts.offsetSec - duration), duration };
+      return { kind: "skip", leftover: Math.max(0, joinOffset - duration), duration };
     }
-    const target = Math.max(0, Math.min(opts.offsetSec, Math.max(0, (duration || opts.offsetSec) - pad)));
-    if (target > 0.05) {
-      try {
-        el.currentTime = target;
-      } catch {
-        /* some engines reject until canplay */
-      }
-      await waitFor(el, "seeked", gen, 700, () => this.gen);
-      if (gen !== this.gen) return { kind: "stale" };
-      const got = el.currentTime || 0;
-      // Browser clamped the seek — the file is shorter than the header claimed.
-      if (target - got > 0.75) {
-        const measured = Math.max(0.25, got);
-        this.loading = false;
-        return { kind: "skip", leftover: Math.max(0, opts.offsetSec - measured), duration: measured };
-      }
+    const target = joinOffset <= 0.05 ? 0 : Math.max(0, Math.min(joinOffset, Math.max(0, (duration || joinOffset) - pad)));
+    const parked = await this.park(el, gen, target, duration);
+    if (parked === "stale") {
+      this.loading = false;
+      return { kind: "stale" };
+    }
+    if (parked.kind === "skip") {
+      this.loading = false;
+      return parked;
     }
     this.highWater = el.currentTime || 0;
     this.lastAdvanceAt = performance.now();
@@ -184,15 +197,66 @@ export class RadioEngine {
     } catch (error) {
       if (gen !== this.gen) return { kind: "stale" };
       const name = error instanceof DOMException ? error.name : "";
-      if (name === "AbortError") return { kind: "stale" };
-      if (name === "NotAllowedError") {
+      if (name === "AbortError") {
+        try {
+          if (gen !== this.gen) return { kind: "stale" };
+          await el.play();
+        } catch (retry) {
+          if (gen !== this.gen) return { kind: "stale" };
+          const retryName = retry instanceof DOMException ? retry.name : "";
+          if (retryName === "AbortError") return { kind: "stale" };
+          if (retryName === "NotAllowedError") {
+            return { kind: "ready", duration: duration || 0, currentTime: el.currentTime || 0 };
+          }
+          return { kind: "error" };
+        }
+      } else if (name === "NotAllowedError") {
         return { kind: "ready", duration: duration || 0, currentTime: el.currentTime || 0 };
+      } else {
+        return { kind: "error" };
       }
-      return { kind: "error" };
     }
     if (gen !== this.gen) return { kind: "stale" };
+    // Last guard: a late seek from the previous file must not leave us mid-cut.
+    if (target <= 0.05 && (el.currentTime || 0) > 0.4) {
+      try {
+        el.currentTime = 0;
+      } catch {
+        /* ignore */
+      }
+    }
     this.armWatchdog();
     return { kind: "ready", duration: duration || 0, currentTime: el.currentTime || 0 };
+  }
+
+  private async park(
+    el: HTMLAudioElement,
+    gen: number,
+    target: number,
+    duration: number,
+  ): Promise<"stale" | { kind: "ok" } | { kind: "skip"; leftover: number; duration: number }> {
+    try {
+      el.currentTime = target;
+    } catch {
+      /* some engines reject until canplay */
+    }
+    await waitFor(el, "seeked", gen, 800, () => this.gen);
+    if (gen !== this.gen) return "stale";
+    const got = el.currentTime || 0;
+    if (target <= 0.05 && got > 0.35) {
+      try {
+        el.currentTime = 0;
+      } catch {
+        /* ignore */
+      }
+      await waitFor(el, "seeked", gen, 500, () => this.gen);
+      if (gen !== this.gen) return "stale";
+    }
+    if (target > 0.05 && target - got > 0.75) {
+      const measured = Math.max(0.25, got);
+      return { kind: "skip", leftover: Math.max(0, target - measured), duration: measured || duration };
+    }
+    return { kind: "ok" };
   }
 
   private ensure(): HTMLAudioElement | null {
@@ -242,13 +306,7 @@ export class RadioEngine {
       this.highWater = t;
       this.lastAdvanceAt = performance.now();
     }
-    if (t + 0.12 < this.highWater && this.highWater > 0.2) {
-      this.finish("ended");
-      return;
-    }
-    if (duration > 0.5 && duration - t <= endPad(duration) && t > 0.12) {
-      this.finish("ended");
-    }
+    if (this.shouldFinish(t, duration)) this.finish("ended");
   }
 
   private armWatchdog() {
@@ -275,19 +333,26 @@ export class RadioEngine {
       this.highWater = t;
       this.lastAdvanceAt = now;
     }
-    if (t + 0.12 < this.highWater && this.highWater > 0.2) {
-      this.finish("ended");
-      return;
+    if (this.shouldFinish(t, duration)) this.finish("ended");
+  }
+
+  /** End-of-file only. A mid-song stall or timeupdate jitter must not kill the cut. */
+  private shouldFinish(t: number, duration: number): boolean {
+    const pad = endPad(duration);
+    const remaining = duration > 0 ? duration - t : Number.POSITIVE_INFINITY;
+    const nearEnd = duration > 0.5 && remaining <= Math.max(pad, 0.5) && t > 0.12;
+    if (nearEnd) return true;
+    if (t + 0.25 < this.highWater && this.highWater > 0.4) {
+      const looped = t < 0.2;
+      const clampedAtEnd = remaining < 1.75 || this.highWater >= duration - 0.6;
+      return looped || clampedAtEnd;
     }
-    if (duration > 0.5 && duration - t <= endPad(duration) && t > 0.12) {
-      this.finish("ended");
-      return;
-    }
-    const stuckFor = now - this.lastAdvanceAt;
+    if (this.buffering) return false;
+    const el = this.el;
+    if (!el) return false;
+    const stuckFor = performance.now() - this.lastAdvanceAt;
     const hasData = el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA;
-    if (!this.buffering && hasData && stuckFor > 700 && this.highWater > 0.2) {
-      this.finish("ended");
-    }
+    return Boolean(hasData && stuckFor > 700 && this.highWater > 0.15 && remaining <= Math.max(pad * 3, 1.4));
   }
 
   private finish(reason: "ended" | "error") {
@@ -301,7 +366,8 @@ export class RadioEngine {
       /* stop the last-granule loop immediately */
     }
     const measured = Math.max(this.highWater, el?.currentTime || 0);
-    if (reason === "ended") this.handlers?.onEnded(measured);
+    const fileDuration = el && Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 0;
+    if (reason === "ended") this.handlers?.onEnded(measured, fileDuration);
     else this.handlers?.onError();
   }
 }

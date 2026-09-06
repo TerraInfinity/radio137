@@ -3,6 +3,7 @@ import { AdminTrackTools } from "@/components/admin-track-tools";
 import { CoverArt } from "@/components/cover-art";
 import { TrackActions } from "@/components/track-actions";
 import { isAdultTrack, isChannelNsfw } from "@/lib/catalog";
+import { songKey } from "@/lib/song-url";
 import type { Channel, Track } from "@/lib/types";
 
 export function NowPlayingCard({
@@ -30,7 +31,7 @@ export function NowPlayingCard({
         <CoverArt src={track.coverUrl || channel.cover} alt="" className="size-24 shrink-0 rounded-md" />
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-2xl font-semibold tracking-tight text-fg">
-            <Link to="/player/$id" params={{ id: track.id }}>
+            <Link to="/player/$id" params={{ id: songKey(track) }}>
               {track.title}
             </Link>
           </h2>

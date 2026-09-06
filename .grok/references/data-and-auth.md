@@ -13,6 +13,15 @@ Full guides + snippets: the **`neon` skill** (database) and the **`auth` skill**
   `createServerFn` handlers / server loaders.
 - Dual-mode: a regular Postgres driver (node-postgres, `pg`) when `DATABASE_URL`
   is set, else a local **PGLite** fallback — so the preview always renders.
+- Before opening a `pg` Pool, `src/lib/db.ts` calls `dns.setDefaultResultOrder("ipv4first")`
+  (same as `scripts/migrate.mjs`). Direct `db.*.supabase.co` hosts are often IPv6-only;
+  Vercel serverless then fails with `getaddrinfo ENOTFOUND` / `ENETUNREACH`.
+- Production `DATABASE_URL` on Vercel should be the **Supabase Connection pooling**
+  URI (Transaction or Session mode, host `*.pooler.supabase.com`), not the direct
+  `db.<ref>.supabase.co` URI. Direct may work only with an IPv4 add-on.
+- `npm run db:migrate` (build) **soft-skips** on those network errors so a brief
+  outage does not fail the deploy; runtime `getSql()` still applies pending
+  `migrations/*.sql` when it can connect.
 - In preview, PGLite **bootstraps at server start** (`ensureDbReady`) once the
   app has migrations. Do not remove that.
 - A deployed app is provisioned a real database when it ships `migrations/*.sql`
