@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AliasRouteImport } from './routes/$alias'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as DeskRouteImport } from './routes/desk'
 import { Route as LibraryRouteImport } from './routes/library'
@@ -28,6 +29,11 @@ import { Route as ApiSsoMeRouteImport } from './routes/api/sso/me'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AliasRoute = AliasRouteImport.update({
+  id: '/$alias',
+  path: '/$alias',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -103,6 +109,7 @@ const ApiSsoMeRoute = ApiSsoMeRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
   '/library': typeof LibraryRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
   '/library': typeof LibraryRoute
@@ -138,6 +146,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
   '/library': typeof LibraryRoute
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$alias'
     | '/about'
     | '/desk'
     | '/library'
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$alias'
     | '/about'
     | '/desk'
     | '/library'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/$alias'
     | '/about'
     | '/desk'
     | '/library'
@@ -209,6 +221,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AliasRoute: typeof AliasRoute
   AboutRoute: typeof AboutRoute
   DeskRoute: typeof DeskRoute
   LibraryRoute: typeof LibraryRoute
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$alias': {
+      id: '/$alias'
+      path: '/$alias'
+      fullPath: '/$alias'
+      preLoaderRoute: typeof AliasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -337,6 +357,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AliasRoute: AliasRoute,
   AboutRoute: AboutRoute,
   DeskRoute: DeskRoute,
   LibraryRoute: LibraryRoute,
