@@ -87,19 +87,29 @@ function toSql(run: Run): Sql {
 
 function createNeonSql(): Promise<Sql> {
   globalRef.__pgSqlPromise__ ??= (async () => {
+<<<<<<< HEAD
     // Regular Postgres driver: node-postgres (`pg`) — works with Neon, Supabase
     // pooler, or any Postgres URL. One pool per process; warm instances reuse it.
     // Prefer A records: db.*.supabase.co is often IPv6-only and Vercel then fails
     // with getaddrinfo ENOTFOUND / ENETUNREACH. Production DATABASE_URL should
     // still use *.pooler.supabase.com when deploying on Vercel.
+=======
+    // Regular Postgres driver: node-postgres (`pg`) — works with Neon/Supabase.
+    // Prefer IPv4: Supabase `db.*.supabase.co` is often IPv6-only; Vercel
+    // functions then fail with ENOTFOUND/ENETUNREACH. Pooler URIs are IPv4.
+>>>>>>> 9eb4b17fa178d8fa452171c58a45ba36d63876fe
     const dns = await import("node:dns");
     dns.setDefaultResultOrder("ipv4first");
     const { Pool, types } = await import("pg");
     types.setTypeParser(OID_INT8, Number);
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
+<<<<<<< HEAD
     const pool = new Pool({ connectionString: databaseUrl });
     await applyPgMigrations(pool);
+=======
+    const pool = new Pool({ connectionString: databaseUrl, connectionTimeoutMillis: 20000 });
+>>>>>>> 9eb4b17fa178d8fa452171c58a45ba36d63876fe
     return toSql(async <T>(text: string, params: unknown[]) => {
       const res = await pool.query(text, params);
       return res.rows as T[];
