@@ -87,13 +87,16 @@ function toSql(run: Run): Sql {
 
 function createNeonSql(): Promise<Sql> {
   globalRef.__pgSqlPromise__ ??= (async () => {
-    // Regular Postgres driver: node-postgres (`pg`) — works directly with Neon's
-    // pooled endpoint. One pool per process; warm serverless instances reuse it.
+    // Regular Postgres driver: node-postgres (`pg`) — works with Neon/Supabase.
+    // Prefer IPv4: Supabase `db.*.supabase.co` is often IPv6-only; Vercel
+    // functions then fail with ENOTFOUND/ENETUNREACH. Pooler URIs are IPv4.
+    const dns = await import("node:dns");
+    dns.setDefaultResultOrder("ipv4first");
     const { Pool, types } = await import("pg");
     types.setTypeParser(OID_INT8, Number);
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
-    const pool = new Pool({ connectionString: databaseUrl });
+    const pool = new Pool({ connectionString: databaseUrl, connectionTimeoutMillis: 20000 });
     return toSql(async <T>(text: string, params: unknown[]) => {
       const res = await pool.query(text, params);
       return res.rows as T[];
