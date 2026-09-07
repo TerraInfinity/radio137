@@ -1,11 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAdmin } from "@/lib/sso.server";
+import { MEDIA_MAX_IMAGE, MEDIA_MAX_VIDEO } from "@/lib/media";
 import { putR2Object, r2Configured, sanitizeUploadName } from "@/lib/r2.server";
 import { listEdits, listStationEdits, patchTrack, upsertStation } from "@/lib/catalog-edits.server";
 import { assertSameSiteRequest } from "@/lib/auth/isolation.server";
 
-const MAX_IMAGE = 12 * 1024 * 1024;
-const MAX_VIDEO = 40 * 1024 * 1024;
 const IMAGE = /\.(jpe?g|png|webp|gif|avif)$/i;
 const VIDEO = /\.(mp4|webm|mov)$/i;
 
@@ -32,11 +31,11 @@ export const Route = createFileRoute("/api/desk/upload-art")({
           if (!video && !image) {
             return Response.json({ error: "Art only (jpg, png, webp, gif, or a short mp4 / webm)" }, { status: 400 });
           }
-          if (video && file.size > MAX_VIDEO) {
-            return Response.json({ error: "Keep looping videos under 40 MB" }, { status: 400 });
+          if (video && file.size > MEDIA_MAX_VIDEO) {
+            return Response.json({ error: "Keep looping videos under 10 MB on the free plan" }, { status: 400 });
           }
-          if (image && file.size > MAX_IMAGE) {
-            return Response.json({ error: "Keep stills under 12 MB" }, { status: 400 });
+          if (image && file.size > MEDIA_MAX_IMAGE) {
+            return Response.json({ error: "Keep stills under 2 MB" }, { status: 400 });
           }
           const folder = trackId ? `radio/art/${slug}/${trackId}` : `radio/art/${slug}`;
           const key = `${folder}/${Date.now()}-${name}`;

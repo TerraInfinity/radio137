@@ -1,18 +1,7 @@
-const ABSOLUTE = /^https?:\/\//i;
+import { mediaKeyFromUrl } from "@/lib/media";
 
 export function r2KeyFromAudioUrl(url: string): string | null {
-  if (!url || !ABSOLUTE.test(url)) return null;
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase();
-    if (host === "r2.terrainfinity.ca" || host.endsWith(".r2.dev") || host.endsWith(".r2.cloudflarestorage.com")) {
-      const key = decodeURIComponent(parsed.pathname.replace(/^\/+/, ""));
-      return key || null;
-    }
-  } catch {
-    return null;
-  }
-  return null;
+  return mediaKeyFromUrl(url);
 }
 
 export function fileLocationLabel(url: string): string {

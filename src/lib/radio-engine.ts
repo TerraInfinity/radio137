@@ -1,4 +1,5 @@
 /** Single HTMLAudioElement radio deck. Never seek before metadata. Watch for end-loops. */
+import { mediaUrl } from "@/lib/media";
 
 export type EngineLoad = {
   url: string;
@@ -120,14 +121,15 @@ export class RadioEngine {
 
   /** Decode the next cut in the background so the handoff starts at 0:00, not mid-file. */
   warm(url: string) {
-    if (typeof window === "undefined" || !url || url === this.warmUrl) return;
-    this.warmUrl = url;
+    const src = mediaUrl(url);
+    if (typeof window === "undefined" || !src || src === this.warmUrl) return;
+    this.warmUrl = src;
     if (!this.warmer) {
       this.warmer = new Audio();
       this.warmer.preload = "auto";
     }
     try {
-      this.warmer.src = url;
+      this.warmer.src = src;
       this.warmer.load();
     } catch {
       /* ignore */
@@ -158,7 +160,7 @@ export class RadioEngine {
     } catch {
       /* ignore */
     }
-    el.src = opts.url;
+    el.src = mediaUrl(opts.url);
     el.load();
     this.setGain(opts.volume, opts.muted);
     const ready = await waitFor(el, "loadedmetadata", gen, 10_000, () => this.gen);

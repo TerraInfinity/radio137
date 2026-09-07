@@ -212,7 +212,7 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
         <label className="block">
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Art URL</span>
           <input className="input mt-1" value={coverUrl} onChange={(event) => setCoverUrl(event.target.value)} placeholder="/covers/… or https://… jpg or mp4" />
-          <span className="mt-1 block text-sm text-muted">Still or short looping mp4. Shows on this cut and in the player.</span>
+          <span className="mt-1 block text-sm text-muted">Still under 2 MB or looping mp4 under 10 MB. Plays on this cut page only, not on every list thumbnail.</span>
         </label>
         <ArtUpload slug={slug} trackId={track.id} current={coverUrl} onUrl={setCoverUrl} />
         <label className="block">

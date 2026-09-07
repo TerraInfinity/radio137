@@ -1,17 +1,31 @@
 import { cn } from "@/lib/cn";
+import { isLoopingVisual, mediaUrl } from "@/lib/media";
 
-function isLoopingVisual(src?: string | null): boolean {
-  if (!src) return false;
-  const path = src.split("?")[0].toLowerCase();
-  return /\.(mp4|webm|mov)$/.test(path);
-}
-
-export function CoverArt({ src, alt, className }: { src?: string | null; alt: string; className?: string }) {
-  if (!src) return <div className={cn("bg-bg-elevated", className)} aria-hidden />;
-  if (isLoopingVisual(src)) {
+export function CoverArt({
+  src,
+  alt,
+  className,
+  motion = "still",
+}: {
+  src?: string | null;
+  alt: string;
+  className?: string;
+  motion?: "still" | "loop";
+}) {
+  const resolved = mediaUrl(src);
+  if (!resolved) return <div className={cn("bg-bg-elevated", className)} aria-hidden />;
+  const looping = isLoopingVisual(resolved);
+  if (looping && motion !== "loop") {
+    return (
+      <div className={cn("relative bg-bg-elevated", className)} aria-hidden>
+        <span className="absolute inset-0 grid place-items-center font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">Loop</span>
+      </div>
+    );
+  }
+  if (looping) {
     return (
       <video
-        src={src}
+        src={resolved}
         className={cn("h-full w-full object-cover", className)}
         muted
         loop
@@ -22,5 +36,5 @@ export function CoverArt({ src, alt, className }: { src?: string | null; alt: st
       />
     );
   }
-  return <img src={src} alt={alt} className={cn("h-full w-full object-cover", className)} />;
+  return <img src={resolved} alt={alt} className={cn("h-full w-full object-cover", className)} />;
 }

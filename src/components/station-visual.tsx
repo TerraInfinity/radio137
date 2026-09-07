@@ -15,7 +15,7 @@ export function StationVisual({
   const skin = stationSkin(channel);
   return (
     <div className={cn("relative overflow-hidden", className)}>
-      <CoverArt src={channel.cover} alt="" className="size-full" />
+      <CoverArt src={channel.cover} alt="" className="size-full" motion={size === "hero" ? "loop" : "still"} />
       <div
         className={cn(
           "station-motion pointer-events-none absolute inset-0",

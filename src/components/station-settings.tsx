@@ -96,7 +96,7 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
       <label className="block">
         <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Art URL</span>
         <input className="input mt-1" value={cover} onChange={(event) => setCover(event.target.value)} placeholder="https://… jpg or mp4" />
-        <span className="mt-1 block text-sm text-muted">Still image or a short looping mp4. Blank keeps the current art.</span>
+        <span className="mt-1 block text-sm text-muted">Still under 2 MB, or a looping mp4 under 10 MB. Cards stay still so the free plan does not stream every loop.</span>
       </label>
       <ArtUpload slug={channel.slug} current={cover} onUrl={setCover} />
       <div className="flex flex-wrap gap-4">

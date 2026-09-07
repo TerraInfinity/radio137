@@ -3,6 +3,7 @@ import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { CoverArt } from "@/components/cover-art";
 import { getBearerToken } from "@/lib/auth/client";
 import { getSeedCatalog } from "@/lib/catalog";
+import { MEDIA_MAX_VIDEO } from "@/lib/media";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 
@@ -61,12 +62,12 @@ export function ArtUpload({
 
   return (
     <div className="space-y-2">
-      {current ? <CoverArt src={current} alt="" className="h-28 w-full rounded-lg" /> : null}
+      {current ? <CoverArt src={current} alt="" className="h-28 w-full rounded-lg" motion="loop" /> : null}
       <label className="block cursor-pointer rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Upload art</span>
         <p className="mt-1 text-sm text-muted">
           {r2Configured
-            ? "Jpg, png, webp, or a short looping mp4 (under 40 MB). Video plays muted on a loop."
+            ? `Jpg, png, webp, or a short looping mp4 under ${Math.round(MEDIA_MAX_VIDEO / (1024 * 1024))} MB. Cards stay still; the open station or song page loops it.`
             : "R2 keys are dark — paste a URL instead."}
         </p>
         <input
