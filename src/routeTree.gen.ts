@@ -22,6 +22,7 @@ import { Route as PlayerIndexRouteImport } from './routes/player/index'
 import { Route as PlayerIdRouteImport } from './routes/player/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiDeskUploadRouteImport } from './routes/api/desk/upload'
+import { Route as ApiDeskUploadArtRouteImport } from './routes/api/desk/upload-art'
 import { Route as ApiSsoConsumeRouteImport } from './routes/api/sso/consume'
 import { Route as ApiSsoLoginRouteImport } from './routes/api/sso/login'
 import { Route as ApiSsoLogoutRouteImport } from './routes/api/sso/logout'
@@ -92,6 +93,11 @@ const ApiDeskUploadRoute = ApiDeskUploadRouteImport.update({
   path: '/api/desk/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDeskUploadArtRoute = ApiDeskUploadArtRouteImport.update({
+  id: '/api/desk/upload-art',
+  path: '/api/desk/upload-art',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSsoConsumeRoute = ApiSsoConsumeRouteImport.update({
   id: '/api/sso/consume',
   path: '/api/sso/consume',
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/player/': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/desk/upload': typeof ApiDeskUploadRoute
+  '/api/desk/upload-art': typeof ApiDeskUploadArtRoute
   '/api/sso/consume': typeof ApiSsoConsumeRoute
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByTo {
   '/player': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/desk/upload': typeof ApiDeskUploadRoute
+  '/api/desk/upload-art': typeof ApiDeskUploadArtRoute
   '/api/sso/consume': typeof ApiSsoConsumeRoute
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
@@ -166,6 +174,7 @@ export interface FileRoutesById {
   '/player/': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/desk/upload': typeof ApiDeskUploadRoute
+  '/api/desk/upload-art': typeof ApiDeskUploadArtRoute
   '/api/sso/consume': typeof ApiSsoConsumeRoute
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
@@ -187,6 +196,7 @@ export interface FileRouteTypes {
     | '/player/'
     | '/api/auth/$'
     | '/api/desk/upload'
+    | '/api/desk/upload-art'
     | '/api/sso/consume'
     | '/api/sso/login'
     | '/api/sso/logout'
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/player'
     | '/api/auth/$'
     | '/api/desk/upload'
+    | '/api/desk/upload-art'
     | '/api/sso/consume'
     | '/api/sso/login'
     | '/api/sso/logout'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/player/'
     | '/api/auth/$'
     | '/api/desk/upload'
+    | '/api/desk/upload-art'
     | '/api/sso/consume'
     | '/api/sso/login'
     | '/api/sso/logout'
@@ -245,6 +257,7 @@ export interface RootRouteChildren {
   PlayerIndexRoute: typeof PlayerIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDeskUploadRoute: typeof ApiDeskUploadRoute
+  ApiDeskUploadArtRoute: typeof ApiDeskUploadArtRoute
   ApiSsoConsumeRoute: typeof ApiSsoConsumeRoute
   ApiSsoLoginRoute: typeof ApiSsoLoginRoute
   ApiSsoLogoutRoute: typeof ApiSsoLogoutRoute
@@ -344,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDeskUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/desk/upload-art': {
+      id: '/api/desk/upload-art'
+      path: '/api/desk/upload-art'
+      fullPath: '/api/desk/upload-art'
+      preLoaderRoute: typeof ApiDeskUploadArtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/sso/consume': {
       id: '/api/sso/consume'
       path: '/api/sso/consume'
@@ -389,6 +409,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlayerIndexRoute: PlayerIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDeskUploadRoute: ApiDeskUploadRoute,
+  ApiDeskUploadArtRoute: ApiDeskUploadArtRoute,
   ApiSsoConsumeRoute: ApiSsoConsumeRoute,
   ApiSsoLoginRoute: ApiSsoLoginRoute,
   ApiSsoLogoutRoute: ApiSsoLogoutRoute,

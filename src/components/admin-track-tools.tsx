@@ -8,6 +8,7 @@ import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 import { cn, slugify } from "@/lib/cn";
 import { parseTags } from "@/lib/search";
+import { ArtUpload } from "@/components/art-upload";
 import { StationSettingsForm } from "@/components/station-settings";
 import type { Channel, Track } from "@/lib/types";
 
@@ -209,9 +210,11 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
           <input className="input mt-1" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="glados, sting, voice" />
         </label>
         <label className="block">
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Cover URL</span>
-          <input className="input mt-1" value={coverUrl} onChange={(event) => setCoverUrl(event.target.value)} placeholder="/covers/… or https://" />
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Art URL</span>
+          <input className="input mt-1" value={coverUrl} onChange={(event) => setCoverUrl(event.target.value)} placeholder="/covers/… or https://… jpg or mp4" />
+          <span className="mt-1 block text-sm text-muted">Still or short looping mp4. Shows on this cut and in the player.</span>
         </label>
+        <ArtUpload slug={slug} trackId={track.id} current={coverUrl} onUrl={setCoverUrl} />
         <label className="block">
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Audio file URL</span>
           <input className="input mt-1" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="https://r2.terrainfinity.ca/radio/…" />

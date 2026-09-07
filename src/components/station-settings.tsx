@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ArtUpload } from "@/components/art-upload";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getSeedCatalog, kindHint, kindLabel, normalizeKind, normalizeShuffle, shuffleHint, shuffleLabel } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
@@ -93,9 +94,11 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
         <input className="input mt-1" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="comma separated" />
       </label>
       <label className="block">
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Cover URL</span>
-        <input className="input mt-1" value={cover} onChange={(event) => setCover(event.target.value)} placeholder="https://…" />
+        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Art URL</span>
+        <input className="input mt-1" value={cover} onChange={(event) => setCover(event.target.value)} placeholder="https://… jpg or mp4" />
+        <span className="mt-1 block text-sm text-muted">Still image or a short looping mp4. Blank keeps the current art.</span>
       </label>
+      <ArtUpload slug={channel.slug} current={cover} onUrl={setCover} />
       <div className="flex flex-wrap gap-4">
         <label className="inline-flex h-11 items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
           <input type="checkbox" checked={featured} onChange={(event) => setFeatured(event.target.checked)} />
