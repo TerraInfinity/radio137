@@ -249,7 +249,7 @@ export async function patchTrack(
 ) {
   if (input.slug || input.aliases) {
     const { slugify } = await import("@/lib/cn");
-    const { isReservedPublicPath, slugTaken } = await import("@/lib/song-url");
+    const { isReservedPublicPath, parseAliases, slugTaken } = await import("@/lib/song-url");
     const catalog = await liveCatalog();
     const want = slugify(input.slug || "");
     if (want && isReservedPublicPath(want)) {
@@ -258,9 +258,8 @@ export async function patchTrack(
     if (want && slugTaken(catalog, want, input.trackId)) {
       throw new Error(`Slug “${want}” is already used by another cut`);
     }
-    for (const alias of (input.aliases || "").split(/[,;\n]+/)) {
-      const key = slugify(alias);
-      if (!key) continue;
+    const aliases = parseAliases(input.aliases);
+    for (const key of aliases) {
       if (isReservedPublicPath(key)) {
         throw new Error(`Alias “${key}” is a reserved path (player, channel, desk, library, login, about, api…). Pick another ending.`);
       }
@@ -268,6 +267,7 @@ export async function patchTrack(
         throw new Error(`Alias “${key}” is already used by another cut`);
       }
     }
+    if (input.aliases !== undefined) input.aliases = aliases.join(", ");
   }
   return upsertEdit(user, input);
 }

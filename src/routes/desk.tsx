@@ -12,8 +12,9 @@ import {
 import { applyCatalogEdits, type CatalogEdit, type StationEdit } from "@/lib/catalog-edits";
 import { getCatalog, getSeedCatalog } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
-import { ssoLoginHref, useRadioUser } from "@/lib/radio-user";
+import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
+import { SignInChoices } from "@/components/sign-in-choices";
 import type { Channel } from "@/lib/types";
 import type { EnvLamp } from "@/lib/env-lamps";
 
@@ -97,18 +98,14 @@ function DeskPage() {
 }
 
 function DeskLocked() {
-  const href = ssoLoginHref("/desk");
-  useEffect(() => {
-    window.location.assign(href);
-  }, [href]);
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Station desk</p>
       <h1 className="mt-2 font-display text-4xl font-semibold">Unlock</h1>
-      <p className="mt-4 text-muted">C accounts sign in through the Terrainfinity hub. Google lives there.</p>
-      <a href={href} className="mt-8 inline-flex h-12 items-center rounded-md bg-fg px-5 font-mono text-[12px] uppercase tracking-[0.16em] text-bg">
-        Sign in with Google
-      </a>
+      <p className="mt-4 text-muted">C accounts sign in with Google or X. Google still opens on the Terrainfinity hub.</p>
+      <div className="mt-8">
+        <SignInChoices next="/desk" />
+      </div>
     </div>
   );
 }

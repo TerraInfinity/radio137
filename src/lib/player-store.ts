@@ -18,6 +18,7 @@ import type { CutGroup } from "@/lib/cuts";
 import { durationOf, neighborTrack, nextForward, nextShuffled, rememberDuration, resolveLivePlayhead, walkFrom } from "@/lib/playback";
 import { endPad, radioEngine } from "@/lib/radio-engine";
 import { loadPersisted, savePersisted } from "@/lib/storage";
+import { isLandingLocation } from "@/lib/landing";
 import type { Catalog, Channel, ClaimRecord, Identity, Track } from "@/lib/types";
 
 export type PlayerStatus = "idle" | "loading" | "playing" | "paused" | "missing" | "off-air";
@@ -250,7 +251,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   autoplay: true,
   lastSlug: null,
   visited: false,
-  gateOpen: true,
+  gateOpen: false,
   playerCollapsed: true,
   identity: null,
   claims: {},
@@ -268,14 +269,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     bindEngine();
     const p = loadPersisted();
     const identity = p.identityName ? { id: `guest:${p.identityName.toLowerCase()}`, name: p.identityName } : null;
+    const landing =
+      typeof window !== "undefined" && isLandingLocation(window.location.pathname, window.location.search);
+    const showGate = landing && !p.visited;
+    const visited = p.visited || !landing;
     set({
       autoplay: p.autoplay,
       lastSlug: p.lastSlug,
-      visited: p.visited,
+      visited,
       playerCollapsed: p.playerCollapsed,
       volume: p.volume,
       identity,
-      gateOpen: !p.visited,
+      gateOpen: showGate,
       ready: true,
       points: p.points,
       glaumules: p.glaumules,
@@ -284,7 +289,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       shuffleBySlug: p.shuffleBySlug,
     });
     radioEngine.setGain(p.volume, false);
-    if (p.visited && p.lastSlug) void get().tuneIn(p.lastSlug);
+    if (visited && !p.visited) persist();
     void import("@/lib/desk-api")
       .then(({ listCatalogEdits, listCutGroups }) => Promise.all([listCatalogEdits(), listCutGroups()]))
       .then(([data, cuts]) => {
@@ -357,13 +362,22 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
     if (!channel.enabled) {
-      set({ channelSlug: slug, track: null, status: "off-air" });
+      set({ channelSlug: slug, track: null, status: "off-air", visited: true, gateOpen: false });
       radioEngine.pause();
+      persist();
       return;
     }
     const playable = getPlayableTracks(channel);
     if (playable.length === 0) {
-      set({ channelSlug: slug, track: null, status: "off-air" });
+      set({ channelSlug: slug, track: null, status: "off-air", visited: true, gateOpen: false });
+      persist();
+      return;
+    }
+    const alreadyHere =
+      get().channelSlug === slug && (get().status === "playing" || get().status === "loading") && get().track;
+    if (alreadyHere) {
+      set({ visited: true, gateOpen: false, lastSlug: slug });
+      persist();
       return;
     }
     if (opts?.forcePlay) {
@@ -403,6 +417,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
     await loadTrack(slug, track, 0, true, set, 0, "flow");
     userPaused = false;
+    set({ lastSlug: slug, visited: true, gateOpen: false });
+    persist();
   },
 
   togglePlay: async () => {

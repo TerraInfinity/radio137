@@ -191,16 +191,17 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
             placeholder={slugify(title) || "karma-7-hari-singh-ong-namo"}
           />
           <span className="mt-1 block font-mono text-[10px] text-subtle">/player/{slugify(publicSlug || title) || "…"}</span>
-          <span className="mt-1 block text-sm text-muted">Canonical player URL. Blank uses the song title. Same on radio.cyber-athens.ca and radio.terrainfinity.ca.</span>
+          <span className="mt-1 block text-sm text-muted">Canonical player URL. Blank uses the song title. Same on both Radio hosts.</span>
           <button type="button" onClick={() => setPublicSlug(slugify(title))} className="mt-1 inline-flex h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
             Use title
           </button>
         </label>
         <label className="block">
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Aliases</span>
-          <input className="input mt-1" value={aliases} onChange={(event) => setAliases(event.target.value)} placeholder="hari, gong, ong-namo" />
+          <input className="input mt-1" value={aliases} onChange={(event) => setAliases(event.target.value)} placeholder="hari, gong" />
+          <span className="mt-1 block font-mono text-[10px] text-subtle">radio.terrainfinity.ca/hari · radio.cyber-athens.ca/hari</span>
           <span className="mt-1 block text-sm text-muted">
-            Extra URL endings guests can type. hari → /hari and /player/hari both open this cut on radio.cyber-athens.ca and radio.terrainfinity.ca. Comma-separated. Does not rename the file or the display title.
+            Custom site endings without /player. Type hari or /hari. The address bar stays /hari — it does not bounce to the public /player/… URL. Comma-separated. Does not rename the file or the display title.
           </span>
         </label>
         <label className="block">

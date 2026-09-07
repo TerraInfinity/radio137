@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AliasRouteImport } from './routes/$alias'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as DeskRouteImport } from './routes/desk'
+import { Route as ExperiencesRouteImport } from './routes/experiences'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LogoutRouteImport } from './routes/logout'
@@ -44,6 +45,11 @@ const AboutRoute = AboutRouteImport.update({
 const DeskRoute = DeskRouteImport.update({
   id: '/desk',
   path: '/desk',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExperiencesRoute = ExperiencesRouteImport.update({
+  id: '/experiences',
+  path: '/experiences',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LibraryRoute = LibraryRouteImport.update({
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
+  '/experiences': typeof ExperiencesRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
+  '/experiences': typeof ExperiencesRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
+  '/experiences': typeof ExperiencesRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/$alias'
     | '/about'
     | '/desk'
+    | '/experiences'
     | '/library'
     | '/login'
     | '/logout'
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/$alias'
     | '/about'
     | '/desk'
+    | '/experiences'
     | '/library'
     | '/login'
     | '/logout'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/$alias'
     | '/about'
     | '/desk'
+    | '/experiences'
     | '/library'
     | '/login'
     | '/logout'
@@ -224,6 +236,7 @@ export interface RootRouteChildren {
   AliasRoute: typeof AliasRoute
   AboutRoute: typeof AboutRoute
   DeskRoute: typeof DeskRoute
+  ExperiencesRoute: typeof ExperiencesRoute
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
   LogoutRoute: typeof LogoutRoute
@@ -266,6 +279,13 @@ declare module '@tanstack/react-router' {
       path: '/desk'
       fullPath: '/desk'
       preLoaderRoute: typeof DeskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/experiences': {
+      id: '/experiences'
+      path: '/experiences'
+      fullPath: '/experiences'
+      preLoaderRoute: typeof ExperiencesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/library': {
@@ -360,6 +380,7 @@ const rootRouteChildren: RootRouteChildren = {
   AliasRoute: AliasRoute,
   AboutRoute: AboutRoute,
   DeskRoute: DeskRoute,
+  ExperiencesRoute: ExperiencesRoute,
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
   LogoutRoute: LogoutRoute,

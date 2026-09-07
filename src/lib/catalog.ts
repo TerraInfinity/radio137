@@ -1,6 +1,6 @@
 import seed from "@/data/catalog.json";
 import { durationOf, rememberDuration } from "@/lib/playback";
-import { findSong } from "@/lib/song-url";
+import { findPlayerSong, findSongByAlias } from "@/lib/song-url";
 import type { Catalog, Channel, ShuffleMode, StationKind, Track } from "@/lib/types";
 
 const seedCatalog = seed as Catalog;
@@ -146,8 +146,18 @@ export function listPublicSongs(source: Catalog = catalog): Array<{ track: Track
 }
 
 export function getSong(id: string) {
-  const found = findSong(catalog, id);
+  const found = findPlayerSong(catalog, id);
   if (!found) return null;
+  return wrapSong(found);
+}
+
+export function getSongByAlias(alias: string) {
+  const found = findSongByAlias(catalog, alias);
+  if (!found) return null;
+  return wrapSong(found);
+}
+
+function wrapSong(found: { track: Track; channel: Channel }) {
   return { ...found, locked: isAdultTrack(found.track) && !isChannelNsfw(found.channel) };
 }
 

@@ -10,7 +10,7 @@ import { usePlayerStore } from "@/lib/player-store";
 export const Route = createFileRoute("/player/")({
   component: PlayerIndex,
   validateSearch: qSearch,
-  head: () => ({ meta: [{ title: "Player · Radio" }] }),
+  head: () => ({ meta: [{ title: "Songs · Radio" }] }),
 });
 
 function PlayerIndex() {
@@ -22,9 +22,9 @@ function PlayerIndex() {
   const songs = collapseByCanonical(listPublicSongs(catalog), listCutCopies(catalog), groups);
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 pb-44">
-      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Directory</p>
-      <h1 className="mt-2 font-display text-4xl font-semibold">Cuts</h1>
-      <p className="mt-2 max-w-prose text-muted">Every public song has its own page. Search by title, artist, tag, or filename.</p>
+      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Library</p>
+      <h1 className="mt-2 font-display text-4xl font-semibold">Songs</h1>
+      <p className="mt-2 max-w-prose text-muted">Every public cut has its own page. Open one to play, share, or download.</p>
       <div className="mt-6">
         <DialSearch
           catalog={catalog}
@@ -35,9 +35,9 @@ function PlayerIndex() {
       </div>
       {searching ? null : (
         <>
-          <p className="mt-6 text-sm text-muted">{songs.length} public cuts. Search the box to open any one of them.</p>
+          <p className="mt-6 text-sm text-muted">{songs.length} public songs.</p>
           <ul className="mt-4 divide-y divide-line">
-            {songs.slice(0, 80).map(({ track, channel }) => (
+            {songs.map(({ track, channel }) => (
               <li key={track.id} className="flex items-center gap-3 py-3">
                 <Link to="/player/$id" params={{ id: songKey(track) }} className="min-w-0 flex-1 truncate font-display text-lg">
                   {track.title}

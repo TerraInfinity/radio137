@@ -9,11 +9,10 @@ export function EnterGate() {
         <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-gold">Frequency</p>
         <h1 className="mt-3 font-display text-5xl font-semibold tracking-tight">Radio</h1>
         <p className="mt-4 text-muted">
-          The green lamp is on. Default begins the clock. After this visit, this tab resumes wherever you left the dial.
-          Dim the lamp if you want silence on arrival.
+          Tune in to open the default station. Shared station and song links skip this page and start on their own.
         </p>
         <div className="mt-6 flex justify-center">
-          <AutoplayLamp label="Autoplay on" />
+          <AutoplayLamp label="Keep playing" />
         </div>
         <div className="mt-6">
           <button
