@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { AdminStationEdit } from "@/components/admin-track-tools";
+import { GlaumWordBooth } from "@/components/glaum-word-booth";
 import { ClaimBooth } from "@/components/claim-booth";
 import { ModePill } from "@/components/mode-pill";
 import { NowPlayingCard } from "@/components/now-playing-card";
@@ -76,6 +77,7 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
       <div className="mt-8">
         <NowPlayingCard channel={channel} track={now ?? null} statusLabel={statusLabel} />
       </div>
+      {skin === "glaum" ? <GlaumWordBooth nextPath={sharePath || stationPath(channel)} /> : null}
       <StationPlaylist channel={channel} />
       <StationChat slug={channel.slug} />
       <ClaimBooth channel={channel} />
