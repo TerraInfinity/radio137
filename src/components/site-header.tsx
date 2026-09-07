@@ -24,7 +24,7 @@ export function SiteHeader() {
   const glaumules = usePlayerStore((s) => s.glaumules);
   const slug = usePlayerStore((s) => s.channelSlug);
   const ready = usePlayerStore((s) => s.ready);
-  const gateOpen = usePlayerStore((s) => s.gateOpen);
+  const visited = usePlayerStore((s) => s.visited);
   const { isAdmin, user } = useRadioUser();
   const channel = slug ? getChannel(slug) : undefined;
   const onGlaum = Boolean(channel && stationSkin(channel) === "glaum");
@@ -103,7 +103,7 @@ export function SiteHeader() {
             aria-label="Search songs and stations"
           />
         </form>
-        {ready && !gateOpen ? (
+        {ready && visited ? (
           <p className="hidden shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle xl:block">
             {points} pts{onGlaum || glaumules > 0 ? ` · ${glaumules} glåümules` : ""}
           </p>

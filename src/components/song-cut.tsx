@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Download, Play } from "lucide-react";
+import { useEffect } from "react";
 import { AdminTrackTools } from "@/components/admin-track-tools";
 import { AdminMergeBox, SongCopies } from "@/components/desk-directory";
 import { CoverArt } from "@/components/cover-art";
@@ -29,7 +30,16 @@ export function SongCut({
   const status = usePlayerStore((s) => s.status);
   const trackNow = usePlayerStore((s) => s.track);
   const bumpView = usePlayerStore((s) => s.bumpView);
+  const ready = usePlayerStore((s) => s.ready);
   const { isAdmin } = useRadioUser();
+
+  useEffect(() => {
+    if (!ready || locked) return;
+    const now = usePlayerStore.getState();
+    if (now.track?.id === track.id && (now.status === "playing" || now.status === "loading")) return;
+    bumpView(track.id);
+    void cueTrack(channel.slug, track.id);
+  }, [ready, locked, track.id, channel.slug, bumpView, cueTrack]);
 
   if (locked) {
     return (

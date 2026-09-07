@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { AdminStationEdit } from "@/components/admin-track-tools";
 import { ClaimBooth } from "@/components/claim-booth";
 import { ModePill } from "@/components/mode-pill";
@@ -16,6 +17,7 @@ import type { Channel } from "@/lib/types";
 
 export function ChannelView({ channel }: { channel: Channel }) {
   const tuneIn = usePlayerStore((s) => s.tuneIn);
+  const ready = usePlayerStore((s) => s.ready);
   const slug = usePlayerStore((s) => s.channelSlug);
   const track = usePlayerStore((s) => s.track);
   const status = usePlayerStore((s) => s.status);
@@ -27,6 +29,11 @@ export function ChannelView({ channel }: { channel: Channel }) {
   const now = here ? track : live ? resolveLivePlayhead(playable, Date.now(), channel.slug)?.track ?? playable[0] : playable[0];
   const skin = stationSkin(channel);
   const statusLabel = !channel.enabled ? "Off air" : playable.length === 0 ? "Empty desk" : here ? status : kindHint(kind);
+
+  useEffect(() => {
+    if (!ready || !channel.enabled || playable.length === 0) return;
+    void tuneIn(channel.slug, { forcePlay: true });
+  }, [ready, channel.slug, channel.enabled, playable.length, tuneIn]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 pb-44">
