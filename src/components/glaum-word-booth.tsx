@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { SignInChoices } from "@/components/sign-in-choices";
 import { addAdminGlaumWordFn, addGuestGlaumWordFn, hideGlaumWordFn, listGlaumWords } from "@/lib/glaum-api";
-import { GLAUM_DEFAULT_WORDS, GLAUM_GUEST_MAX } from "@/lib/glaum-words";
+import { GLAUM_DEFAULT_WORDS, GLAUM_GUEST_MAX, graphemeCount } from "@/lib/glaum-words";
 import { useRadioUser } from "@/lib/radio-user";
 
 type WordRow = {
@@ -82,7 +82,7 @@ export function GlaumWordBooth({ nextPath = "/channel/official-glaum-frequency" 
     <section className="glaum-panel mt-6 rounded-xl p-4">
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-glaum">Lantern words</p>
       <p className="mt-2 text-sm text-muted">
-        Drop a word into the bubbles. Letters only, under 10 characters, no profanity. Guest words fade after a month.
+        Drop a word into the bubbles. Emoji and symbols are welcome. Under 10 characters, no profanity. Guest words fade after a month.
       </p>
       {isPending ? <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">Checking…</p> : null}
       {!isPending && !user ? (
@@ -104,13 +104,15 @@ export function GlaumWordBooth({ nextPath = "/channel/official-glaum-frequency" 
           <input
             className="input max-w-xs"
             value={word}
-            maxLength={GLAUM_GUEST_MAX}
             onChange={(event) => setWord(event.target.value)}
-            placeholder="softglow"
+            placeholder="🦐✨"
             autoCapitalize="off"
             autoCorrect="off"
             spellCheck={false}
           />
+          <span className="self-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+            {graphemeCount(word)} / {GLAUM_GUEST_MAX}
+          </span>
           <button type="submit" disabled={busy || !word.trim()} className="btn-glaum inline-flex h-11 items-center px-4 font-mono text-[11px] uppercase tracking-[0.14em]">
             {busy ? "Sending…" : "Float it"}
           </button>

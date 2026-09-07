@@ -20,7 +20,7 @@ export const listGlaumWords = createServerFn({ method: "GET" }).handler(async ()
 
 export const addGuestGlaumWordFn = createServerFn({ method: "POST" })
   .middleware([radioSessionMiddleware])
-  .validator((input: unknown) => z.object({ word: z.string().min(1).max(16) }).parse(input))
+  .validator((input: unknown) => z.object({ word: z.string().min(1).max(48) }).parse(input))
   .handler(async ({ context, data }) => {
     const { assertSameSiteRequest } = await import("@/lib/auth/isolation.server");
     assertSameSiteRequest();
@@ -32,7 +32,7 @@ export const addGuestGlaumWordFn = createServerFn({ method: "POST" })
 
 export const addAdminGlaumWordFn = createServerFn({ method: "POST" })
   .middleware([radioSessionMiddleware])
-  .validator((input: unknown) => z.object({ word: z.string().min(1).max(24) }).parse(input))
+  .validator((input: unknown) => z.object({ word: z.string().min(1).max(64) }).parse(input))
   .handler(async ({ context, data }) => {
     const { assertSameSiteRequest } = await import("@/lib/auth/isolation.server");
     assertSameSiteRequest();

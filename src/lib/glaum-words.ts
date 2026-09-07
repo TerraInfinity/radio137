@@ -2,8 +2,11 @@
 export const GLAUM_DEFAULT_WORDS = [
   "glåüm",
   "shrimp",
+  "🦐",
   "om",
   "pop",
+  "♡",
+  "✨",
   "lantern",
   "sequin",
   "prawn",
@@ -55,7 +58,31 @@ export function foldGlaum(value: string): string {
     .replace(/4/g, "a")
     .replace(/5/g, "s")
     .replace(/7/g, "t")
+    .replace(/\$/g, "s")
+    .replace(/@/g, "a")
+    .replace(/!/g, "i")
+    .replace(/\+/g, "t")
     .replace(/[^a-z]/g, "");
+}
+
+/** Stable identity for emoji + symbol words (does not strip them). */
+export function glaumKey(value: string): string {
+  return tidyGlaum(value).normalize("NFKC").toLocaleLowerCase();
+}
+
+export function graphemeCount(value: string): number {
+  if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
+    return [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value)].length;
+  }
+  return [...value].length;
+}
+
+export function tidyGlaum(raw: string): string {
+  return raw
+    .replace(/\p{Cc}/gu, "")
+    .replace(/[\u200B\u2060\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function squash(value: string): string {
@@ -73,19 +100,19 @@ export function glaumProfane(word: string): boolean {
 }
 
 export function cleanGuestWord(raw: string): { ok: true; word: string } | { ok: false; error: string } {
-  const word = raw.trim();
+  const word = tidyGlaum(raw);
   if (!word) return { ok: false, error: "Need a word" };
-  if (word.length > GLAUM_GUEST_MAX) return { ok: false, error: "Keep it under 10 characters" };
-  if (!/^[\p{L}]+$/u.test(word)) return { ok: false, error: "Letters only — no symbols, numbers, or spaces" };
+  if (graphemeCount(word) > GLAUM_GUEST_MAX) return { ok: false, error: "Keep it under 10 characters" };
+  if (/https?:|www\.|\.(com|ca|net|org)\b/i.test(word)) return { ok: false, error: "No links in the lantern" };
   if (glaumProfane(word)) return { ok: false, error: "That word cannot float here" };
   return { ok: true, word };
 }
 
 export function cleanAdminWord(raw: string): { ok: true; word: string } | { ok: false; error: string } {
-  const word = raw.trim().replace(/\s+/g, " ");
+  const word = tidyGlaum(raw);
   if (!word) return { ok: false, error: "Need a word" };
-  if (word.length > 16) return { ok: false, error: "Keep it short" };
-  if (!/^[\p{L} ]+$/u.test(word)) return { ok: false, error: "Letters and spaces only" };
+  if (graphemeCount(word) > 16) return { ok: false, error: "Keep it short" };
+  if (/https?:|www\.|\.(com|ca|net|org)\b/i.test(word)) return { ok: false, error: "No links in the lantern" };
   if (glaumProfane(word)) return { ok: false, error: "That word cannot float here" };
   return { ok: true, word };
 }

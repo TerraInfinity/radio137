@@ -3,6 +3,7 @@ import {
   cleanAdminWord,
   cleanGuestWord,
   foldGlaum,
+  glaumKey,
   GLAUM_DEFAULT_WORDS,
   monthFromNow,
 } from "@/lib/glaum-words";
@@ -61,7 +62,7 @@ export async function listGlaumLexicon(): Promise<{
       order by permanent desc, id desc
     `;
     const mapped = rows.map(mapRow);
-    const hidden = new Set(mapped.filter((row) => row.hidden).map((row) => row.normalized));
+    const hidden = new Set(mapped.filter((row) => row.hidden).flatMap((row) => [row.normalized, foldGlaum(row.word)].filter(Boolean)));
     const now = Date.now();
     const live = mapped.filter((row) => {
       if (row.hidden) return false;
@@ -69,14 +70,16 @@ export async function listGlaumLexicon(): Promise<{
       if (!row.expiresAt) return false;
       return new Date(row.expiresAt).getTime() > now;
     });
-    const defaults = GLAUM_DEFAULT_WORDS.filter((word) => !hidden.has(foldGlaum(word)));
+    const defaults = GLAUM_DEFAULT_WORDS.filter((word) => !hidden.has(glaumKey(word)) && !hidden.has(foldGlaum(word)));
     const extras = live.map((row) => row.word);
     const seen = new Set<string>();
     const pool: string[] = [];
     for (const word of [...defaults, ...extras]) {
-      const key = foldGlaum(word);
-      if (!key || seen.has(key)) continue;
+      const key = glaumKey(word);
+      const letters = foldGlaum(word);
+      if (!key || seen.has(key) || (letters && seen.has(`#${letters}`))) continue;
       seen.add(key);
+      if (letters) seen.add(`#${letters}`);
       pool.push(word);
     }
     return {
@@ -93,7 +96,8 @@ export async function listGlaumLexicon(): Promise<{
 export async function addGuestGlaumWord(user: RadioUser, raw: string) {
   const clean = cleanGuestWord(raw);
   if (!clean.ok) throw new Error(clean.error);
-  const normalized = foldGlaum(clean.word);
+  const normalized = glaumKey(clean.word);
+  const letters = foldGlaum(clean.word);
   const sql = await getSql();
   const open = await sql<{ count: number }>`
     select count(*)::int as count from radio_glaum_words
@@ -103,12 +107,13 @@ export async function addGuestGlaumWord(user: RadioUser, raw: string) {
   if ((open[0]?.count ?? 0) >= 1) {
     throw new Error("You already have a lantern word floating this month.");
   }
-  const clash = await sql<{ id: number }>`
-    select id from radio_glaum_words where normalized = ${normalized} and hidden = false
+  const clash = await sql<{ id: number; word: string }>`
+    select id, word from radio_glaum_words where hidden = false
       and (permanent = true or (expires_at is not null and expires_at > now()))
-    limit 1
   `;
-  if (clash[0]) throw new Error("That word already floats.");
+  if (clash.some((row) => glaumKey(row.word) === normalized || (letters && foldGlaum(row.word) === letters))) {
+    throw new Error("That word already floats.");
+  }
   const expires = monthFromNow();
   const rows = await sql<Row>`
     insert into radio_glaum_words (word, normalized, permanent, hidden, author_id, author_name, expires_at)
@@ -121,11 +126,11 @@ export async function addGuestGlaumWord(user: RadioUser, raw: string) {
 export async function addAdminGlaumWord(user: RadioUser, raw: string) {
   const clean = cleanAdminWord(raw);
   if (!clean.ok) throw new Error(clean.error);
-  const normalized = foldGlaum(clean.word);
+  const normalized = glaumKey(clean.word);
   const sql = await getSql();
   const existing = await sql<Row>`
     select id, word, normalized, permanent, hidden, author_id, author_name, created_at, expires_at
-    from radio_glaum_words where normalized = ${normalized} order by id desc limit 1
+    from radio_glaum_words where normalized = ${normalized} or word = ${clean.word} order by id desc limit 1
   `;
   if (existing[0]) {
     const rows = await sql<Row>`
@@ -153,9 +158,9 @@ export async function hideGlaumWord(id: number) {
 export async function hideGlaumDefault(word: string) {
   const clean = cleanAdminWord(word);
   if (!clean.ok) throw new Error(clean.error);
-  const normalized = foldGlaum(clean.word);
+  const normalized = glaumKey(clean.word);
   const sql = await getSql();
-  await sql`update radio_glaum_words set hidden = true where normalized = ${normalized}`;
+  await sql`update radio_glaum_words set hidden = true where normalized = ${normalized} or word = ${clean.word}`;
   const left = await sql<{ id: number }>`select id from radio_glaum_words where normalized = ${normalized} limit 1`;
   if (!left[0]) {
     await sql`

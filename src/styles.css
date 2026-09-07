@@ -141,6 +141,7 @@ body:before {
 }
 .love-orb-glaum {
   backdrop-filter: blur(6px);
+  font-family: var(--font-glaum), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 @keyframes glaum-rise {
   0% { opacity: 0; transform: translate3d(0, 10vh, 0) scale(0.72) rotate(-6deg); }
