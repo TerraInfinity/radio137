@@ -316,7 +316,8 @@ export function envLamps(): EnvLamp[] {
     { key: "R2_ACCESS_KEY_ID", label: "R2 access key", group: "R2", set: present("R2_ACCESS_KEY_ID"), required: true, hint: "R2 API token access key." },
     { key: "R2_SECRET_ACCESS_KEY", label: "R2 secret", group: "R2", set: present("R2_SECRET_ACCESS_KEY"), required: true, hint: "R2 API token secret." },
     { key: "R2_BUCKET", label: "R2 bucket", group: "R2", set: present("R2_BUCKET"), required: false, hint: "Defaults to media-empire-radio." },
-    { key: "R2_PUBLIC_BASE_URL", label: "R2 public base", group: "R2", set: present("R2_PUBLIC_BASE_URL"), required: false, hint: "Defaults to https://r2.terrainfinity.ca" },
+    { key: "R2_PUBLIC_BASE_URL", label: "R2 public base", group: "R2", set: present("R2_PUBLIC_BASE_URL") || present("MEDIA_PUBLIC_BASE"), required: false, hint: "Or MEDIA_PUBLIC_BASE / VITE_MEDIA_PUBLIC_BASE. Flip the host later to move buckets; paths stay radio/…" },
+    { key: "VITE_MEDIA_PUBLIC_BASE", label: "Media public base", group: "R2", set: present("VITE_MEDIA_PUBLIC_BASE"), required: false, hint: "Browser rewrite for stored r2.terrainfinity.ca / *.r2.dev URLs. Same value as MEDIA_PUBLIC_BASE when you migrate." },
     { key: "ADMIN_EMAILS", label: "Extra C emails", group: "Desk", set: present("ADMIN_EMAILS"), required: false, hint: "Comma list on top of the two C accounts." },
   ];
 }

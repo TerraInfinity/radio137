@@ -17,7 +17,12 @@ function bucket(): string {
 }
 
 export function r2PublicBase(): string {
-  return (process.env.R2_PUBLIC_BASE_URL?.trim() || "https://r2.terrainfinity.ca").replace(/\/$/, "");
+  return (
+    process.env.MEDIA_PUBLIC_BASE?.trim() ||
+    process.env.VITE_MEDIA_PUBLIC_BASE?.trim() ||
+    process.env.R2_PUBLIC_BASE_URL?.trim() ||
+    "https://r2.terrainfinity.ca"
+  ).replace(/\/$/, "");
 }
 
 export function r2Configured(): boolean {
