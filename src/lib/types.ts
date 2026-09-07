@@ -38,6 +38,8 @@ export type Channel = {
   nsfw: boolean;
   isDefault?: boolean;
   shuffle?: ShuffleMode;
+  publicSlug?: string;
+  aliases?: string[];
   animationUrl?: string;
   embedUrl?: string;
   videoUrl?: string;

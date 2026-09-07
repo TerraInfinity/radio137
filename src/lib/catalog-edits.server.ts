@@ -84,6 +84,8 @@ type StationRow = {
   tags: string | null;
   shuffle: string | null;
   claimable: boolean | null;
+  public_slug: string | null;
+  aliases: string | null;
 };
 
 function mapStation(row: StationRow): StationEdit {
@@ -105,6 +107,8 @@ function mapStation(row: StationRow): StationEdit {
     tags: row.tags,
     shuffle: row.shuffle,
     claimable: row.claimable,
+    publicSlug: row.public_slug ?? null,
+    aliases: row.aliases ?? null,
   };
 }
 
@@ -112,16 +116,24 @@ export async function listStationEdits(): Promise<StationEdit[]> {
   const sql = await getSql();
   try {
     const rows = await sql<StationRow>`
-      select slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable
+      select slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable, public_slug, aliases
       from radio_station_edits order by slug asc
     `;
     return rows.map(mapStation);
   } catch {
-    const rows = await sql<StationRow>`
-      select slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags
-      from radio_station_edits order by slug asc
-    `;
-    return rows.map((row) => mapStation({ ...row, shuffle: null, claimable: null }));
+    try {
+      const rows = await sql<StationRow>`
+        select slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable
+        from radio_station_edits order by slug asc
+      `;
+      return rows.map((row) => mapStation({ ...row, public_slug: null, aliases: null }));
+    } catch {
+      const rows = await sql<StationRow>`
+        select slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags
+        from radio_station_edits order by slug asc
+      `;
+      return rows.map((row) => mapStation({ ...row, shuffle: null, claimable: null, public_slug: null, aliases: null }));
+    }
   }
 }
 
@@ -256,7 +268,7 @@ export async function patchTrack(
       throw new Error(`“${want}” is a reserved path. Use another public URL ending.`);
     }
     if (want && slugTaken(catalog, want, input.trackId)) {
-      throw new Error(`Slug “${want}” is already used by another cut`);
+      throw new Error(`Slug “${want}” is already used by another cut or station`);
     }
     const aliases = parseAliases(input.aliases);
     for (const key of aliases) {
@@ -264,7 +276,7 @@ export async function patchTrack(
         throw new Error(`Alias “${key}” is a reserved path (player, channel, desk, library, login, about, api…). Pick another ending.`);
       }
       if (slugTaken(catalog, key, input.trackId)) {
-        throw new Error(`Alias “${key}” is already used by another cut`);
+        throw new Error(`Alias “${key}” is already used by another cut or station`);
       }
     }
     if (input.aliases !== undefined) input.aliases = aliases.join(", ");
@@ -346,13 +358,94 @@ export async function upsertStation(
   user: RadioUser,
   patch: Partial<StationEdit> & { slug: string },
 ): Promise<StationEdit> {
+  if (patch.publicSlug !== undefined || patch.aliases !== undefined) {
+    const { slugify } = await import("@/lib/cn");
+    const { isReservedPublicPath, parseAliases, slugTaken } = await import("@/lib/song-url");
+    const catalog = await liveCatalog();
+    const want = slugify(patch.publicSlug || "");
+    if (want && isReservedPublicPath(want)) {
+      throw new Error(`“${want}” is a reserved path. Use another public URL ending.`);
+    }
+    if (want && slugTaken(catalog, want, "", patch.slug)) {
+      throw new Error(`Slug “${want}” is already used by another cut or station`);
+    }
+    const aliases = parseAliases(patch.aliases);
+    for (const key of aliases) {
+      if (isReservedPublicPath(key)) {
+        throw new Error(`Alias “${key}” is a reserved path (player, channel, desk, library, login, api…). Pick another ending.`);
+      }
+      if (slugTaken(catalog, key, "", patch.slug)) {
+        throw new Error(`Alias “${key}” is already used by another cut or station`);
+      }
+    }
+    if (patch.aliases !== undefined) patch.aliases = aliases.join(", ");
+    if (patch.publicSlug !== undefined) patch.publicSlug = want || "";
+  }
   const sql = await getSql();
   const hiddenTouch = typeof patch.hidden === "boolean";
   const featuredTouch = typeof patch.featured === "boolean";
   const enabledTouch = typeof patch.enabled === "boolean";
   const nsfwTouch = typeof patch.nsfw === "boolean";
   const claimableTouch = typeof patch.claimable === "boolean";
-  const rows = await sql<StationRow>`
+  const publicSlugTouch = patch.publicSlug !== undefined;
+  const aliasesTouch = patch.aliases !== undefined;
+  const write = async () =>
+    sql<StationRow>`
+    insert into radio_station_edits (
+      slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable, public_slug, aliases, editor_id, editor_email, updated_at
+    ) values (
+      ${patch.slug},
+      ${patch.added ?? false},
+      ${patch.hidden ?? false},
+      ${patch.name ?? null},
+      ${patch.description ?? null},
+      ${patch.energy ?? null},
+      ${patch.category ?? null},
+      ${patch.cover ?? null},
+      ${patch.kind ?? null},
+      ${patch.mode ?? patch.kind ?? null},
+      ${patch.featured ?? null},
+      ${patch.featuredRank ?? null},
+      ${patch.enabled ?? null},
+      ${patch.nsfw ?? null},
+      ${patch.tags ?? null},
+      ${patch.shuffle ?? null},
+      ${patch.claimable ?? null},
+      ${patch.publicSlug ?? null},
+      ${patch.aliases ?? null},
+      ${user.id},
+      ${user.email},
+      now()
+    )
+    on conflict (slug) do update set
+      added = radio_station_edits.added or excluded.added,
+      hidden = case when ${hiddenTouch} then excluded.hidden else radio_station_edits.hidden end,
+      name = coalesce(excluded.name, radio_station_edits.name),
+      description = coalesce(excluded.description, radio_station_edits.description),
+      energy = coalesce(excluded.energy, radio_station_edits.energy),
+      category = coalesce(excluded.category, radio_station_edits.category),
+      cover = coalesce(excluded.cover, radio_station_edits.cover),
+      kind = coalesce(excluded.kind, radio_station_edits.kind),
+      mode = coalesce(excluded.mode, radio_station_edits.mode),
+      featured = case when ${featuredTouch} then excluded.featured else radio_station_edits.featured end,
+      featured_rank = coalesce(excluded.featured_rank, radio_station_edits.featured_rank),
+      enabled = case when ${enabledTouch} then excluded.enabled else radio_station_edits.enabled end,
+      nsfw = case when ${nsfwTouch} then excluded.nsfw else radio_station_edits.nsfw end,
+      tags = coalesce(excluded.tags, radio_station_edits.tags),
+      shuffle = coalesce(excluded.shuffle, radio_station_edits.shuffle),
+      claimable = case when ${claimableTouch} then excluded.claimable else radio_station_edits.claimable end,
+      public_slug = case when ${publicSlugTouch} then excluded.public_slug else radio_station_edits.public_slug end,
+      aliases = case when ${aliasesTouch} then excluded.aliases else radio_station_edits.aliases end,
+      editor_id = excluded.editor_id,
+      editor_email = excluded.editor_email,
+      updated_at = now()
+    returning slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable, public_slug, aliases
+  `;
+  try {
+    const rows = await write();
+    return mapStation(rows[0]);
+  } catch {
+    const rows = await sql<StationRow>`
     insert into radio_station_edits (
       slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable, editor_id, editor_email, updated_at
     ) values (
@@ -399,7 +492,8 @@ export async function upsertStation(
       updated_at = now()
     returning slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable
   `;
-  return mapStation(rows[0]);
+    return mapStation({ ...rows[0], public_slug: null, aliases: null });
+  }
 }
 
 async function liveCatalog() {

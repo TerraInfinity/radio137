@@ -1,6 +1,6 @@
 import seed from "@/data/catalog.json";
 import { durationOf, rememberDuration } from "@/lib/playback";
-import { findPlayerSong, findSongByAlias } from "@/lib/song-url";
+import { findPlayerSong, findSongByAlias, findStation, findStationByAlias } from "@/lib/song-url";
 import type { Catalog, Channel, ShuffleMode, StationKind, Track } from "@/lib/types";
 
 const seedCatalog = seed as Catalog;
@@ -106,9 +106,11 @@ export function featuredChannels(): Channel[] {
 }
 
 export function getChannel(slug: string): Channel | undefined {
-  const direct = catalog.channels.find((channel) => channel.slug === slug);
-  if (direct) return direct;
-  return catalog.channels.find((channel) => channel.slug.startsWith(`${slug}-`) || channel.slug.endsWith(`-${slug}`));
+  return findStation(catalog, slug) ?? undefined;
+}
+
+export function getStationByAlias(alias: string): Channel | null {
+  return findStationByAlias(catalog, alias);
 }
 
 export function isAdultTrack(track: Track): boolean {

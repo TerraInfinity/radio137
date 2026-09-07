@@ -1,9 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ChannelView } from "@/components/channel-view";
 import { getChannel } from "@/lib/catalog";
+import { ensureLiveCatalog } from "@/lib/live-catalog";
 import { usePlayerStore } from "@/lib/player-store";
 
 export const Route = createFileRoute("/channel/$slug")({
+  beforeLoad: async () => {
+    try {
+      await ensureLiveCatalog();
+    } catch {
+      /* seed is enough */
+    }
+  },
   component: ChannelPage,
   head: ({ params }) => {
     const channel = getChannel(params.slug);

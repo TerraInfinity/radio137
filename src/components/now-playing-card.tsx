@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { AdminTrackTools } from "@/components/admin-track-tools";
 import { CoverArt } from "@/components/cover-art";
 import { TrackActions } from "@/components/track-actions";
 import { isAdultTrack, isChannelNsfw } from "@/lib/catalog";
@@ -40,7 +39,6 @@ export function NowPlayingCard({
           <TrackActions trackId={track.id} />
         </div>
       </div>
-      <AdminTrackTools slug={channel.slug} track={track} />
     </section>
   );
 }

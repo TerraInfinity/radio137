@@ -63,6 +63,8 @@ export function parseAliasToken(part: string): string {
   raw = raw.replace(/^(https?:\/\/)?((www|radio)\.)?(terrainfinity|cyber-athens)\.ca(?::\d+)?/i, "");
   raw = raw.replace(/^\/+/, "");
   if (/^player\//i.test(raw)) raw = raw.slice("player/".length);
+  if (/^channel\//i.test(raw)) raw = raw.slice("channel/".length);
+  if (/^stations?\//i.test(raw)) raw = raw.replace(/^stations?\//i, "");
   raw = raw.split(/[/?#]/)[0] || "";
   const slug = asKey(raw);
   return slug;
@@ -91,6 +93,36 @@ export function songKey(track: Track): string {
   return track.id;
 }
 
+export function stationPublicSlug(channel: Pick<Channel, "slug" | "publicSlug">): string {
+  const slug = asKey(channel.publicSlug);
+  if (slug && !isReservedPublicPath(slug)) return slug;
+  return channel.slug;
+}
+
+export function stationPath(channel: Channel): string {
+  return `/channel/${stationPublicSlug(channel)}`;
+}
+
+export function stationKeys(channel: Channel): string[] {
+  const keys = [channel.slug, channel.publicSlug, stationPublicSlug(channel), ...(channel.aliases ?? [])];
+  return [...new Set(keys.map((key) => asKey(key) || (key || "").trim()).filter(Boolean))];
+}
+
+export function findStationByAlias(catalog: Catalog, needle: string): Channel | null {
+  const want = parseAliasToken(needle) || asKey(needle);
+  if (!want || isReservedPublicPath(want)) return null;
+  for (const channel of catalog.channels) {
+    if (parseAliases(channel.aliases).includes(want)) return channel;
+  }
+  return null;
+}
+
+export function findStation(catalog: Catalog, needle: string): Channel | null {
+  const want = parseAliasToken(needle) || asKey(needle) || needle.trim();
+  if (!want) return null;
+  return catalog.channels.find((channel) => stationKeys(channel).includes(want) || channel.slug === needle) ?? null;
+}
+
 export function songPath(track: Track): string {
   return `/player/${songKey(track)}`;
 }
@@ -98,10 +130,6 @@ export function songPath(track: Track): string {
 export function aliasPath(alias: string): string {
   const slug = parseAliasToken(alias);
   return slug ? `/${slug}` : "/";
-}
-
-export function stationPath(channel: Channel): string {
-  return `/channel/${channel.slug}`;
 }
 
 export function trackKeys(track: Track): string[] {
@@ -140,13 +168,14 @@ export function findSong(catalog: Catalog, needle: string): { track: Track; chan
   return findPlayerSong(catalog, needle) || findSongByAlias(catalog, needle);
 }
 
-export function slugTaken(catalog: Catalog, slug: string, exceptTrackId: string): boolean {
+export function slugTaken(catalog: Catalog, slug: string, exceptTrackId = "", exceptStationSlug = ""): boolean {
   const want = asKey(slug) || parseAliasToken(slug);
   if (!want) return false;
   if (isReservedPublicPath(want)) return true;
   for (const channel of catalog.channels) {
+    if (channel.slug !== exceptStationSlug && stationKeys(channel).includes(want)) return true;
     for (const track of channel.tracks) {
-      if (track.id === exceptTrackId) continue;
+      if (exceptTrackId && track.id === exceptTrackId) continue;
       if (trackKeys(track).includes(want)) return true;
     }
   }

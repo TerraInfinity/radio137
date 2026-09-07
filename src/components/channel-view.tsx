@@ -15,7 +15,7 @@ import { stationPath } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel } from "@/lib/types";
 
-export function ChannelView({ channel }: { channel: Channel }) {
+export function ChannelView({ channel, sharePath }: { channel: Channel; sharePath?: string }) {
   const tuneIn = usePlayerStore((s) => s.tuneIn);
   const ready = usePlayerStore((s) => s.ready);
   const slug = usePlayerStore((s) => s.channelSlug);
@@ -68,7 +68,7 @@ export function ChannelView({ channel }: { channel: Channel }) {
         </button>
       </div>
       <div className="mt-4">
-        <ShareLink path={stationPath(channel)} title={channel.name} />
+        <ShareLink path={sharePath || stationPath(channel)} title={channel.name} />
       </div>
       <div className="mt-6">
         <ShuffleToggle channel={channel} />

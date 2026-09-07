@@ -38,6 +38,8 @@ export type StationEdit = {
   tags: string | null;
   shuffle: string | null;
   claimable: boolean | null;
+  publicSlug: string | null;
+  aliases: string | null;
 };
 
 export function applyCatalogEdits(
@@ -138,6 +140,8 @@ export function applyCatalogEdits(
       tags: station?.tags ? station.tags.split(",").map((item) => item.trim()).filter(Boolean) : channel.tags,
       shuffle: station?.shuffle ? normalizeShuffle(station.shuffle) : normalizeShuffle(channel.shuffle),
       claimable: station?.claimable ?? channel.claimable,
+      publicSlug: station?.publicSlug != null ? station.publicSlug || undefined : channel.publicSlug,
+      aliases: station?.aliases != null ? parseAliases(station.aliases) : channel.aliases,
       tracks: ordered,
     };
   });
@@ -188,6 +192,8 @@ export function applyCatalogEdits(
         skin: "none",
         nsfw: station.nsfw ?? false,
         shuffle: normalizeShuffle(station.shuffle),
+        publicSlug: station.publicSlug || undefined,
+        aliases: parseAliases(station.aliases),
         tracks: ordered,
       };
     });

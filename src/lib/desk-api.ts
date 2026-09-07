@@ -212,6 +212,8 @@ export const saveStation = createServerFn({ method: "POST" })
         tags: z.string().optional(),
         shuffle: z.enum(["off", "optional", "on"]).optional(),
         claimable: z.boolean().optional(),
+        publicSlug: z.string().optional(),
+        aliases: z.string().optional(),
       })
       .parse(input),
   )
