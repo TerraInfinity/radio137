@@ -4,11 +4,12 @@ import { AdminTrackTools } from "@/components/admin-track-tools";
 import { AdminMergeBox, SongCopies } from "@/components/desk-directory";
 import { CoverArt } from "@/components/cover-art";
 import { ShareLink } from "@/components/share-link";
+import { SignInChoices } from "@/components/sign-in-choices";
 import { TrackActions } from "@/components/track-actions";
 import { stationsForSong } from "@/lib/catalog";
 import { formatClock } from "@/lib/cn";
 import { downloadName } from "@/lib/search";
-import { ssoLoginHref, useRadioUser } from "@/lib/radio-user";
+import { useRadioUser } from "@/lib/radio-user";
 import { aliasPath, songPath } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel, Track } from "@/lib/types";
@@ -31,15 +32,14 @@ export function SongCut({
   const { isAdmin } = useRadioUser();
 
   if (locked) {
-    const href = ssoLoginHref(sharePath);
     return (
       <div className="mx-auto max-w-3xl px-4 py-16">
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">18+ · Locked</p>
         <h1 className="mt-3 font-display text-4xl font-semibold">This cut is off the public dial</h1>
-        <p className="mt-4 max-w-prose text-muted">Sign in through the Terrainfinity hub to open 18+ rooms. Google stays on the hub.</p>
-        <a href={href} className="mt-8 inline-flex h-12 min-w-44 items-center justify-center rounded-md bg-fg px-6 font-mono text-[12px] uppercase tracking-[0.16em] text-bg">
-          Sign in with Google
-        </a>
+        <p className="mt-4 max-w-prose text-muted">Sign in with Google or X to open 18+ rooms. Google still lives on the Terrainfinity hub.</p>
+        <div className="mt-8">
+          <SignInChoices next={sharePath} />
+        </div>
       </div>
     );
   }

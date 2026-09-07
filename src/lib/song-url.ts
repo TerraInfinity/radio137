@@ -19,6 +19,7 @@ export const RESERVED_PUBLIC_PATHS = [
   "cuts",
   "desk",
   "download",
+  "experiences",
   "favicon",
   "grok",
   "health",
