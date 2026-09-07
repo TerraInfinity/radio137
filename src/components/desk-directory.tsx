@@ -13,6 +13,7 @@ import {
 } from "@/lib/cuts";
 import { dissolveStationCut, mergeStationCutClusters, mergeStationCuts, unmergeStationCut } from "@/lib/desk-api";
 import { formatClock } from "@/lib/cn";
+import { DownloadLink } from "@/components/download-link";
 import { songKey } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Catalog } from "@/lib/types";
@@ -264,11 +265,7 @@ export function SongCopies({ trackId }: { trackId: string }) {
             >
               Play this copy
             </button>
-            {copy.track.audioUrl ? (
-              <a href={copy.track.audioUrl} download rel="noopener noreferrer" className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
-                File
-              </a>
-            ) : null}
+            {copy.track.audioUrl ? <DownloadLink track={copy.track} label="File" className="h-11 text-[10px] tracking-[0.12em]" /> : null}
           </li>
         ))}
       </ul>

@@ -23,6 +23,7 @@ import { Route as PlayerIdRouteImport } from './routes/player/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiDeskUploadRouteImport } from './routes/api/desk/upload'
 import { Route as ApiDeskUploadArtRouteImport } from './routes/api/desk/upload-art'
+import { Route as ApiMediaDownloadRouteImport } from './routes/api/media/download'
 import { Route as ApiSsoConsumeRouteImport } from './routes/api/sso/consume'
 import { Route as ApiSsoLoginRouteImport } from './routes/api/sso/login'
 import { Route as ApiSsoLogoutRouteImport } from './routes/api/sso/logout'
@@ -98,6 +99,11 @@ const ApiDeskUploadArtRoute = ApiDeskUploadArtRouteImport.update({
   path: '/api/desk/upload-art',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaDownloadRoute = ApiMediaDownloadRouteImport.update({
+  id: '/api/media/download',
+  path: '/api/media/download',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSsoConsumeRoute = ApiSsoConsumeRouteImport.update({
   id: '/api/sso/consume',
   path: '/api/sso/consume',
@@ -134,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/desk/upload': typeof ApiDeskUploadRoute
   '/api/desk/upload-art': typeof ApiDeskUploadArtRoute
+  '/api/media/download': typeof ApiMediaDownloadRoute
   '/api/sso/consume': typeof ApiSsoConsumeRoute
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/desk/upload': typeof ApiDeskUploadRoute
   '/api/desk/upload-art': typeof ApiDeskUploadArtRoute
+  '/api/media/download': typeof ApiMediaDownloadRoute
   '/api/sso/consume': typeof ApiSsoConsumeRoute
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/desk/upload': typeof ApiDeskUploadRoute
   '/api/desk/upload-art': typeof ApiDeskUploadArtRoute
+  '/api/media/download': typeof ApiMediaDownloadRoute
   '/api/sso/consume': typeof ApiSsoConsumeRoute
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/desk/upload'
     | '/api/desk/upload-art'
+    | '/api/media/download'
     | '/api/sso/consume'
     | '/api/sso/login'
     | '/api/sso/logout'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/desk/upload'
     | '/api/desk/upload-art'
+    | '/api/media/download'
     | '/api/sso/consume'
     | '/api/sso/login'
     | '/api/sso/logout'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/desk/upload'
     | '/api/desk/upload-art'
+    | '/api/media/download'
     | '/api/sso/consume'
     | '/api/sso/login'
     | '/api/sso/logout'
@@ -258,6 +270,7 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDeskUploadRoute: typeof ApiDeskUploadRoute
   ApiDeskUploadArtRoute: typeof ApiDeskUploadArtRoute
+  ApiMediaDownloadRoute: typeof ApiMediaDownloadRoute
   ApiSsoConsumeRoute: typeof ApiSsoConsumeRoute
   ApiSsoLoginRoute: typeof ApiSsoLoginRoute
   ApiSsoLogoutRoute: typeof ApiSsoLogoutRoute
@@ -364,6 +377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDeskUploadArtRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/media/download': {
+      id: '/api/media/download'
+      path: '/api/media/download'
+      fullPath: '/api/media/download'
+      preLoaderRoute: typeof ApiMediaDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/sso/consume': {
       id: '/api/sso/consume'
       path: '/api/sso/consume'
@@ -410,6 +430,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDeskUploadRoute: ApiDeskUploadRoute,
   ApiDeskUploadArtRoute: ApiDeskUploadArtRoute,
+  ApiMediaDownloadRoute: ApiMediaDownloadRoute,
   ApiSsoConsumeRoute: ApiSsoConsumeRoute,
   ApiSsoLoginRoute: ApiSsoLoginRoute,
   ApiSsoLogoutRoute: ApiSsoLogoutRoute,

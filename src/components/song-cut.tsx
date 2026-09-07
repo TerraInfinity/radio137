@@ -1,15 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { Download, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { useEffect } from "react";
 import { AdminTrackTools } from "@/components/admin-track-tools";
 import { AdminMergeBox, SongCopies } from "@/components/desk-directory";
 import { CoverArt } from "@/components/cover-art";
+import { DownloadLink } from "@/components/download-link";
 import { ShareLink } from "@/components/share-link";
 import { SignInChoices } from "@/components/sign-in-choices";
 import { TrackActions } from "@/components/track-actions";
 import { stationsForSong } from "@/lib/catalog";
 import { formatClock } from "@/lib/cn";
-import { downloadName } from "@/lib/search";
 import { useRadioUser } from "@/lib/radio-user";
 import { aliasPath, songPath } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
@@ -56,7 +56,6 @@ export function SongCut({
 
   const playingHere = trackNow?.id === track.id && status === "playing";
   const alsoOn = stationsForSong(track.id).filter((item) => item.slug !== channel.slug);
-  const filename = downloadName(track);
   const canonical = songPath(track);
   const aliases = track.aliases ?? [];
 
@@ -122,17 +121,7 @@ export function SongCut({
           <Play className="size-4 ml-0.5" />
           {playingHere ? "Playing" : "Play"}
         </button>
-        {track.audioUrl ? (
-          <a
-            href={track.audioUrl}
-            download={filename}
-            rel="noopener noreferrer"
-            className="inline-flex h-12 items-center gap-2 px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
-          >
-            <Download className="size-4" />
-            Download
-          </a>
-        ) : null}
+        <DownloadLink track={track} />
         <Link to="/channel/$slug" params={{ slug: channel.slug }} className="inline-flex h-12 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
           {channel.name}
         </Link>

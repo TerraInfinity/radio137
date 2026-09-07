@@ -71,3 +71,8 @@ export function isLoopingVisual(src?: string | null): boolean {
   const path = src.split("?")[0].toLowerCase();
   return /\.(mp4|webm|mov)$/.test(path);
 }
+
+export function downloadPath(trackId: string): string {
+  return `/api/media/download?id=${encodeURIComponent(trackId)}`;
+}
+
