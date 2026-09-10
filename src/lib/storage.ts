@@ -1,3 +1,6 @@
+import type { ListenMode } from "@/lib/listen-mode";
+import { parseListenMode } from "@/lib/listen-mode";
+
 const KEY = "radio.persist.v4";
 const LEGACY = "radio.persist.v3";
 
@@ -13,6 +16,7 @@ export type Persisted = {
   liked: string[];
   favorites: string[];
   shuffleBySlug: Record<string, boolean>;
+  listenMode: ListenMode;
 };
 
 const defaults: Persisted = {
@@ -27,6 +31,7 @@ const defaults: Persisted = {
   liked: [],
   favorites: [],
   shuffleBySlug: {},
+  listenMode: "ondemand",
 };
 
 export function loadPersisted(): Persisted {
@@ -44,6 +49,7 @@ export function loadPersisted(): Persisted {
         parsed.shuffleBySlug && typeof parsed.shuffleBySlug === "object" ? parsed.shuffleBySlug : {},
       points: Number.isFinite(parsed.points) ? Number(parsed.points) : 0,
       glaumules: Number.isFinite(parsed.glaumules) ? Number(parsed.glaumules) : 0,
+      listenMode: parseListenMode(parsed.listenMode) ?? "ondemand",
     };
   } catch {
     return defaults;

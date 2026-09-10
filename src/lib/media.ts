@@ -76,3 +76,8 @@ export function downloadPath(trackId: string): string {
   return `/api/media/download?id=${encodeURIComponent(trackId)}`;
 }
 
+/** Still or looping visual for a cut, falling back through station motion fields. */
+export function visualSrc(track?: { coverUrl?: string | null } | null, channel?: { cover?: string; animationUrl?: string; videoUrl?: string } | null): string {
+  return track?.coverUrl || channel?.animationUrl || channel?.videoUrl || channel?.cover || "";
+}
+

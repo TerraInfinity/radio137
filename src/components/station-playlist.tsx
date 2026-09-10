@@ -18,7 +18,6 @@ function applySnapshot(tracks: Parameters<typeof applyCatalogEdits>[1], stations
 export function StationPlaylist({ channel }: { channel: Channel }) {
   const { isAdmin } = useRadioUser();
   const cueTrack = usePlayerStore((s) => s.cueTrack);
-  const skipAllowed = usePlayerStore((s) => s.skipAllowed(channel.slug));
   const nowId = usePlayerStore((s) => (s.channelSlug === channel.slug ? s.track?.id : null));
   const tracks = getPlayableTracks(channel);
   const [busy, setBusy] = useState(false);
@@ -87,7 +86,7 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
               index={index}
               current={nowId === track.id}
               admin={Boolean(isAdmin)}
-              canCue={skipAllowed}
+              canCue
               dragging={dragId === track.id}
               onCue={() => void cueTrack(channel.slug, track.id)}
               onUp={() => move(index, -1)}
@@ -164,6 +163,7 @@ function PlaylistRow({
       <button
         type="button"
         disabled={!canCue}
+        title={canCue ? undefined : "Streaming — skip locked"}
         onClick={onCue}
         className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left disabled:opacity-60"
       >

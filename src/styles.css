@@ -156,9 +156,133 @@ body:before {
 }
 @media (max-width: 640px) {
   .love-orb {
-    bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(9.5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .love-orb, .love-orb-pop { animation: none; opacity: 0.85; transform: none; }
+}
+
+.deck-scrub {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+.deck-scrub-nudge {
+  flex: 0 0 2.75rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: grid;
+  place-items: center;
+  color: var(--color-gold);
+  touch-action: manipulation;
+}
+.deck-scrub-nudge:active {
+  color: var(--color-ember);
+}
+.deck-scrub-main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.deck-scrub-hit {
+  position: relative;
+  min-width: 0;
+  height: 2.75rem;
+  touch-action: none;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.deck-scrub-track {
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: 14px;
+  transform: translateY(-50%);
+  overflow: hidden;
+  background: color-mix(in oklab, var(--color-bg-subtle) 55%, var(--color-fg) 10%);
+  box-shadow: inset 0 0 0 1px var(--color-line), inset 0 1px 3px #00000080;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.deck-scrub-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-ember);
+  border-radius: inherit;
+  box-shadow: 0 0 10px color-mix(in oklab, var(--color-ember) 45%, transparent);
+}
+.deck-scrub-thumb {
+  position: absolute;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--color-gold);
+  border: 3px solid var(--color-bg);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-ember) 70%, transparent), 0 0 12px color-mix(in oklab, var(--color-ember) 50%, transparent);
+  z-index: 1;
+}
+.deck-scrub-hit:hover .deck-scrub-track,
+.deck-scrub-hit:focus-visible .deck-scrub-track,
+.deck-scrub-hit:active .deck-scrub-track {
+  height: 16px;
+}
+.deck-scrub-hit:hover .deck-scrub-thumb,
+.deck-scrub-hit:active .deck-scrub-thumb,
+.deck-scrub-hit:focus-visible .deck-scrub-thumb {
+  width: 26px;
+  height: 26px;
+}
+.deck-scrub-tip {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, 0);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--color-gold);
+  pointer-events: none;
+  z-index: 2;
+}
+.deck-scrub-times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -0.15rem;
+  padding-inline: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-subtle);
+}
+.deck-scrub-dock {
+  margin: 0.1rem -0.25rem 0.2rem;
+}
+.deck-scrub-dock .deck-scrub-hit {
+  height: 2.75rem;
+}
+.player-sheet {
+  max-height: min(85dvh, 42rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.player-hero {
+  width: min(100%, 16rem);
+  margin-inline: auto;
+}
+.player-bar-wait {
+  opacity: 0.7;
+}
+.listen-card {
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  box-shadow: var(--shadow-border);
+  min-height: 4.5rem;
+}
+.listen-card-on {
+  box-shadow: var(--shadow-filigree);
+  background: var(--color-bg-subtle);
 }

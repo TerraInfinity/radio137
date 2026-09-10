@@ -60,7 +60,7 @@ export function SongCut({
   const aliases = track.aliases ?? [];
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 pb-44">
+    <div className="mx-auto max-w-3xl px-4 py-8 pb-52">
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Cut</p>
       <div className="mt-6 flex gap-5">
         <CoverArt src={track.coverUrl || channel.cover} alt="" className="size-32 shrink-0 rounded-lg sm:size-40" motion="loop" />

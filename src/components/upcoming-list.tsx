@@ -23,7 +23,6 @@ export function UpcomingList({
 }) {
   const [expanded, setExpanded] = useState(false);
   const cueTrack = usePlayerStore((s) => s.cueTrack);
-  const skipAllowed = usePlayerStore((s) => s.skipAllowed(slug));
   const canExpand = upcoming.length > COMPACT;
   const visible = expanded ? upcoming : upcoming.slice(0, COMPACT);
   const hidden = Math.max(0, upcoming.length - COMPACT);
@@ -64,9 +63,8 @@ export function UpcomingList({
             <li key={item.id} className="flex items-center gap-1">
               <button
                 type="button"
-                disabled={!skipAllowed}
                 onClick={() => void cueTrack(slug, item.id)}
-                className="flex h-7 min-w-0 flex-1 items-center gap-2 text-left disabled:opacity-60"
+                className="flex h-7 min-w-0 flex-1 items-center gap-2 text-left"
               >
                 <span className="w-3.5 shrink-0 font-mono text-[10px] tabular-nums text-subtle">{index + 1}</span>
                 <span className="min-w-0 flex-1 truncate text-sm text-muted">{item.title}</span>

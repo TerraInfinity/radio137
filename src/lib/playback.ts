@@ -39,11 +39,10 @@ function schedulePersist() {
 /** Real file length. Used to play and to skip a dead tail — never to move the station clock. */
 export function rememberDuration(trackId: string, seconds: number) {
   hydrateDurations();
-  if (!Number.isFinite(seconds) || seconds < 0.25) return;
+  if (!Number.isFinite(seconds) || seconds < 0.2) return;
   const prev = measured.get(trackId);
-  const next = prev && prev > 0 ? Math.min(prev, seconds) : seconds;
-  if (prev && Math.abs(prev - next) < 0.05) return;
-  measured.set(trackId, next);
+  if (prev && Math.abs(prev - seconds) < 0.05) return;
+  measured.set(trackId, seconds);
   schedulePersist();
 }
 

@@ -27,7 +27,7 @@ function Home() {
   const searching = q.trim().length >= 2;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 pb-44">
+    <div className="mx-auto max-w-6xl px-4 py-8 pb-52">
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Clockwork temple</p>
       <h1 className="mt-2 font-display text-5xl font-semibold tracking-tight">Radio</h1>
       <p className="mt-3 max-w-prose text-muted">A dark-elf clockwork temple. Live desks share a station clock. Fixed rooms play start to finish. Vaults wait on demand.</p>

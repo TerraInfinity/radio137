@@ -1,6 +1,7 @@
 import { CoverArt } from "@/components/cover-art";
 import { stationSkin } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
+import { visualSrc } from "@/lib/media";
 import type { Channel } from "@/lib/types";
 
 export function StationVisual({
@@ -15,7 +16,7 @@ export function StationVisual({
   const skin = stationSkin(channel);
   return (
     <div className={cn("relative overflow-hidden", className)}>
-      <CoverArt src={channel.cover} alt="" className="size-full" motion={size === "hero" ? "loop" : "still"} />
+      <CoverArt src={visualSrc(null, channel)} alt="" className="size-full" motion={size === "hero" ? "loop" : "still"} />
       <div
         className={cn(
           "station-motion pointer-events-none absolute inset-0",
