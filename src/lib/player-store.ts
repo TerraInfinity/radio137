@@ -597,8 +597,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         }
         const play = true;
         if (kind === "live") {
-          const head = resolveLivePlayhead(playable, Date.now(), slug, justEndedId);
-          if (head) await loadTrack(slug, head.track, head.offsetSec, play, set, 0, "join");
+          const nxt = pickNext(channel, playable, current?.id);
+          if (nxt) await loadTrack(slug, nxt, 0, play, set, 0, "flow");
           return;
         }
         if (!mixing && kind === "fixed") {
