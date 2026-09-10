@@ -3,6 +3,7 @@ import { Menu, Search, X } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { AuthSlot } from "@/components/auth-slot";
+import { ListenModeLamp } from "@/components/listen-mode-lamp";
 import { getChannel, stationSkin } from "@/lib/catalog";
 import { heldClaim } from "@/lib/claim";
 import { cn } from "@/lib/cn";
@@ -108,6 +109,7 @@ export function SiteHeader() {
             {points} pts{onGlaum || glaumules > 0 ? ` · ${glaumules} glåümules` : ""}
           </p>
         ) : null}
+        <ListenModeLamp compact />
         <AutoplayLamp compact />
         <AuthSlot />
         <button
