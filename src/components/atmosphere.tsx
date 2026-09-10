@@ -1,3 +1,5 @@
+import "./atmosphere.css";
+
 function rng(seed: number) {
   let a = seed >>> 0;
   return () => {
