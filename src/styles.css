@@ -204,4 +204,52 @@ body:before {
   background: var(--color-ember);
   border-radius: inherit;
 }
+.player-dock-seek {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 2;
+  height: 1.15rem;
+}
+.player-dock-seek input[type="range"] {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  opacity: 0;
+}
+.player-dock-seek input[type="range"]:disabled {
+  cursor: not-allowed;
+}
+.player-dock-seek .deck-scrub-track-thin {
+  top: 0;
+  bottom: auto;
+  height: 2px;
+  transform: none;
+}
+.player-sheet {
+  max-height: min(85dvh, 42rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.player-hero {
+  width: min(100%, 16rem);
+  margin-inline: auto;
+}
+.player-bar-wait {
+  opacity: 0.7;
+}
+.listen-card {
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  box-shadow: var(--shadow-border);
+  min-height: 4.5rem;
+}
+.listen-card-on {
+  box-shadow: var(--shadow-filigree);
+  background: var(--color-bg-subtle);
+}
 

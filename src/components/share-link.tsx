@@ -8,7 +8,7 @@ function nativeShareOk(): boolean {
   return navigator.maxTouchPoints > 1 && window.matchMedia("(pointer: coarse)").matches;
 }
 
-export function ShareLink({ path, title }: { path: string; title: string }) {
+export function ShareLink({ path, title, compact = false }: { path: string; title: string; compact?: boolean }) {
   const hrefPath = path.startsWith("/") ? path : `/${path}`;
   const [href, setHref] = useState(hrefPath);
   const [copied, setCopied] = useState(false);
@@ -38,9 +38,11 @@ export function ShareLink({ path, title }: { path: string; title: string }) {
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-      <p className="hidden min-w-0 flex-1 truncate font-mono text-[11px] text-subtle sm:block" title={href}>
-        {href}
-      </p>
+      {compact ? null : (
+        <p className="hidden min-w-0 flex-1 truncate font-mono text-[11px] text-subtle sm:block" title={href}>
+          {href}
+        </p>
+      )}
       <button
         type="button"
         onClick={() => void share()}

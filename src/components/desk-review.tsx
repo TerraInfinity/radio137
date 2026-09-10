@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { CoverArt } from "@/components/cover-art";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getCatalog, getSeedCatalog } from "@/lib/catalog";
 import { copiesOf } from "@/lib/cuts";
@@ -181,15 +182,20 @@ function ReviewRow({
   const cousins = useMemo(() => copies.filter((copy) => copy.track.id !== item.trackId || copy.channel.slug !== item.channelSlug), [copies, item]);
   return (
     <li className="rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-border)]">
-      <p className="font-display text-xl">{item.title || item.trackId}</p>
-      <p className="mt-1 text-sm text-muted">{item.artist || "Unknown"} · from {item.channelSlug}</p>
-      <p className="mt-1 break-all font-mono text-[10px] text-subtle">
-        {parts.folder ? `${parts.folder}/` : ""}
-        {parts.filename || item.r2Key || "—"}
-      </p>
-      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-        {item.editorEmail || "desk"} · {new Date(item.createdAt).toLocaleString()}
-      </p>
+      <div className="flex gap-3">
+        <CoverArt src={item.coverUrl} alt="" className="size-16 shrink-0 overflow-hidden rounded-md" motion="still" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-display text-xl">{item.title || item.trackId}</p>
+          <p className="mt-1 truncate text-sm text-muted">{item.artist || "Unknown"} · from {item.channelSlug}</p>
+          <p className="mt-1 break-all font-mono text-[10px] text-subtle">
+            {parts.folder ? `${parts.folder}/` : ""}
+            {parts.filename || item.r2Key || "—"}
+          </p>
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+            {item.editorEmail || "desk"} · {new Date(item.createdAt).toLocaleString()}
+          </p>
+        </div>
+      </div>
       {item.audioUrl ? (
         <audio className="mt-3 w-full" controls preload="none" src={mediaUrl(item.audioUrl)} />
       ) : null}

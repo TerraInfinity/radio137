@@ -68,7 +68,17 @@ export function HeroArtSheet({
   const preview = tab === "cut" ? visualSrc(track, channel) : visualSrc(null, channel);
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-bg/80 p-4 sm:place-items-center" role="dialog" aria-label="Replace art">
+    <div
+      className="fixed inset-0 z-50 grid place-items-end bg-bg/80 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:place-items-center"
+      role="dialog"
+      aria-label="Replace art"
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => {
+        event.preventDefault();
+        const file = event.dataTransfer.files?.[0];
+        if (file) void upload(file);
+      }}
+    >
       <div className="w-full max-w-md rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-filigree)]">
         <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">C · hero visual</p>
         <div className="mt-3 flex gap-1">
@@ -88,7 +98,7 @@ export function HeroArtSheet({
         </div>
         <CoverArt src={preview} alt="" className="mt-3 aspect-square w-full rounded-lg" motion="loop" />
         <p className="mt-3 text-sm text-muted">
-          Jpg, png, webp, or a short looping mp4 under {Math.round(MEDIA_MAX_VIDEO / (1024 * 1024))} MB. Audio keeps playing.
+          Jpg, png, webp, or a short looping mp4 under {Math.round(MEDIA_MAX_VIDEO / (1024 * 1024))} MB. Audio keeps playing. Drop a file on this sheet.
         </p>
         <input
           ref={inputRef}

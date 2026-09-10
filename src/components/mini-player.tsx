@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { Camera, ChevronDown, ChevronUp, Pause, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
+import { Camera, ChevronDown, Pause, Play, Radio, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { CoverArt } from "@/components/cover-art";
 import { HeroArtSheet } from "@/components/hero-art-sheet";
-import { ListenModeLamp } from "@/components/listen-mode-lamp";
+import { ListenModePicker } from "@/components/listen-mode-lamp";
+import { ShareLink } from "@/components/share-link";
 import { ShuffleToggle } from "@/components/shuffle-toggle";
 import { TrackActions } from "@/components/track-actions";
 import { UnallocateControl } from "@/components/unallocate-control";
@@ -12,6 +13,7 @@ import { cn, formatClock } from "@/lib/cn";
 import { isOnDemandOverlay, listenModeLabel } from "@/lib/listen-mode";
 import { visualSrc } from "@/lib/media";
 import { useRadioUser } from "@/lib/radio-user";
+import { songPath } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
 
 function VuMeter({ playing, skin }: { playing: boolean; skin: string }) {
@@ -94,85 +96,78 @@ export function MiniPlayer() {
   const skin = stationSkin(channel);
   const overlay = isOnDemandOverlay(channel, listenMode);
   const deskKind = normalizeKind(channel.kind || channel.mode);
-  const skipReason = canSkip ? undefined : overlay ? undefined : "Streaming — skip locked";
-  const claimed = !canSkip && deskKind === "live" && !overlay;
+  const liveSync = listenMode === "stream" && deskKind === "live" && !overlay;
+  const skipReason = canSkip ? undefined : "Streaming — skip locked";
+  const claimed = !canSkip && liveSync;
   const lockTitle = claimed ? "Desk claimed" : skipReason;
   const art = visualSrc(track, channel);
-  const statusLine =
-    status === "loading"
-      ? "Tuning…"
-      : buffering
-        ? "Buffering…"
-        : deckHint
-          ? deckHint
-          : playing
-            ? overlay
-              ? "On demand"
-              : listenMode === "stream" && deskKind === "live"
-                ? "Live sync"
-                : "Playing"
-            : "Paused";
+  const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+  const statusLine = status === "loading" ? "Tuning…" : buffering ? "Buffering…" : deckHint ? deckHint : overlay ? "On demand" : liveSync ? "Live" : playing ? "Playing" : "Paused";
 
   return (
     <div
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm",
+        "player-dock fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur-sm",
+        !collapsed && "player-sheet",
         skin === "glaum" && "player-shell-glaum",
         skin === "waheguru" && "player-shell-wahe",
       )}
     >
-      {collapsed ? (
-        <div className="deck-scrub h-11">
-          <span className="deck-scrub-track deck-scrub-track-thin" aria-hidden>
-            <span
-              className={cn("deck-scrub-fill", skin === "glaum" && "player-bar-glaum", skin === "waheguru" && "player-bar-wahe")}
-              style={{ width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }}
-            />
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={Math.max(1, duration)}
-            step={0.25}
-            value={Math.min(currentTime, duration || 0)}
-            disabled={!canSkip}
-            title={lockTitle || "Seek"}
-            onChange={(event) => usePlayerStore.getState().seek(Number(event.target.value))}
-            aria-label={canSkip ? "Seek" : lockTitle || "Seek locked"}
-          />
-        </div>
-      ) : null}
-      <div className="mx-auto max-w-6xl px-3 py-2 sm:px-4">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            type="button"
-            onClick={() => setPlayerCollapsed(false)}
-            className="shrink-0"
-            aria-label="Expand player"
-          >
-            <CoverArt src={art} alt="" className={cn("rounded-md", collapsed ? "size-11" : "size-14")} motion={collapsed ? "still" : "loop"} />
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className={cn("truncate font-display leading-none", collapsed ? "text-base" : "text-xl", skin === "glaum" && "glaum-title")}>{track.title}</p>
-            <p className="mt-1 truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-              {track.artist ? `${track.artist} · ` : ""}
-              {channel.name}
-              {" · "}
-              {formatClock(currentTime)}
-              {collapsed ? ` · -${formatClock(Math.max(0, duration - currentTime))}` : ` / ${formatClock(duration)}`}
-            </p>
-            <div className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
-              {statusLine}
-              {collapsed && overlay ? (
-                <>
-                  {" · "}
-                  <button type="button" onClick={() => void jumpToLive()} className="uppercase tracking-[0.12em] text-gold">
-                    Jump to live
-                  </button>
-                </>
-              ) : null}
-            </div>
+      <div className="mx-auto max-w-6xl px-3 pt-2 sm:px-4">
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            {collapsed ? (
+              <div className="player-dock-seek">
+                <span className="deck-scrub-track deck-scrub-track-thin" aria-hidden>
+                  <span
+                    className={cn("deck-scrub-fill", buffering && "player-bar-wait", skin === "glaum" && "player-bar-glaum", skin === "waheguru" && "player-bar-wahe")}
+                    style={{ width: `${progress}%` }}
+                  />
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={Math.max(1, duration)}
+                  step={0.25}
+                  value={Math.min(currentTime, duration || 0)}
+                  disabled={!canSkip}
+                  title={lockTitle || "Seek"}
+                  onChange={(event) => usePlayerStore.getState().seek(Number(event.target.value))}
+                  aria-label={canSkip ? "Seek" : lockTitle || "Seek locked"}
+                />
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => collapsed && setPlayerCollapsed(false)}
+              className="flex w-full min-w-0 items-center gap-2.5 pt-1 text-left"
+              aria-label={collapsed ? "Expand player" : track.title}
+            >
+              <CoverArt src={art} alt="" className="size-12 shrink-0 overflow-hidden rounded-md" motion="still" />
+              {collapsed ? (
+                <span className="min-w-0 flex-1">
+                  <span className={cn("block truncate font-display text-base leading-tight", skin === "glaum" && "glaum-title")}>{track.title}</span>
+                  <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+                    {track.artist ? `${track.artist} · ` : ""}
+                    {statusLine}
+                  </span>
+                </span>
+              ) : (
+                <span className="min-w-0 flex-1" />
+              )}
+            </button>
           </div>
+          {overlay && collapsed ? (
+            <button
+              type="button"
+              onClick={() => void jumpToLive()}
+              className="inline-flex h-11 shrink-0 items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+              title="Jump to the station clock"
+            >
+              <Radio className="size-3.5" />
+              Live
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={!canSkip}
@@ -201,18 +196,21 @@ export function MiniPlayer() {
           >
             <SkipForward className="size-5" />
           </button>
-          <button
-            type="button"
-            onClick={() => setPlayerCollapsed(!collapsed)}
-            className="grid size-11 shrink-0 place-items-center text-subtle"
-            aria-label={collapsed ? "Expand player" : "Collapse player"}
-          >
-            {collapsed ? <ChevronUp className="size-5" /> : <ChevronDown className="size-5" />}
-          </button>
+          {!collapsed ? (
+            <button
+              type="button"
+              onClick={() => setPlayerCollapsed(true)}
+              className="grid size-11 shrink-0 place-items-center text-subtle"
+              aria-label="Collapse player"
+            >
+              <ChevronDown className="size-5" />
+            </button>
+          ) : null}
         </div>
+
         {!collapsed ? (
-          <div className="mt-3 space-y-3">
-            <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-xl shadow-[var(--shadow-filigree)]">
+          <div className="mt-4 space-y-4 pb-2">
+            <div className="player-hero relative overflow-hidden rounded-xl shadow-[var(--shadow-filigree)]">
               <button
                 type="button"
                 onClick={() => isAdmin && setArtOpen(true)}
@@ -225,39 +223,48 @@ export function MiniPlayer() {
                 <button
                   type="button"
                   onClick={() => setArtOpen(true)}
-                  className="absolute right-2 top-2 inline-flex size-11 items-center justify-center rounded-md bg-bg/80 text-gold"
+                  className="absolute right-2 top-2 inline-flex size-11 items-center justify-center rounded-md bg-bg/85 text-gold"
                   aria-label="Replace art"
                 >
                   <Camera className="size-4" />
                 </button>
               ) : null}
             </div>
+            <div className="text-center">
+              <p className={cn("font-display text-2xl font-semibold leading-tight", skin === "glaum" && "glaum-title")}>{track.title}</p>
+              <p className="mt-1 text-sm text-muted">
+                {track.artist || "Unknown"}
+                <span className="text-subtle"> · {channel.name}</span>
+              </p>
+            </div>
             <VuMeter playing={playing} skin={skin} />
             <Scrubber currentTime={currentTime} duration={duration} disabled={!canSkip} reason={lockTitle} />
-            {!canSkip ? (
-              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ember">{lockTitle}</p>
-            ) : null}
+            {!canSkip ? <p className="text-center font-mono text-[10px] uppercase tracking-[0.12em] text-ember">{lockTitle}</p> : null}
             {overlay ? (
               <button
                 type="button"
                 onClick={() => void jumpToLive()}
-                className="inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-md font-mono text-[11px] uppercase tracking-[0.14em] text-gold shadow-[var(--shadow-filigree)]"
               >
+                <Radio className="size-4" />
                 Jump to live
               </button>
             ) : null}
-            <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+            <p className="text-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
               Desk: {kindLabel(deskKind)} · You: {listenModeLabel(listenMode)}
             </p>
-            <div className="flex flex-wrap items-center gap-1">
-              <ListenModeLamp compact />
+            <ListenModePicker compact />
+            <div className="flex flex-wrap items-center justify-center gap-1">
               <AutoplayLamp compact />
               <ShuffleToggle channel={channel} compact />
-              <TrackActions trackId={track.id} />
+              <TrackActions trackId={track.id} compact />
               <UnallocateControl channel={channel} track={track} />
             </div>
+            <div className="flex justify-center">
+              <ShareLink path={songPath(track)} title={track.title} compact />
+            </div>
             {!ios ? (
-              <label className="flex min-w-40 items-center gap-2">
+              <label className="mx-auto flex max-w-sm items-center gap-2">
                 <Volume2 className="size-4 text-subtle" />
                 <input
                   type="range"
