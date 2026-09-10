@@ -165,24 +165,8 @@ body:before {
 
 .deck-scrub {
   display: flex;
-  align-items: center;
-  gap: 0.15rem;
-}
-.deck-scrub-nudge {
-  flex: 0 0 2.75rem;
-  width: 2.75rem;
-  height: 2.75rem;
-  display: grid;
-  place-items: center;
-  color: var(--color-gold);
-  touch-action: manipulation;
-}
-.deck-scrub-nudge:active {
-  color: var(--color-ember);
-}
-.deck-scrub-main {
+  flex-direction: column;
   min-width: 0;
-  flex: 1 1 auto;
 }
 .deck-scrub-hit {
   position: relative;
