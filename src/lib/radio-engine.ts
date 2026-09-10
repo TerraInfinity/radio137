@@ -189,21 +189,30 @@ export class RadioEngine {
     }
     const duration = Number.isFinite(el.duration) && el.duration > 0.05 ? el.duration : 0;
     const pad = endPad(duration || opts.offsetSec);
-    const joinOffset = Math.max(0, opts.offsetSec);
-    // Never skip a fresh start (offset 0) — leftover from the previous file must not eat this one.
+    let joinOffset = Math.max(0, opts.offsetSec);
+    // Tiny leftovers and the first slice of a sting must not skip the attack.
+    if (joinOffset <= 0.12) joinOffset = 0;
+    if (duration > 0 && duration < 10 && joinOffset < Math.max(0.2, duration * 0.12)) joinOffset = 0;
     if (joinOffset > 0.2 && duration > 0 && joinOffset >= duration - pad) {
       this.loading = false;
       return { kind: "skip", leftover: Math.max(0, joinOffset - duration), duration };
     }
-    const target = joinOffset <= 0.05 ? 0 : Math.max(0, Math.min(joinOffset, Math.max(0, (duration || joinOffset) - pad)));
-    const parked = await this.park(el, gen, target, duration);
-    if (parked === "stale") {
-      this.loading = false;
-      return { kind: "stale" };
-    }
-    if (parked.kind === "skip") {
-      this.loading = false;
-      return parked;
+    const target = joinOffset;
+    if (target > 0) {
+      const parked = await this.park(el, gen, target, duration);
+      if (parked === "stale") {
+        this.loading = false;
+        return { kind: "stale" };
+      }
+      if (parked.kind === "skip") {
+        this.loading = false;
+        return parked;
+      }
+    } else {
+      // Never assign currentTime = 0 — a seek-to-zero on a short MP3 drops the first frames.
+      const primed = duration > 0 && duration < 8 ? "canplaythrough" : "canplay";
+      await waitFor(el, primed, gen, 3500, () => this.gen);
+      if (gen !== this.gen) return { kind: "stale" };
     }
     this.highWater = el.currentTime || 0;
     this.lastAdvanceAt = performance.now();
@@ -237,16 +246,8 @@ export class RadioEngine {
       }
     }
     if (gen !== this.gen) return { kind: "stale" };
-    // Last guard: a late seek from the previous file must not leave us mid-cut.
-    if (target <= 0.05 && (el.currentTime || 0) > 0.4) {
-      try {
-        el.currentTime = 0;
-      } catch {
-        /* ignore */
-      }
-    }
     this.armWatchdog();
-    this.startedAt = performance.now() - (el.currentTime || 0) * 1000;
+    this.startedAt = performance.now();
     return { kind: "ready", duration: duration || 0, currentTime: el.currentTime || 0 };
   }
 
@@ -256,6 +257,7 @@ export class RadioEngine {
     target: number,
     duration: number,
   ): Promise<"stale" | { kind: "ok" } | { kind: "skip"; leftover: number; duration: number }> {
+    if (target <= 0.02) return { kind: "ok" };
     try {
       el.currentTime = target;
     } catch {
@@ -264,15 +266,6 @@ export class RadioEngine {
     await waitFor(el, "seeked", gen, 800, () => this.gen);
     if (gen !== this.gen) return "stale";
     const got = el.currentTime || 0;
-    if (target <= 0.05 && got > 0.35) {
-      try {
-        el.currentTime = 0;
-      } catch {
-        /* ignore */
-      }
-      await waitFor(el, "seeked", gen, 500, () => this.gen);
-      if (gen !== this.gen) return "stale";
-    }
     if (target > 0.05 && target - got > 0.75) {
       const measured = Math.max(0.25, got);
       return { kind: "skip", leftover: Math.max(0, target - measured), duration: measured || duration };
@@ -419,8 +412,7 @@ export class RadioEngine {
       else this.handlers?.onError();
     };
     // A short breath so a 1–2s sting is heard in full before the next src swap.
-    const hang =
-      reason === "ended" ? (fileDuration > 0 && fileDuration < 8 ? 900 : 180) : 0;
+    const hang = reason === "ended" ? (fileDuration > 0 && fileDuration < 8 ? 280 : 80) : 0;
     if (hang > 0) this.hangTimer = window.setTimeout(fire, hang);
     else fire();
   }
