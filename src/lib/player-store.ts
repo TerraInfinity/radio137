@@ -141,6 +141,15 @@ function listenOf(state?: PlayerState): ListenMode {
   return s.listenModeSession ?? s.listenMode;
 }
 
+function leaveLiveClock() {
+  const s = usePlayerStore.getState();
+  if ((s.listenModeSession ?? s.listenMode) !== "stream") return;
+  usePlayerStore.setState({ listenMode: "ondemand", listenModeSession: null });
+  persist();
+  setHint("On demand — left the station clock.");
+  flushMediaSession();
+}
+
 function setHint(message: string) {
   usePlayerStore.setState({ deckHint: message });
   if (typeof window === "undefined") return;
@@ -536,7 +545,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   cueTrack: async (slug, trackId) => {
-    if (!get().skipAllowed(slug)) return;
+    leaveLiveClock();
     const channel = channelOf(slug);
     const track = channel?.tracks.find((item) => item.id === trackId);
     if (!channel || !track || (isAdultTrack(track) && !isChannelNsfw(channel))) {
@@ -614,8 +623,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         if (nxt) await loadTrack(slug, nxt, 0, play, set, 0, "flow");
         return;
       }
-      if (!get().skipAllowed(slug) && reason === "user") return;
-      if (reason === "user") userPaused = false;
+      if (reason === "user") {
+        leaveLiveClock();
+        userPaused = false;
+      }
       const nxt = pickNext(channel, playable, current?.id);
       if (nxt) await loadTrack(slug, nxt, 0, true, set, 0, "flow");
       else if (playable[0]) await loadTrack(slug, playable[0], 0, true, set, 0, "flow");
@@ -625,8 +636,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   prev: async () => {
+    leaveLiveClock();
     const slug = get().channelSlug;
-    if (!slug || !get().skipAllowed(slug)) return;
+    if (!slug) return;
     const channel = channelOf(slug);
     if (!channel) return;
     const playable = getPlayableTracks(channel);
@@ -656,7 +668,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   seek: (seconds) => {
     const slug = get().channelSlug;
     if (!slug) return;
-    if (!get().skipAllowed(slug)) return;
+    leaveLiveClock();
     radioEngine.seek(seconds);
     const snap = radioEngine.snapshot();
     set({ currentTime: snap.currentTime, duration: snap.duration || get().duration });
@@ -713,6 +725,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (!slug || !channel) return;
     const playable = getPlayableTracks(channel);
     if (playable.length === 0) return;
+    set({ listenMode: "stream", listenModeSession: null });
+    persist();
     const play = !userPaused && (get().status === "playing" || get().autoplay);
     userPaused = false;
     const head = resolveLivePlayhead(playable, Date.now(), slug, justEndedId);

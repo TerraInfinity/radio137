@@ -2,7 +2,7 @@ import { cn } from "@/lib/cn";
 import { listenModeHint, listenModeLabel, type ListenMode } from "@/lib/listen-mode";
 import { usePlayerStore } from "@/lib/player-store";
 
-export function ListenModeLamp({ compact = false }: { compact?: boolean }) {
+export function ListenModeLamp({ compact = false, bare = false }: { compact?: boolean; bare?: boolean }) {
   const listenMode = usePlayerStore((s) => s.listenModeSession ?? s.listenMode);
   const setListenMode = usePlayerStore((s) => s.setListenMode);
   const next: ListenMode = listenMode === "stream" ? "ondemand" : "stream";
@@ -18,9 +18,13 @@ export function ListenModeLamp({ compact = false }: { compact?: boolean }) {
       <span className="lamp-bezel">
         <span className={cn("lamp", streaming && "lamp-live")} />
       </span>
-      <span className={cn(streaming ? "lamp-on" : "text-subtle")}>
-        {compact ? (streaming ? "Stream" : "Demand") : listenModeLabel(listenMode)}
-      </span>
+      {bare ? (
+        <span className="sr-only">{listenModeLabel(listenMode)}</span>
+      ) : (
+        <span className={cn(streaming ? "lamp-on" : "text-subtle")}>
+          {compact ? (streaming ? "Stream" : "Demand") : listenModeLabel(listenMode)}
+        </span>
+      )}
     </button>
   );
 }
