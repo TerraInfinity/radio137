@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Camera, ChevronDown, Pause, Play, Radio, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { CoverArt } from "@/components/cover-art";
@@ -29,37 +29,97 @@ function VuMeter({ playing, skin }: { playing: boolean; skin: string }) {
 function Scrubber({
   currentTime,
   duration,
-  disabled,
-  reason,
+  compact = false,
 }: {
   currentTime: number;
   duration: number;
-  disabled: boolean;
-  reason?: string;
+  compact?: boolean;
 }) {
   const seek = usePlayerStore((s) => s.seek);
-  const remaining = Math.max(0, duration - currentTime);
+  const hitRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const [preview, setPreview] = useState<number | null>(null);
+  const shown = preview ?? currentTime;
+  const max = Math.max(duration, 0);
+  const progress = max > 0 ? Math.min(100, (shown / max) * 100) : 0;
+  const remaining = Math.max(0, max - shown);
+
+  function timeAt(clientX: number) {
+    const el = hitRef.current;
+    if (!el || max <= 0) return 0;
+    const rect = el.getBoundingClientRect();
+    const x = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(rect.width, 1)));
+    return x * max;
+  }
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragging.current = true;
+    const next = timeAt(event.clientX);
+    setPreview(next);
+    seek(next);
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!dragging.current) return;
+    const next = timeAt(event.clientX);
+    setPreview(next);
+    seek(next);
+  }
+
+  function endDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!dragging.current) return;
+    dragging.current = false;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      /* already released */
+    }
+    seek(timeAt(event.clientX));
+    setPreview(null);
+  }
+
   return (
-    <label className="flex items-center gap-2">
-      <span className="w-9 shrink-0 font-mono text-[10px] tabular-nums text-subtle">{formatClock(currentTime)}</span>
-      <span className="deck-scrub min-w-0 flex-1">
+    <div className={cn("deck-scrub", compact && "deck-scrub-dock")}>
+      <span className="w-9 shrink-0 font-mono text-[10px] tabular-nums text-subtle">{formatClock(shown)}</span>
+      <div
+        ref={hitRef}
+        role="slider"
+        tabIndex={0}
+        aria-valuemin={0}
+        aria-valuemax={Math.round(max)}
+        aria-valuenow={Math.round(shown)}
+        aria-label="Seek"
+        className="deck-scrub-hit"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+            event.preventDefault();
+            seek(Math.min(max, currentTime + 5));
+          } else if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+            event.preventDefault();
+            seek(Math.max(0, currentTime - 5));
+          } else if (event.key === "Home") {
+            event.preventDefault();
+            seek(0);
+          } else if (event.key === "End") {
+            event.preventDefault();
+            seek(max);
+          }
+        }}
+      >
         <span className="deck-scrub-track" aria-hidden>
-          <span className="deck-scrub-fill" style={{ width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }} />
+          <span className="deck-scrub-fill" style={{ width: `${progress}%` }} />
         </span>
-        <input
-          type="range"
-          min={0}
-          max={Math.max(1, duration)}
-          step={0.25}
-          value={Math.min(currentTime, duration || 0)}
-          disabled={disabled}
-          title={disabled ? reason : "Seek"}
-          onChange={(event) => seek(Number(event.target.value))}
-          aria-label={disabled ? reason || "Seek locked" : "Seek"}
-        />
-      </span>
+        <span className="deck-scrub-thumb" style={{ left: `${progress}%` }} aria-hidden />
+      </div>
       <span className="w-10 shrink-0 text-right font-mono text-[10px] tabular-nums text-subtle">-{formatClock(remaining)}</span>
-    </label>
+    </div>
   );
 }
 
@@ -79,7 +139,6 @@ export function MiniPlayer() {
   const prev = usePlayerStore((s) => s.prev);
   const setVolume = usePlayerStore((s) => s.setVolume);
   const setPlayerCollapsed = usePlayerStore((s) => s.setPlayerCollapsed);
-  const skipAllowed = usePlayerStore((s) => s.skipAllowed);
   const jumpToLive = usePlayerStore((s) => s.jumpToLive);
   const { isAdmin } = useRadioUser();
   const [artOpen, setArtOpen] = useState(false);
@@ -92,17 +151,13 @@ export function MiniPlayer() {
   );
   if (!track || !channel) return null;
   const playing = status === "playing";
-  const canSkip = skipAllowed(channel.slug);
   const skin = stationSkin(channel);
   const overlay = isOnDemandOverlay(channel, listenMode);
   const deskKind = normalizeKind(channel.kind || channel.mode);
   const liveSync = listenMode === "stream" && deskKind === "live" && !overlay;
-  const skipReason = canSkip ? undefined : "Streaming — skip locked";
-  const claimed = !canSkip && liveSync;
-  const lockTitle = claimed ? "Desk claimed" : skipReason;
   const art = visualSrc(track, channel);
-  const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const statusLine = status === "loading" ? "Tuning…" : buffering ? "Buffering…" : deckHint ? deckHint : overlay ? "On demand" : liveSync ? "Live" : playing ? "Playing" : "Paused";
+  const skipHint = liveSync ? "Leaves streaming" : undefined;
 
   return (
     <div
@@ -113,34 +168,14 @@ export function MiniPlayer() {
         skin === "waheguru" && "player-shell-wahe",
       )}
     >
-      <div className="mx-auto max-w-6xl px-3 pt-2 sm:px-4">
+      <div className="mx-auto max-w-6xl px-3 pt-1 sm:px-4">
+        {collapsed ? <Scrubber currentTime={currentTime} duration={duration} compact /> : null}
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
-            {collapsed ? (
-              <div className="player-dock-seek">
-                <span className="deck-scrub-track deck-scrub-track-thin" aria-hidden>
-                  <span
-                    className={cn("deck-scrub-fill", buffering && "player-bar-wait", skin === "glaum" && "player-bar-glaum", skin === "waheguru" && "player-bar-wahe")}
-                    style={{ width: `${progress}%` }}
-                  />
-                </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={Math.max(1, duration)}
-                  step={0.25}
-                  value={Math.min(currentTime, duration || 0)}
-                  disabled={!canSkip}
-                  title={lockTitle || "Seek"}
-                  onChange={(event) => usePlayerStore.getState().seek(Number(event.target.value))}
-                  aria-label={canSkip ? "Seek" : lockTitle || "Seek locked"}
-                />
-              </div>
-            ) : null}
             <button
               type="button"
               onClick={() => collapsed && setPlayerCollapsed(false)}
-              className="flex w-full min-w-0 items-center gap-2.5 pt-1 text-left"
+              className="flex w-full min-w-0 items-center gap-2.5 text-left"
               aria-label={collapsed ? "Expand player" : track.title}
             >
               <CoverArt src={art} alt="" className="size-12 shrink-0 overflow-hidden rounded-md" motion="still" />
@@ -170,11 +205,10 @@ export function MiniPlayer() {
           ) : null}
           <button
             type="button"
-            disabled={!canSkip}
             onClick={() => void prev()}
-            title={lockTitle || "Previous"}
-            className={cn("grid size-11 shrink-0 place-items-center text-gold", !canSkip && "opacity-40")}
-            aria-label={canSkip ? "Previous" : lockTitle || "Previous locked"}
+            title={skipHint || "Previous"}
+            className="grid size-11 shrink-0 place-items-center text-gold"
+            aria-label="Previous"
           >
             <SkipBack className="size-5" />
           </button>
@@ -188,11 +222,10 @@ export function MiniPlayer() {
           </button>
           <button
             type="button"
-            disabled={!canSkip}
             onClick={() => void next("user")}
-            title={lockTitle || "Next"}
-            className={cn("grid size-11 shrink-0 place-items-center text-gold", !canSkip && "opacity-40")}
-            aria-label={canSkip ? "Next" : lockTitle || "Next locked"}
+            title={skipHint || "Next"}
+            className="grid size-11 shrink-0 place-items-center text-gold"
+            aria-label="Next"
           >
             <SkipForward className="size-5" />
           </button>
@@ -238,8 +271,7 @@ export function MiniPlayer() {
               </p>
             </div>
             <VuMeter playing={playing} skin={skin} />
-            <Scrubber currentTime={currentTime} duration={duration} disabled={!canSkip} reason={lockTitle} />
-            {!canSkip ? <p className="text-center font-mono text-[10px] uppercase tracking-[0.12em] text-ember">{lockTitle}</p> : null}
+            <Scrubber currentTime={currentTime} duration={duration} />
             {overlay ? (
               <button
                 type="button"
