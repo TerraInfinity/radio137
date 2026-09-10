@@ -166,11 +166,10 @@ function bindEngine() {
     onEnded: (measured, fileDuration) => {
       const track = usePlayerStore.getState().track;
       const known = fileDuration > 0 ? fileDuration : measured;
-      const pad = endPad(known);
-      const natural = known > 0 && known - measured <= Math.max(pad, 1.5);
-      if (track && natural && measured > 0.25) {
-        rememberDuration(track.id, Math.min(known, Math.max(measured, 0.25)));
-        patchTrackDuration(track.id, Math.min(known, measured));
+      const tail = Math.max(endPad(known), known < 6 ? 0.15 : 0.35);
+      if (track && known > 0 && measured >= known - tail && measured > 0.2) {
+        rememberDuration(track.id, known);
+        patchTrackDuration(track.id, known);
       }
       if (track) justEndedId = track.id;
       void usePlayerStore.getState().next("ended");
