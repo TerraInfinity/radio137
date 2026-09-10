@@ -185,6 +185,10 @@ function bindEngine() {
     },
     onPlay: () => {
       const s = usePlayerStore.getState();
+      if (!s.autoplay && userPaused) {
+        radioEngine.pause();
+        return;
+      }
       if (s.status === "paused" || s.status === "loading") {
         userPaused = false;
         usePlayerStore.setState({ status: "playing", buffering: false });
@@ -304,6 +308,11 @@ async function loadTrack(
       rememberDuration(track.id, result.duration);
       patchTrackDuration(track.id, result.duration);
     }
+    if (!usePlayerStore.getState().autoplay) {
+      radioEngine.pause();
+      set({ status: "paused", duration: result.duration });
+      return;
+    }
     const channel = channelOf(slug);
     const playable = getPlayableTracks(channel);
     if (hops >= 16) {
@@ -334,7 +343,9 @@ async function loadTrack(
   patchTrackDuration(track.id, result.duration);
   consecutiveErrors = 0;
   if (justEndedId && track.id !== justEndedId) justEndedId = null;
-  const playing = play && !radioEngine.snapshot().paused;
+  const autoOff = !usePlayerStore.getState().autoplay && userPaused;
+  const playing = play && !autoOff && !radioEngine.snapshot().paused;
+  if (autoOff) radioEngine.pause();
   if (playing) userPaused = false;
   rememberRecent(track.id);
   set({
@@ -504,7 +515,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
     if (opts?.forcePlay) {
-      set({ autoplay: true });
       userPaused = false;
     }
     const play = !userPaused && (get().autoplay || Boolean(opts?.forcePlay));
@@ -584,7 +594,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       }
       const mixing = shuffleActive(channel, Boolean(get().shuffleBySlug[slug]));
       if (reason === "ended") {
-        const play = !userPaused;
+        if (!get().autoplay || userPaused) {
+          userPaused = true;
+          radioEngine.pause();
+          set({ status: "paused" });
+          flushMediaSession();
+          return;
+        }
+        const play = true;
         if (kind === "live") {
           const head = resolveLivePlayhead(playable, Date.now(), slug, justEndedId);
           if (head) await loadTrack(slug, head.track, head.offsetSec, play, set, 0, "join");
@@ -669,6 +686,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setAutoplay: (value) => {
     set({ autoplay: value });
     persist();
+    if (!value) {
+      userPaused = true;
+      radioEngine.pause();
+      if (get().status === "playing" || get().status === "loading") {
+        set({ status: "paused" });
+      }
+      flushMediaSession();
+      return;
+    }
+    userPaused = false;
+    const state = get();
+    if (state.track && state.status === "paused") {
+      void radioEngine.resume().then((ok) => {
+        usePlayerStore.setState({ status: ok ? "playing" : "paused" });
+        flushMediaSession();
+      });
+    }
   },
 
   setListenMode: (value) => {
