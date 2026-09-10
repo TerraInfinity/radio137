@@ -3,7 +3,7 @@ import { Camera, ChevronDown, Pause, Play, Radio, SkipBack, SkipForward, Volume2
 import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { CoverArt } from "@/components/cover-art";
 import { HeroArtSheet } from "@/components/hero-art-sheet";
-import { ListenModePicker } from "@/components/listen-mode-lamp";
+import { ListenModeLamp } from "@/components/listen-mode-lamp";
 import { ShareLink } from "@/components/share-link";
 import { ShuffleToggle } from "@/components/shuffle-toggle";
 import { TrackActions } from "@/components/track-actions";
@@ -253,8 +253,8 @@ export function MiniPlayer() {
             <p className="text-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
               Desk: {kindLabel(deskKind)} · You: {listenModeLabel(listenMode)}
             </p>
-            <ListenModePicker compact />
             <div className="flex flex-wrap items-center justify-center gap-1">
+              <ListenModeLamp />
               <AutoplayLamp compact />
               <ShuffleToggle channel={channel} compact />
               <TrackActions trackId={track.id} compact />
