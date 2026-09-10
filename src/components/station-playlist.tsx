@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { GripVertical } from "lucide-react";
+import { ArrowUpDown, GripVertical } from "lucide-react";
+import { AdminRename } from "@/components/admin-rename";
+import { MarqueeTitle } from "@/components/marquee-title";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getPlayableTracks, getSeedCatalog, normalizeShuffle } from "@/lib/catalog";
 import { cn, formatClock } from "@/lib/cn";
@@ -22,6 +24,7 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
   const tracks = getPlayableTracks(channel);
   const [busy, setBusy] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [arrange, setArrange] = useState(false);
 
   async function persist(ids: string[]) {
     const hidden = channel.tracks.filter((track) => track.enabled === false).map((track) => track.id);
@@ -64,17 +67,24 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
 
   return (
     <section className="mt-6 overflow-hidden rounded-xl bg-bg-elevated shadow-[var(--shadow-border)]">
-      <div className="flex items-center gap-2 px-3 py-2.5">
-        <h2 className="min-w-0 flex-1 truncate font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
+      <div className="flex items-center gap-2 px-3 py-1">
+        <h2 className="min-w-0 flex-1 truncate py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
           Playlist · {tracks.length}
+          {busy ? " · Saving…" : ""}
         </h2>
         {isAdmin ? (
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
-            {busy ? "Saving…" : "Drag or use arrows"}
-          </span>
+          <button
+            type="button"
+            onClick={() => setArrange((value) => !value)}
+            aria-pressed={arrange}
+            className="inline-flex h-11 shrink-0 items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-gold"
+          >
+            <ArrowUpDown className="size-3.5" />
+            {arrange ? "Done" : "Arrange"}
+          </button>
         ) : null}
       </div>
-      {isAdmin ? <AdminShufflePolicy channel={channel} /> : null}
+      {isAdmin && arrange ? <AdminShufflePolicy channel={channel} /> : null}
       {tracks.length === 0 ? (
         <p className="px-3 pb-3 text-sm text-muted">Empty desk.</p>
       ) : (
@@ -82,11 +92,12 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
           {tracks.map((track, index) => (
             <PlaylistRow
               key={track.id}
+              slug={channel.slug}
               track={track}
               index={index}
               current={nowId === track.id}
               admin={Boolean(isAdmin)}
-              canCue
+              arrange={arrange}
               dragging={dragId === track.id}
               onCue={() => void cueTrack(channel.slug, track.id)}
               onUp={() => move(index, -1)}
@@ -103,11 +114,12 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
 }
 
 function PlaylistRow({
+  slug,
   track,
   index,
   current,
   admin,
-  canCue,
+  arrange,
   dragging,
   onCue,
   onUp,
@@ -116,11 +128,12 @@ function PlaylistRow({
   onDrop,
   onDragEnd,
 }: {
+  slug: string;
   track: Track;
   index: number;
   current: boolean;
   admin: boolean;
-  canCue: boolean;
+  arrange: boolean;
   dragging: boolean;
   onCue: () => void;
   onUp: () => void;
@@ -131,18 +144,18 @@ function PlaylistRow({
 }) {
   return (
     <li
-      className={cn("flex items-center gap-1 rounded-md px-1", current && "bg-bg", dragging && "opacity-40")}
+      className={cn("flex flex-wrap items-center gap-x-1 rounded-md px-1", current && "bg-bg", dragging && "opacity-40")}
       onDragOver={(event) => {
-        if (!admin) return;
+        if (!admin || !arrange) return;
         event.preventDefault();
       }}
       onDrop={(event) => {
-        if (!admin) return;
+        if (!admin || !arrange) return;
         event.preventDefault();
         onDrop();
       }}
     >
-      {admin ? (
+      {admin && arrange ? (
         <button
           type="button"
           draggable
@@ -162,12 +175,10 @@ function PlaylistRow({
       )}
       <button
         type="button"
-        disabled={!canCue}
-        title={canCue ? undefined : "Streaming — skip locked"}
         onClick={onCue}
-        className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left disabled:opacity-60"
+        className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden py-2 text-left"
       >
-        <span className="min-w-0 flex-1 truncate text-sm">{track.title}</span>
+        <MarqueeTitle text={track.title} className={cn("min-w-0 flex-1 text-sm", current && "text-gold")} />
         <span className="shrink-0 font-mono text-[10px] tabular-nums text-subtle">{formatClock(durationOf(track))}</span>
       </button>
       <Link
@@ -177,7 +188,7 @@ function PlaylistRow({
       >
         Open
       </Link>
-      {admin ? (
+      {admin && arrange ? (
         <>
           <button type="button" onClick={onUp} className="inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
             Up
@@ -187,6 +198,7 @@ function PlaylistRow({
           </button>
         </>
       ) : null}
+      {admin && !arrange ? <AdminRename slug={slug} track={track} compact /> : null}
     </li>
   );
 }

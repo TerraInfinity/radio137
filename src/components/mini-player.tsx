@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Camera, ChevronDown, FastForward, Pause, Play, Radio, Rewind, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
+import { AdminRename } from "@/components/admin-rename";
 import { CoverArt } from "@/components/cover-art";
 import { HeroArtSheet } from "@/components/hero-art-sheet";
 import { ListenModeLamp } from "@/components/listen-mode-lamp";
+import { MarqueeTitle } from "@/components/marquee-title";
 import { ShareLink } from "@/components/share-link";
 import { ShuffleToggle } from "@/components/shuffle-toggle";
 import { TrackActions } from "@/components/track-actions";
@@ -235,8 +237,11 @@ export function MiniPlayer() {
             >
               <CoverArt src={art} alt="" className="size-12 shrink-0 overflow-hidden rounded-md" motion="still" />
               {collapsed ? (
-                <span className="min-w-0 flex-1">
-                  <span className={cn("block truncate font-display text-base leading-tight", skin === "glaum" && "glaum-title")}>{track.title}</span>
+                <span className="min-w-0 flex-1 overflow-hidden">
+                  <MarqueeTitle
+                    text={track.title}
+                    className={cn("font-display text-base leading-tight", skin === "glaum" && "glaum-title")}
+                  />
                   <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
                     {track.artist ? `${track.artist} · ` : ""}
                     {statusLine}
@@ -319,8 +324,10 @@ export function MiniPlayer() {
                 </button>
               ) : null}
             </div>
-            <div className="text-center">
-              <p className={cn("font-display text-2xl font-semibold leading-tight", skin === "glaum" && "glaum-title")}>{track.title}</p>
+            <div className="min-w-0 text-center">
+              <p className={cn("min-w-0 font-display text-2xl font-semibold leading-tight", skin === "glaum" && "glaum-title")}>
+                <MarqueeTitle text={track.title} />
+              </p>
               <p className="mt-1 text-sm text-muted">
                 {track.artist || "Unknown"}
                 <span className="text-subtle"> · {channel.name}</span>
@@ -347,6 +354,7 @@ export function MiniPlayer() {
               <ShuffleToggle channel={channel} compact />
               <TrackActions trackId={track.id} compact />
               <UnallocateControl channel={channel} track={track} />
+              <AdminRename slug={channel.slug} track={track} />
             </div>
             <div className="flex justify-center">
               <ShareLink path={songPath(track)} title={track.title} compact />

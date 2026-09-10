@@ -2,10 +2,13 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { AdminAddTrack, AdminTrackTools } from "@/components/admin-track-tools";
+import { AdminRename } from "@/components/admin-rename";
+import { MarqueeTitle } from "@/components/marquee-title";
 import { formatClock } from "@/lib/cn";
 import { durationOf } from "@/lib/playback";
 import { songKey } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
+import { useRadioUser } from "@/lib/radio-user";
 import type { Track } from "@/lib/types";
 
 const COMPACT = 3;
@@ -22,7 +25,9 @@ export function UpcomingList({
   cover?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [deskOpen, setDeskOpen] = useState(false);
   const cueTrack = usePlayerStore((s) => s.cueTrack);
+  const { isAdmin } = useRadioUser();
   const canExpand = upcoming.length > COMPACT;
   const visible = expanded ? upcoming : upcoming.slice(0, COMPACT);
   const hidden = Math.max(0, upcoming.length - COMPACT);
@@ -60,14 +65,14 @@ export function UpcomingList({
       ) : (
         <ol className="border-t border-line px-3 py-1">
           {visible.map((item, index) => (
-            <li key={item.id} className="flex items-center gap-1">
+            <li key={item.id} className="flex flex-wrap items-center gap-x-1">
               <button
                 type="button"
                 onClick={() => void cueTrack(slug, item.id)}
-                className="flex h-7 min-w-0 flex-1 items-center gap-2 text-left"
+                className="flex h-11 min-w-0 flex-1 items-center gap-2 overflow-hidden text-left"
               >
                 <span className="w-3.5 shrink-0 font-mono text-[10px] tabular-nums text-subtle">{index + 1}</span>
-                <span className="min-w-0 flex-1 truncate text-sm text-muted">{item.title}</span>
+                <MarqueeTitle text={item.title} className="min-w-0 flex-1 text-sm text-muted" />
                 <span className="shrink-0 font-mono text-[10px] tabular-nums text-subtle">{formatClock(durationOf(item))}</span>
               </button>
               <Link
@@ -77,12 +82,26 @@ export function UpcomingList({
               >
                 Open
               </Link>
-              <AdminTrackTools slug={slug} track={item} compact />
+              <AdminRename slug={slug} track={item} compact />
+              {deskOpen ? <AdminTrackTools slug={slug} track={item} compact /> : null}
             </li>
           ))}
         </ol>
       )}
-      <AdminAddTrack slug={slug} cover={cover ?? ""} />
+      {isAdmin ? (
+        <div className="border-t border-line px-3">
+          <button
+            type="button"
+            onClick={() => setDeskOpen((value) => !value)}
+            aria-expanded={deskOpen}
+            className="inline-flex h-11 items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-gold"
+          >
+            {deskOpen ? "Hide desk" : "Desk tools"}
+            {deskOpen ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+          </button>
+        </div>
+      ) : null}
+      {deskOpen ? <AdminAddTrack slug={slug} cover={cover ?? ""} /> : null}
     </section>
   );
 }

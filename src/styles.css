@@ -286,3 +286,45 @@ body:before {
   box-shadow: var(--shadow-filigree);
   background: var(--color-bg-subtle);
 }
+
+.marquee {
+  position: relative;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  max-width: 100%;
+}
+.marquee-static {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.marquee-run .marquee-static {
+  visibility: hidden;
+}
+.marquee-track {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  width: max-content;
+  animation: marquee-loop var(--marquee-dur, 14s) linear infinite;
+  will-change: transform;
+}
+.marquee-copy {
+  padding-right: 2.75rem;
+  white-space: nowrap;
+}
+.marquee-run:hover .marquee-track,
+.marquee-run:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+@keyframes marquee-loop {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-run .marquee-track { display: none; }
+  .marquee-run .marquee-static { visibility: visible; }
+}
+

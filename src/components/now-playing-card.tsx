@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Radio } from "lucide-react";
+import { AdminRename } from "@/components/admin-rename";
 import { CoverArt } from "@/components/cover-art";
 import { HeroArtSheet } from "@/components/hero-art-sheet";
+import { MarqueeTitle } from "@/components/marquee-title";
 import { UnallocateControl } from "@/components/unallocate-control";
 import { isAdultTrack, isChannelNsfw, kindLabel, normalizeKind } from "@/lib/catalog";
 import { isOnDemandOverlay, listenModeLabel } from "@/lib/listen-mode";
@@ -48,9 +50,9 @@ export function NowPlayingCard({
       </button>
       <div className="min-w-0 flex-1">
         <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ember">Now playing</p>
-        <h2 className="mt-1 truncate font-display text-xl font-semibold tracking-tight text-fg sm:text-2xl">
-          <Link to="/player/$id" params={{ id: songKey(track) }}>
-            {track.title}
+        <h2 className="mt-1 min-w-0 font-display text-xl font-semibold tracking-tight text-fg sm:text-2xl">
+          <Link to="/player/$id" params={{ id: songKey(track) }} className="block min-w-0">
+            <MarqueeTitle text={track.title} />
           </Link>
         </h2>
         <p className="mt-0.5 truncate text-sm text-muted">{track.artist}</p>
@@ -69,6 +71,7 @@ export function NowPlayingCard({
             </button>
           ) : null}
           <UnallocateControl channel={channel} track={track} />
+          <AdminRename slug={channel.slug} track={track} />
         </div>
       </div>
       {isAdmin ? <HeroArtSheet channel={channel} track={track} open={artOpen} onClose={() => setArtOpen(false)} /> : null}
