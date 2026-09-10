@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowUpDown, GripVertical } from "lucide-react";
+import { ArrowUpDown, ChevronRight, GripVertical } from "lucide-react";
 import { AdminRename } from "@/components/admin-rename";
 import { MarqueeTitle } from "@/components/marquee-title";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
@@ -171,22 +171,24 @@ function PlaylistRow({
           <GripVertical className="size-4" />
         </button>
       ) : (
-        <span className="w-8 shrink-0 text-center font-mono text-[10px] tabular-nums text-subtle">{String(index + 1).padStart(2, "0")}</span>
+        <span className="w-7 shrink-0 text-center font-mono text-[10px] tabular-nums text-subtle">{String(index + 1).padStart(2, "0")}</span>
       )}
       <button
         type="button"
         onClick={onCue}
-        className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden py-2 text-left"
+        className="flex min-w-0 flex-1 basis-0 items-center gap-2 overflow-hidden py-2 text-left"
       >
-        <MarqueeTitle text={track.title} className={cn("min-w-0 flex-1 text-sm", current && "text-gold")} />
-        <span className="shrink-0 font-mono text-[10px] tabular-nums text-subtle">{formatClock(durationOf(track))}</span>
+        <MarqueeTitle text={track.title} className={cn("min-w-0 w-0 flex-1 text-sm", current && "text-gold")} />
+        <span className="w-10 shrink-0 text-right font-mono text-[10px] tabular-nums text-subtle">{formatClock(durationOf(track))}</span>
       </button>
       <Link
         to="/player/$id"
         params={{ id: songKey(track) }}
-        className="inline-flex h-11 shrink-0 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+        aria-label={`Open ${track.title}`}
+        className="inline-flex h-11 w-11 shrink-0 items-center justify-center font-mono text-[10px] uppercase tracking-[0.12em] text-gold sm:w-auto sm:px-2"
       >
-        Open
+        <span className="hidden sm:inline">Open</span>
+        <ChevronRight className="size-4 sm:hidden" />
       </Link>
       {admin && arrange ? (
         <>
@@ -198,7 +200,7 @@ function PlaylistRow({
           </button>
         </>
       ) : null}
-      {admin && !arrange ? <AdminRename slug={slug} track={track} compact /> : null}
+      {admin && !arrange ? <AdminRename slug={slug} track={track} compact={!current} /> : null}
     </li>
   );
 }

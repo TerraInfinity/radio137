@@ -69,10 +69,10 @@ export function UpcomingList({
               <button
                 type="button"
                 onClick={() => void cueTrack(slug, item.id)}
-                className="flex h-11 min-w-0 flex-1 items-center gap-2 overflow-hidden text-left"
+                className="flex h-11 min-w-0 flex-1 basis-0 items-center gap-2 overflow-hidden text-left"
               >
                 <span className="w-3.5 shrink-0 font-mono text-[10px] tabular-nums text-subtle">{index + 1}</span>
-                <MarqueeTitle text={item.title} className="min-w-0 flex-1 text-sm text-muted" />
+                <MarqueeTitle text={item.title} className="min-w-0 w-0 flex-1 text-sm text-muted" />
                 <span className="shrink-0 font-mono text-[10px] tabular-nums text-subtle">{formatClock(durationOf(item))}</span>
               </button>
               <Link

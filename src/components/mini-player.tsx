@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Camera, ChevronDown, FastForward, Pause, Play, Radio, Rewind, SkipBack, SkipForward, Volume2 } from "lucide-react";
+import { Camera, ChevronDown, FastForward, Pause, Pencil, Play, Radio, Rewind, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
-import { AdminRename } from "@/components/admin-rename";
+import { RenameCutForm } from "@/components/admin-rename";
 import { CoverArt } from "@/components/cover-art";
 import { HeroArtSheet } from "@/components/hero-art-sheet";
 import { ListenModeLamp } from "@/components/listen-mode-lamp";
@@ -199,6 +199,7 @@ export function MiniPlayer() {
   const jumpToLive = usePlayerStore((s) => s.jumpToLive);
   const { isAdmin } = useRadioUser();
   const [artOpen, setArtOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const channel = slug ? getChannel(slug) : undefined;
   const ios = useMemo(
     () =>
@@ -206,6 +207,9 @@ export function MiniPlayer() {
       (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)),
     [],
   );
+  useEffect(() => {
+    setRenaming(false);
+  }, [track?.id]);
   if (!track || !channel) return null;
   const playing = status === "playing";
   const skin = stationSkin(channel);
@@ -240,7 +244,7 @@ export function MiniPlayer() {
                 <span className="min-w-0 flex-1 overflow-hidden">
                   <MarqueeTitle
                     text={track.title}
-                    className={cn("font-display text-base leading-tight", skin === "glaum" && "glaum-title")}
+                    className={cn("min-w-0 w-full font-display text-base leading-tight", skin === "glaum" && "glaum-title")}
                   />
                   <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
                     {track.artist ? `${track.artist} · ` : ""}
@@ -325,9 +329,13 @@ export function MiniPlayer() {
               ) : null}
             </div>
             <div className="min-w-0 text-center">
-              <p className={cn("min-w-0 font-display text-2xl font-semibold leading-tight", skin === "glaum" && "glaum-title")}>
-                <MarqueeTitle text={track.title} />
-              </p>
+              {isAdmin && renaming ? (
+                <RenameCutForm slug={channel.slug} track={track} appearance="title" onClose={() => setRenaming(false)} />
+              ) : (
+                <p className={cn("min-w-0 font-display text-2xl font-semibold leading-tight", skin === "glaum" && "glaum-title")}>
+                  <MarqueeTitle text={track.title} />
+                </p>
+              )}
               <p className="mt-1 text-sm text-muted">
                 {track.artist || "Unknown"}
                 <span className="text-subtle"> · {channel.name}</span>
@@ -354,7 +362,17 @@ export function MiniPlayer() {
               <ShuffleToggle channel={channel} compact />
               <TrackActions trackId={track.id} compact />
               <UnallocateControl channel={channel} track={track} />
-              <AdminRename slug={channel.slug} track={track} />
+              {isAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => setRenaming((value) => !value)}
+                  aria-expanded={renaming}
+                  className="inline-flex h-11 items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+                >
+                  <Pencil className="size-3.5" />
+                  Rename
+                </button>
+              ) : null}
             </div>
             <div className="flex justify-center">
               <ShareLink path={songPath(track)} title={track.title} compact />
