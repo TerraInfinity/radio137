@@ -17,6 +17,8 @@ export function RadioShell({ children }: { children: React.ReactNode }) {
   const slug = usePlayerStore((s) => s.channelSlug);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const search = useRouterState({ select: (s) => s.location.searchStr });
+  const hash = useRouterState({ select: (s) => s.location.hash });
+  const applyListenQuery = usePlayerStore((s) => s.applyListenQuery);
   const channel = slug ? getChannel(slug) : undefined;
   const skin = channel ? stationSkin(channel) : "none";
   const showGate = ready && !visited && isLandingLocation(pathname, search);
@@ -24,6 +26,10 @@ export function RadioShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    applyListenQuery(search, hash);
+  }, [applyListenQuery, search, hash]);
 
   return (
     <div className="relative min-h-dvh">

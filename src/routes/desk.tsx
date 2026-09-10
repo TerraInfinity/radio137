@@ -2,12 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { DeskStations } from "@/components/desk-stations";
 import { DeskDirectory } from "@/components/desk-directory";
+import { DeskReview } from "@/components/desk-review";
 import {
   addStationTrack,
   deleteR2Object,
   listStationR2,
   moveR2Object,
   pingServices,
+  listReviewQueue,
 } from "@/lib/desk-api";
 import { applyCatalogEdits, type CatalogEdit, type StationEdit } from "@/lib/catalog-edits";
 import { getCatalog, getSeedCatalog } from "@/lib/catalog";
@@ -31,7 +33,15 @@ function DeskPage() {
   const { user, isAdmin, isPending, r2Configured, lamps } = useRadioUser();
   const catalog = usePlayerStore((s) => s.catalog);
   const channels = catalog.channels.length ? catalog.channels : getCatalog().channels;
-  const [tab, setTab] = useState<"stations" | "directory" | "r2" | "services">("stations");
+  const [tab, setTab] = useState<"stations" | "directory" | "review" | "r2" | "services">("stations");
+  const [reviewOpen, setReviewOpen] = useState(0);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    void listReviewQueue()
+      .then((data) => setReviewOpen(data.open))
+      .catch(() => setReviewOpen(0));
+  }, [isAdmin, tab]);
 
   if (isPending) {
     return (
@@ -61,7 +71,7 @@ function DeskPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 pb-44">
+    <div className="mx-auto max-w-6xl px-4 py-8 pb-52">
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">C · God desk</p>
       <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight">Station desk</h1>
       <p className="mt-3 max-w-prose text-muted">
@@ -72,6 +82,7 @@ function DeskPage() {
           [
             ["stations", "Stations"],
             ["directory", "Directory"],
+            ["review", reviewOpen ? `Review (${reviewOpen})` : "Review"],
             ["r2", "R2"],
             ["services", "Services"],
           ] as const
@@ -91,6 +102,7 @@ function DeskPage() {
       </div>
       {tab === "stations" ? <DeskStations channels={channels} r2Configured={r2Configured} /> : null}
       {tab === "directory" ? <DeskDirectory catalog={catalog.channels.length ? catalog : getCatalog()} /> : null}
+      {tab === "review" ? <DeskReview /> : null}
       {tab === "r2" ? <R2Board channels={channels} r2Configured={r2Configured} /> : null}
       {tab === "services" ? <ServicesBoard r2Configured={r2Configured} lamps={lamps} /> : null}
     </div>

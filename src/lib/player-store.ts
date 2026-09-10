@@ -17,6 +17,8 @@ import { applyCatalogEdits } from "@/lib/catalog-edits";
 import type { CutGroup } from "@/lib/cuts";
 import { durationOf, neighborTrack, nextForward, nextShuffled, rememberDuration, resolveLivePlayhead, walkFrom } from "@/lib/playback";
 import { endPad, radioEngine } from "@/lib/radio-engine";
+import { effectiveKind, listenModeFromLocation, type ListenMode } from "@/lib/listen-mode";
+import { bindMediaSession, ignoreHidePause, rebindMediaSession, syncMediaSession } from "@/lib/media-session";
 import { loadPersisted, savePersisted } from "@/lib/storage";
 import { isLandingLocation } from "@/lib/landing";
 import type { Catalog, Channel, ClaimRecord, Identity, Track } from "@/lib/types";
@@ -49,6 +51,10 @@ type PlayerState = {
   shuffle: boolean;
   shuffleBySlug: Record<string, boolean>;
   cutGroups: CutGroup[];
+  listenMode: ListenMode;
+  listenModeSession: ListenMode | null;
+  buffering: boolean;
+  deckHint: string;
   hydrate: () => void;
   enterGate: () => void;
   tuneIn: (slug: string, opts?: { forcePlay?: boolean }) => Promise<void>;
@@ -60,6 +66,9 @@ type PlayerState = {
   setVolume: (volume: number) => void;
   toggleMute: () => void;
   setAutoplay: (value: boolean) => void;
+  setListenMode: (value: ListenMode) => void;
+  applyListenQuery: (search?: string, hash?: string) => void;
+  jumpToLive: () => Promise<void>;
   toggleShuffle: (slug?: string) => void;
   setPlayerCollapsed: (value: boolean) => void;
   setIdentityName: (name: string) => void;
@@ -96,6 +105,7 @@ function persist() {
     liked: s.liked,
     favorites: s.favorites,
     shuffleBySlug: s.shuffleBySlug,
+    listenMode: s.listenMode,
   });
 }
 
@@ -126,9 +136,23 @@ function pickNext(channel: Channel | undefined, playable: Track[], currentId: st
   return nextForward(playable, currentId, justEndedId);
 }
 
+function listenOf(state?: PlayerState): ListenMode {
+  const s = state ?? usePlayerStore.getState();
+  return s.listenModeSession ?? s.listenMode;
+}
+
+function setHint(message: string) {
+  usePlayerStore.setState({ deckHint: message });
+  if (typeof window === "undefined") return;
+  window.setTimeout(() => {
+    if (usePlayerStore.getState().deckHint === message) usePlayerStore.setState({ deckHint: "" });
+  }, 3200);
+}
+
 function bindEngine() {
   if (engineBound || typeof window === "undefined") return;
   engineBound = true;
+  ignoreHidePause();
   radioEngine.attach({
     onTime: (currentTime, duration) => {
       const status = usePlayerStore.getState().status;
@@ -137,6 +161,7 @@ function bindEngine() {
         currentTime,
         duration: duration > 0 ? duration : usePlayerStore.getState().duration,
       });
+      syncMediaSession();
     },
     onEnded: (measured, fileDuration) => {
       const track = usePlayerStore.getState().track;
@@ -153,6 +178,91 @@ function bindEngine() {
     onError: () => {
       void usePlayerStore.getState().next("error");
     },
+    onPause: () => {
+      const s = usePlayerStore.getState();
+      if (s.status === "playing") usePlayerStore.setState({ status: "paused" });
+      syncMediaSession();
+    },
+    onPlay: () => {
+      const s = usePlayerStore.getState();
+      if (s.status === "paused" || s.status === "loading") {
+        userPaused = false;
+        usePlayerStore.setState({ status: "playing", buffering: false });
+      }
+      syncMediaSession();
+    },
+    onBuffering: (value) => {
+      usePlayerStore.setState({ buffering: value });
+    },
+  });
+  bindMediaSession(
+    () => {
+      const s = usePlayerStore.getState();
+      const allowed = s.channelSlug ? s.skipAllowed(s.channelSlug) : true;
+      return {
+        track: s.track,
+        channelSlug: s.channelSlug,
+        status: s.status,
+        currentTime: s.currentTime,
+        duration: s.duration,
+        skipAllowed: allowed,
+        seekAllowed: allowed,
+      };
+    },
+    {
+      play: () => {
+        const s = usePlayerStore.getState();
+        if (s.status === "playing") void radioEngine.resume();
+        else void s.togglePlay();
+      },
+      pause: () => {
+        const s = usePlayerStore.getState();
+        if (s.status === "playing") void s.togglePlay();
+      },
+      next: () => {
+        void usePlayerStore.getState().next("user");
+      },
+      prev: () => {
+        void usePlayerStore.getState().prev();
+      },
+      seek: (seconds) => {
+        usePlayerStore.getState().seek(seconds);
+      },
+    },
+  );
+  window.addEventListener("pageshow", () => {
+    rebindMediaSession();
+    bindEngine();
+    bindMediaSession(
+      () => {
+        const s = usePlayerStore.getState();
+        const allowed = s.channelSlug ? s.skipAllowed(s.channelSlug) : true;
+        return {
+          track: s.track,
+          channelSlug: s.channelSlug,
+          status: s.status,
+          currentTime: s.currentTime,
+          duration: s.duration,
+          skipAllowed: allowed,
+          seekAllowed: allowed,
+        };
+      },
+      {
+        play: () => {
+          const s = usePlayerStore.getState();
+          if (s.status === "playing") void radioEngine.resume();
+          else void s.togglePlay();
+        },
+        pause: () => {
+          const s = usePlayerStore.getState();
+          if (s.status === "playing") void s.togglePlay();
+        },
+        next: () => void usePlayerStore.getState().next("user"),
+        prev: () => void usePlayerStore.getState().prev(),
+        seek: (seconds) => usePlayerStore.getState().seek(seconds),
+      },
+    );
+    syncMediaSession();
   });
 }
 
@@ -166,7 +276,7 @@ async function loadTrack(
   mode: "join" | "flow" = "flow",
 ) {
   bindEngine();
-  if (justEndedId && track.id === justEndedId && hops === 0) {
+  if (justEndedId && track.id === justEndedId && hops === 0 && mode !== "join") {
     const channel = channelOf(slug);
     const playable = getPlayableTracks(channel);
     const nxt = pickNext(channel, playable, track.id);
@@ -264,6 +374,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   shuffle: false,
   shuffleBySlug: {},
   cutGroups: [],
+  listenMode: "ondemand",
+  listenModeSession: null,
+  buffering: false,
+  deckHint: "",
 
   hydrate: () => {
     bindEngine();
@@ -287,6 +401,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       liked: p.liked,
       favorites: p.favorites,
       shuffleBySlug: p.shuffleBySlug,
+      listenMode: p.listenMode,
+      listenModeSession: typeof window !== "undefined" ? listenModeFromLocation(window.location.search, window.location.hash) : null,
     });
     radioEngine.setGain(p.volume, false);
     if (visited && !p.visited) persist();
@@ -313,6 +429,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             points: s.points,
             glaumules: s.glaumules,
             autoplay: s.autoplay,
+            listenMode: s.listenModeSession ?? s.listenMode,
             justEndedId,
             userPaused,
             driving: drivingDesk(s.channelSlug),
@@ -385,7 +502,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       userPaused = false;
     }
     const play = !userPaused && (get().autoplay || Boolean(opts?.forcePlay));
-    const kind = normalizeKind(channel.kind || channel.mode);
+    const kind = effectiveKind(channel, listenOf(get()));
     const mixing = shuffleActive(channel, Boolean(get().shuffleBySlug[slug]));
     if (slug !== get().channelSlug) justEndedId = null;
     const run = async () => {
@@ -446,7 +563,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (!channel) return;
       const playable = getPlayableTracks(channel);
       const current = get().track;
-      const kind = normalizeKind(channel.kind || channel.mode);
+      const kind = effectiveKind(channel, listenOf(get()));
       if (reason === "error") {
         consecutiveErrors += 1;
         if (consecutiveErrors > 8) {
@@ -460,6 +577,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       const mixing = shuffleActive(channel, Boolean(get().shuffleBySlug[slug]));
       if (reason === "ended") {
         const play = !userPaused;
+        if (kind === "live") {
+          const head = resolveLivePlayhead(playable, Date.now(), slug, justEndedId);
+          if (head) await loadTrack(slug, head.track, head.offsetSec, play, set, 0, "join");
+          return;
+        }
         if (!mixing && kind === "fixed") {
           const nxt = current ? neighborTrack(playable, current.id, 1, false) : playable[0];
           if (nxt) await loadTrack(slug, nxt, 0, true, set, 0, "flow");
@@ -504,7 +626,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         return;
       }
     }
-    const wrap = normalizeKind(channel.kind || channel.mode) !== "fixed";
+    const wrap = effectiveKind(channel, listenOf(get())) !== "fixed";
     const prev = current ? neighborTrack(playable, current.id, -1, wrap) : playable[0];
     if (prev) {
       userPaused = false;
@@ -515,9 +637,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   seek: (seconds) => {
     const slug = get().channelSlug;
     if (!slug) return;
-    const channel = channelOf(slug);
-    const live = channel ? normalizeKind(channel.kind || channel.mode) === "live" : false;
-    if (live && !get().skipAllowed(slug)) return;
+    if (!get().skipAllowed(slug)) return;
     radioEngine.seek(seconds);
     const snap = radioEngine.snapshot();
     set({ currentTime: snap.currentTime, duration: snap.duration || get().duration });
@@ -540,6 +660,42 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setAutoplay: (value) => {
     set({ autoplay: value });
     persist();
+  },
+
+  setListenMode: (value) => {
+    set({ listenMode: value, listenModeSession: null });
+    persist();
+    const slug = get().channelSlug;
+    const channel = channelOf(slug);
+    if (value === "stream" && channel && normalizeKind(channel.kind || channel.mode) === "live") {
+      void get().jumpToLive();
+    }
+  },
+
+  applyListenQuery: (search, hash) => {
+    if (typeof window === "undefined") return;
+    const forced = listenModeFromLocation(search ?? window.location.search, hash ?? window.location.hash);
+    if (forced && get().listenModeSession !== forced) set({ listenModeSession: forced });
+  },
+
+  jumpToLive: async () => {
+    const slug = get().channelSlug;
+    const channel = channelOf(slug);
+    if (!slug || !channel) return;
+    const playable = getPlayableTracks(channel);
+    if (playable.length === 0) return;
+    const play = !userPaused && (get().status === "playing" || get().autoplay);
+    userPaused = false;
+    const head = resolveLivePlayhead(playable, Date.now(), slug, justEndedId);
+    const track = head?.track ?? playable[0];
+    const offset = head?.offsetSec ?? 0;
+    const run = async () => {
+      await loadTrack(slug, track, offset, play || true, set, 0, "join");
+    };
+    loadLock = Promise.resolve(loadLock).then(run, run);
+    await loadLock;
+    setHint("Back on the station clock.");
+    syncMediaSession();
   },
 
   toggleShuffle: (slugArg) => {
@@ -585,7 +741,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   skipAllowed: (slug) => {
     const channel = channelOf(slug);
-    const kind = channel ? normalizeKind(channel.kind || channel.mode) : "live";
+    const kind = effectiveKind(channel, listenOf(get()));
     if (kind !== "live") return true;
     const claim = get().claims[slug];
     if (!claim?.claimantId || (claim.expiresAt ?? 0) < Date.now()) return true;
@@ -596,10 +752,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     setLiveCatalog(catalog);
     const slug = get().channelSlug;
     const channel = slug ? catalog.channels.find((item) => item.slug === slug) : undefined;
+    const playingId = get().track?.id ?? null;
+    const playable = getPlayableTracks(channel);
+    const still = playingId ? playable.find((item) => item.id === playingId) : null;
     set({
       catalog,
       shuffle: shuffleActive(channel, Boolean(slug && get().shuffleBySlug[slug])),
+      track: still ?? get().track,
     });
+    if (playingId && !still) void get().next("ended");
+    syncMediaSession();
   },
 
   replaceCutGroups: (groups) => set({ cutGroups: groups }),

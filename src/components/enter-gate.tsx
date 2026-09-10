@@ -1,8 +1,11 @@
 import { AutoplayLamp } from "@/components/autoplay-lamp";
+import { ListenModePicker } from "@/components/listen-mode-lamp";
+import { listenModeHint } from "@/lib/listen-mode";
 import { usePlayerStore } from "@/lib/player-store";
 
 export function EnterGate() {
   const enterGate = usePlayerStore((s) => s.enterGate);
+  const listenMode = usePlayerStore((s) => s.listenModeSession ?? s.listenMode);
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-bg/95 px-6">
       <div className="max-w-md text-center">
@@ -11,7 +14,14 @@ export function EnterGate() {
         <p className="mt-4 text-muted">
           Tune in to open the default station. Shared station and song links skip this page and start on their own.
         </p>
-        <div className="mt-6 flex justify-center">
+        <div className="mt-6">
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">How you listen</p>
+          <div className="mt-3">
+            <ListenModePicker />
+          </div>
+          <p className="mt-2 text-sm text-muted">{listenModeHint(listenMode)}</p>
+        </div>
+        <div className="mt-5 flex justify-center">
           <AutoplayLamp label="Keep playing" />
         </div>
         <div className="mt-6">

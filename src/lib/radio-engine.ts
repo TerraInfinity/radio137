@@ -19,6 +19,9 @@ type Handlers = {
   onTime: (currentTime: number, duration: number) => void;
   onEnded: (measuredDuration: number, fileDuration: number) => void;
   onError: () => void;
+  onPause?: () => void;
+  onPlay?: () => void;
+  onBuffering?: (value: boolean) => void;
 };
 
 export function endPad(duration: number): number {
@@ -127,6 +130,14 @@ export class RadioEngine {
     if (!this.warmer) {
       this.warmer = new Audio();
       this.warmer.preload = "auto";
+      this.warmer.muted = true;
+      this.warmer.volume = 0;
+      this.warmer.setAttribute("playsinline", "true");
+      try {
+        (this.warmer as HTMLAudioElement & { disableRemotePlayback?: boolean }).disableRemotePlayback = true;
+      } catch {
+        /* ignore */
+      }
     }
     try {
       this.warmer.src = src;
@@ -279,13 +290,21 @@ export class RadioEngine {
     });
     el.addEventListener("waiting", () => {
       this.buffering = true;
+      this.handlers?.onBuffering?.(true);
     });
     el.addEventListener("playing", () => {
       this.buffering = false;
       this.lastAdvanceAt = performance.now();
+      this.handlers?.onBuffering?.(false);
+      this.handlers?.onPlay?.();
     });
     el.addEventListener("canplay", () => {
       this.buffering = false;
+      this.handlers?.onBuffering?.(false);
+    });
+    el.addEventListener("pause", () => {
+      if (this.ending || this.loading) return;
+      this.handlers?.onPause?.();
     });
     this.el = el;
     if (!(window as unknown as { __radioEngine?: unknown }).__radioEngine) {

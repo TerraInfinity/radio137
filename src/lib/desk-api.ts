@@ -59,6 +59,72 @@ export const hideStationTrack = createServerFn({ method: "POST" })
     return { edit, ...(await snapshot()) };
   });
 
+export const unallocateStationTrack = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    trackRef
+      .extend({
+        title: z.string().optional(),
+        artist: z.string().optional(),
+        coverUrl: z.string().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { unallocateTrack } = await import("@/lib/review.server");
+    const edit = await unallocateTrack(context.user, data);
+    return { edit, ...(await snapshot()) };
+  });
+
+export const listReviewQueue = createServerFn({ method: "GET" })
+  .middleware([adminMiddleware])
+  .handler(async () => {
+    const { listReviewQueue: list, countOpenReview } = await import("@/lib/review.server");
+    return { items: await list("open"), open: await countOpenReview() };
+  });
+
+export const restoreReviewItemFn = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) => z.object({ id: z.number().int().positive() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { restoreReviewItem } = await import("@/lib/review.server");
+    await restoreReviewItem(context.user, data.id);
+    return snapshot();
+  });
+
+export const dismissReviewItemFn = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) => z.object({ id: z.number().int().positive(), status: z.enum(["dismissed", "merged", "rehomed"]).optional() }).parse(input))
+  .handler(async ({ data }) => {
+    const { setReviewStatus } = await import("@/lib/review.server");
+    await setReviewStatus(data.id, data.status ?? "dismissed");
+    return { ok: true as const };
+  });
+
+export const rehomeReviewItemFn = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z.object({ id: z.number().int().positive(), toSlug: z.string().min(1), mode: z.enum(["copy", "move"]).optional() }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { getReviewItem, setReviewStatus } = await import("@/lib/review.server");
+    const item = await getReviewItem(data.id);
+    if (!item) throw new Error("Review item missing");
+    if (!item.audioUrl) throw new Error("No audio URL on this review item");
+    const { addTrack } = await import("@/lib/catalog-edits.server");
+    await addTrack(context.user, {
+      channelSlug: data.toSlug,
+      trackId: item.trackId,
+      title: item.title || "Untitled",
+      artist: item.artist || undefined,
+      audioUrl: item.audioUrl,
+      coverUrl: item.coverUrl || undefined,
+      r2Key: item.r2Key || undefined,
+    });
+    await setReviewStatus(data.id, "rehomed");
+    return snapshot();
+  });
+
 export const restoreStationTrack = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
   .validator((input: unknown) => trackRef.parse(input))

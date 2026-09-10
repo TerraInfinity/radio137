@@ -9,8 +9,9 @@ import { ShareLink } from "@/components/share-link";
 import { StationChat } from "@/components/station-chat";
 import { StationPlaylist } from "@/components/station-playlist";
 import { StationVisual } from "@/components/station-visual";
-import { getPlayableTracks, kindHint, normalizeKind, stationSkin } from "@/lib/catalog";
+import { getPlayableTracks, kindHint, kindLabel, normalizeKind, stationSkin } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
+import { isOnDemandOverlay, listenModeLabel } from "@/lib/listen-mode";
 import { resolveLivePlayhead } from "@/lib/playback";
 import { stationPath } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
@@ -23,6 +24,7 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
   const track = usePlayerStore((s) => s.track);
   const status = usePlayerStore((s) => s.status);
   const glaumules = usePlayerStore((s) => s.glaumules);
+  const listenMode = usePlayerStore((s) => s.listenModeSession ?? s.listenMode);
   const playable = getPlayableTracks(channel);
   const kind = normalizeKind(channel.kind || channel.mode);
   const live = kind === "live";
@@ -37,7 +39,7 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
   }, [ready, channel.slug, channel.enabled, playable.length, tuneIn]);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 pb-44">
+    <div className="mx-auto max-w-3xl px-4 py-8 pb-52">
       <div className="overflow-hidden rounded-xl shadow-[var(--shadow-filigree)]">
         <StationVisual channel={channel} size="hero" className="aspect-[4/3] w-full sm:aspect-auto sm:h-64" />
       </div>
@@ -50,7 +52,11 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
       </div>
       <p className="mt-3 max-w-prose text-muted">{channel.description}</p>
       {skin === "glaum" ? <p className="glaum-sponsor mt-2 font-mono text-[10px] uppercase">Sponsored by Shrimp™</p> : null}
-      <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">{kindHint(kind)}</p>
+      <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">
+        Desk: {kindLabel(kind)} · You: {listenModeLabel(listenMode)}
+        {isOnDemandOverlay(channel, listenMode) ? " · overlay" : ""}
+      </p>
+      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">{kindHint(kind)}</p>
       {channel.glaumules ? (
         <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-glaum">
           {glaumules} glåümules collected · tap the purple bubbles
