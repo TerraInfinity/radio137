@@ -27,7 +27,7 @@ export const Route = createFileRoute("/player/$id")({
   },
   head: ({ params }) => {
     const song = getSong(params.id);
-    if (!song || song.locked) return { meta: [{ title: "Locked cut · Radio" }] };
+    if (!song || song.locked) return { meta: [{ title: "Locked song · Radio" }] };
     return { meta: [{ title: `${song.track.title} · Radio` }] };
   },
 });
@@ -44,11 +44,11 @@ function SongPage() {
   if (!song) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16">
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-ember">Missing cut</p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-ember">Missing song</p>
         <h1 className="mt-3 font-display text-4xl font-semibold">No such song</h1>
         <p className="mt-4 text-muted">It may have been taken off a desk. Search the archive.</p>
         <Link to="/player" search={{ q: id }} className="mt-6 inline-flex h-12 items-center font-mono text-[12px] uppercase tracking-[0.16em] text-gold">
-          Search cuts
+          Search songs
         </Link>
       </div>
     );

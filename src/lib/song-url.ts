@@ -84,7 +84,7 @@ export function titleKey(track: Pick<Track, "title">): string {
   return asKey(track.title);
 }
 
-/** Public URL ending for a cut: custom slug, else the song title — never a reserved path. */
+/** Public URL ending for a song: custom slug, else the song title — never a reserved path. */
 export function songKey(track: Track): string {
   const slug = asKey(track.slug);
   if (slug && !isReservedPublicPath(slug)) return slug;

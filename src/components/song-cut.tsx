@@ -45,7 +45,7 @@ export function SongCut({
     return (
       <div className="mx-auto max-w-3xl px-4 py-16">
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">18+ · Locked</p>
-        <h1 className="mt-3 font-display text-4xl font-semibold">This cut is off the public dial</h1>
+        <h1 className="mt-3 font-display text-4xl font-semibold">This song is off the public dial</h1>
         <p className="mt-4 max-w-prose text-muted">Sign in with Google or X to open 18+ rooms. Google still lives on the Terrainfinity hub.</p>
         <div className="mt-8">
           <SignInChoices next={sharePath} />
@@ -61,7 +61,7 @@ export function SongCut({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 pb-52">
-      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Cut</p>
+      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Song</p>
       <div className="mt-6 flex gap-5">
         <CoverArt src={track.coverUrl || channel.cover} alt="" className="size-32 shrink-0 rounded-lg sm:size-40" motion="loop" />
         <div className="min-w-0">

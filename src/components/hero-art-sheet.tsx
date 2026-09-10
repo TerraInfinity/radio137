@@ -1,9 +1,11 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { CoverArt } from "@/components/cover-art";
+import { PhoneArtPicker } from "@/components/phone-art-picker";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getBearerToken } from "@/lib/auth/client";
 import { getSeedCatalog } from "@/lib/catalog";
-import { MEDIA_MAX_IMAGE, MEDIA_MAX_VIDEO, visualSrc } from "@/lib/media";
+import { MEDIA_MAX_VIDEO, visualSrc } from "@/lib/media";
+import { prepareArtFile } from "@/lib/prepare-art";
 import { cn } from "@/lib/cn";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel, Track } from "@/lib/types";
@@ -19,26 +21,21 @@ export function HeroArtSheet({
   open: boolean;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<"cut" | "station">("cut");
+  const [tab, setTab] = useState<"song" | "station">("song");
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
   if (!open) return null;
 
   async function upload(file: File) {
-    const isVideo = /\.(mp4|webm)$/i.test(file.name) || file.type.startsWith("video/");
-    const cap = isVideo ? MEDIA_MAX_VIDEO : MEDIA_MAX_IMAGE;
-    if (file.size > cap) {
-      setHint(`Too large — ${isVideo ? "video" : "image"} max ${Math.round(cap / (1024 * 1024))} MB`);
-      return;
-    }
     setBusy(true);
-    setHint(`Uploading ${file.name}…`);
+    setHint(`Preparing ${file.name || "file"}…`);
     try {
+      const ready = await prepareArtFile(file);
+      setHint(`Uploading ${ready.name}…`);
       const body = new FormData();
       body.set("slug", channel.slug);
-      if (tab === "cut") body.set("trackId", track.id);
-      body.set("file", file);
+      if (tab === "song") body.set("trackId", track.id);
+      body.set("file", ready);
       const token = getBearerToken();
       const res = await fetch("/api/desk/upload-art", {
         method: "POST",
@@ -46,16 +43,22 @@ export function HeroArtSheet({
         credentials: "include",
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      const json = (await res.json()) as {
+      const raw = await res.text();
+      let json: {
         tracks?: Parameters<typeof applyCatalogEdits>[1];
         stations?: Parameters<typeof applyCatalogEdits>[2];
         error?: string;
-      };
+      } = {};
+      try {
+        json = raw ? (JSON.parse(raw) as typeof json) : {};
+      } catch {
+        throw new Error(res.status === 413 ? "That clip is too large. Try a shorter video." : "Upload failed");
+      }
       if (!res.ok) throw new Error(json.error || "Upload failed");
       if (json.tracks) {
         usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), json.tracks, json.stations ?? []));
       }
-      setHint(isVideo ? "Looping video saved" : "Still saved");
+      setHint(ready.type.startsWith("video/") ? "Looping video saved" : "Photo saved");
       usePlayerStore.setState({ deckHint: "Art updated" });
       window.setTimeout(onClose, 600);
     } catch (error) {
@@ -65,7 +68,7 @@ export function HeroArtSheet({
     }
   }
 
-  const preview = tab === "cut" ? visualSrc(track, channel) : visualSrc(null, channel);
+  const preview = tab === "song" ? visualSrc(track, channel) : visualSrc(null, channel);
 
   return (
     <div
@@ -82,7 +85,7 @@ export function HeroArtSheet({
       <div className="w-full max-w-md rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-filigree)]">
         <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">C · hero visual</p>
         <div className="mt-3 flex gap-1">
-          {(["cut", "station"] as const).map((id) => (
+          {(["song", "station"] as const).map((id) => (
             <button
               key={id}
               type="button"
@@ -92,34 +95,16 @@ export function HeroArtSheet({
                 tab === id ? "bg-fg text-bg" : "text-gold",
               )}
             >
-              {id === "cut" ? "This cut" : "Station"}
+              {id === "song" ? "This song" : "Station"}
             </button>
           ))}
         </div>
         <CoverArt src={preview} alt="" className="mt-3 aspect-square w-full rounded-lg" motion="loop" />
         <p className="mt-3 text-sm text-muted">
-          Jpg, png, webp, or a short looping mp4 under {Math.round(MEDIA_MAX_VIDEO / (1024 * 1024))} MB. Audio keeps playing. Drop a file on this sheet.
+          Phone photos (including HEIC) shrink automatically. Short looping mp4 or mov under {Math.round(MEDIA_MAX_VIDEO / (1024 * 1024))} MB. Audio keeps playing.
         </p>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm"
-          className="sr-only"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (file) void upload(file);
-          }}
-        />
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => inputRef.current?.click()}
-            className="inline-flex h-11 flex-1 items-center justify-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg"
-          >
-            {busy ? "Uploading…" : "Choose file"}
-          </button>
+        <div className="mt-4 space-y-2">
+          <PhoneArtPicker disabled={busy} onFile={(file) => void upload(file)} />
           <button type="button" onClick={onClose} className="inline-flex h-11 items-center px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
             Close
           </button>

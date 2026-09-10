@@ -117,7 +117,7 @@ export function qSearch(search: Record<string, unknown>): { q?: string } {
 }
 
 export function downloadName(track: Track): string {
-  const base = (track.title || "cut").replace(/[<>:"/\\|?*]+/g, "").trim() || "cut";
+  const base = (track.title || "song").replace(/[<>:"/\\|?*]+/g, "").trim() || "song";
   const match = track.audioUrl.match(/\.([a-z0-9]{2,5})(?:\?|#|$)/i);
   const ext = match?.[1]?.toLowerCase() || "mp3";
   return `${base}.${ext}`;

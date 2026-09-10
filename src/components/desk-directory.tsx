@@ -86,7 +86,7 @@ export function DeskDirectory({ catalog }: { catalog: Catalog }) {
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Directory</p>
       <h2 className="mt-1 font-display text-2xl font-semibold">One song, many folders</h2>
       <p className="mt-2 max-w-prose text-muted">
-        Copies in different R2 folders stay put. Merge them here so search lists one cut. Station desks still play their own file.
+        Copies in different R2 folders stay put. Merge them here so search lists one song. Station desks still play their own file.
       </p>
       <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.12em] text-subtle">
         {copies.length} copies · {files.length} same filename · {titles.length} same title · {merged.length} merged
@@ -155,7 +155,7 @@ function ClusterCard({
             type="button"
             disabled={busy}
             onClick={() => {
-              if (!window.confirm("Split this directory row back into separate cuts? Files stay.")) return;
+              if (!window.confirm("Split this directory row back into separate songs? Files stay.")) return;
               void dissolveStationCut({ data: { canonicalId: cluster.key } })
                 .then((result) => saveGroups(result.groups))
                 .catch(fail);
@@ -246,7 +246,7 @@ export function SongCopies({ trackId }: { trackId: string }) {
   return (
     <section className="mt-8">
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Copies</p>
-      <p className="mt-1 text-sm text-muted">Same cut on {copies.length} desks. Each folder keeps its file.</p>
+      <p className="mt-1 text-sm text-muted">Same song on {copies.length} desks. Each folder keeps its file.</p>
       <ul className="mt-3 divide-y divide-line">
         {copies.map((copy) => (
           <li key={`${copy.channel.slug}:${copy.track.id}`} className="flex flex-wrap items-center gap-2 py-3">
@@ -303,7 +303,7 @@ export function AdminMergeBox({ trackId }: { trackId: string }) {
 
   return (
     <div className="mt-4 rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Treat as the same cut</p>
+      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Treat as the same song</p>
       <p className="mt-1 text-sm text-muted">Search another title or filename. Merge does not delete R2 files.</p>
       <input className="input mt-2" value={needle} onChange={(event) => setNeedle(event.target.value)} placeholder="Other title or filename" />
       {hits.length > 0 ? (

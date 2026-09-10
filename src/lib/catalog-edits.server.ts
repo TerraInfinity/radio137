@@ -268,7 +268,7 @@ export async function patchTrack(
       throw new Error(`“${want}” is a reserved path. Use another public URL ending.`);
     }
     if (want && slugTaken(catalog, want, input.trackId)) {
-      throw new Error(`Slug “${want}” is already used by another cut or station`);
+      throw new Error(`Slug “${want}” is already used by another song or station`);
     }
     const aliases = parseAliases(input.aliases);
     for (const key of aliases) {
@@ -276,7 +276,7 @@ export async function patchTrack(
         throw new Error(`Alias “${key}” is a reserved path (player, channel, desk, library, login, about, api…). Pick another ending.`);
       }
       if (slugTaken(catalog, key, input.trackId)) {
-        throw new Error(`Alias “${key}” is already used by another cut or station`);
+        throw new Error(`Alias “${key}” is already used by another song or station`);
       }
     }
     if (input.aliases !== undefined) input.aliases = aliases.join(", ");
@@ -293,7 +293,7 @@ export async function renameTrackFile(
   const catalog = await liveCatalog();
   const channel = catalog.channels.find((item) => item.slug === input.channelSlug);
   const track = channel?.tracks.find((item) => item.id === input.trackId);
-  if (!track?.audioUrl) throw new Error("No audio file on this cut");
+  if (!track?.audioUrl) throw new Error("No audio file on this song");
   const from = r2KeyFromAudioUrl(track.audioUrl);
   if (!from) throw new Error("This file is not on R2");
   const dest = input.toKey.replace(/^\/+/, "");
@@ -367,7 +367,7 @@ export async function upsertStation(
       throw new Error(`“${want}” is a reserved path. Use another public URL ending.`);
     }
     if (want && slugTaken(catalog, want, "", patch.slug)) {
-      throw new Error(`Slug “${want}” is already used by another cut or station`);
+      throw new Error(`Slug “${want}” is already used by another song or station`);
     }
     const aliases = parseAliases(patch.aliases);
     for (const key of aliases) {
@@ -375,7 +375,7 @@ export async function upsertStation(
         throw new Error(`Alias “${key}” is a reserved path (player, channel, desk, library, login, api…). Pick another ending.`);
       }
       if (slugTaken(catalog, key, "", patch.slug)) {
-        throw new Error(`Alias “${key}” is already used by another cut or station`);
+        throw new Error(`Alias “${key}” is already used by another song or station`);
       }
     }
     if (patch.aliases !== undefined) patch.aliases = aliases.join(", ");
@@ -512,7 +512,7 @@ export async function placeTrack(
   if (!from || !to) throw new Error("Station not found");
   if (input.fromSlug === input.toSlug) throw new Error("Pick a different station");
   const track = from.tracks.find((item) => item.id === input.trackId);
-  if (!track) throw new Error("Cut not found");
+  if (!track) throw new Error("Song not found");
   const already = to.tracks.some((item) => item.enabled !== false && item.audioUrl && item.audioUrl === track.audioUrl);
   if (already) throw new Error(`Already on ${to.name}`);
   await addTrack(user, {

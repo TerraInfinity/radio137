@@ -281,7 +281,7 @@ export function MiniPlayer() {
                 type="button"
                 onClick={() => isAdmin && setArtOpen(true)}
                 className="block w-full"
-                aria-label={isAdmin ? "Replace this cut’s art" : track.title}
+                aria-label={isAdmin ? "Replace this song’s art" : track.title}
               >
                 <CoverArt src={art} alt="" className="aspect-square w-full" motion="loop" />
               </button>

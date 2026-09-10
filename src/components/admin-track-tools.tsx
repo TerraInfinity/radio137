@@ -170,7 +170,7 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
 
   return (
     <div className="mt-8 rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-filigree)]">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">C desk · this cut</p>
+      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">C desk · this song</p>
       <p className="mt-1 break-all font-mono text-[11px] text-subtle" title={track.audioUrl}>
         {location}
       </p>
@@ -212,7 +212,7 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
         <label className="block">
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Art URL</span>
           <input className="input mt-1" value={coverUrl} onChange={(event) => setCoverUrl(event.target.value)} placeholder="/covers/… or https://… jpg or mp4" />
-          <span className="mt-1 block text-sm text-muted">Still under 2 MB or looping mp4 under 10 MB. Plays on this cut page only, not on every list thumbnail.</span>
+          <span className="mt-1 block text-sm text-muted">Still under 2 MB or looping mp4 under 32 MB. Phone photos shrink on the way in. Plays on this song page only, not on every list thumbnail.</span>
         </label>
         <ArtUpload slug={slug} trackId={track.id} current={coverUrl} onUrl={setCoverUrl} />
         <label className="block">
@@ -228,7 +228,7 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
         ) : null}
         <div className="flex flex-wrap gap-2">
           <button type="submit" disabled={Boolean(busy)} className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
-            {busy === "save" ? "Saving…" : "Save cut"}
+            {busy === "save" ? "Saving…" : "Save song"}
           </button>
           {key ? (
             <button type="button" disabled={Boolean(busy) || !r2Configured} onClick={() => void renameFile()} className="inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
@@ -241,7 +241,7 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
       <label className="mt-4 block cursor-pointer rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Replace audio file</span>
         <p className="mt-1 text-sm text-muted">
-          {r2Configured ? "Upload a new mp3 / wav / flac / m4a. The cut keeps its id and tags." : "R2 keys are dark — paste a new URL above instead."}
+          {r2Configured ? "Upload a new mp3 / wav / flac / m4a. The song keeps its id and tags." : "R2 keys are dark — paste a new URL above instead."}
         </p>
         <input
           type="file"

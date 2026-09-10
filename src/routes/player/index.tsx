@@ -24,7 +24,7 @@ function PlayerIndex() {
     <div className="mx-auto max-w-3xl px-4 py-8 pb-52">
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Library</p>
       <h1 className="mt-2 font-display text-4xl font-semibold">Songs</h1>
-      <p className="mt-2 max-w-prose text-muted">Every public cut has its own page. Open one to play, share, or download.</p>
+      <p className="mt-2 max-w-prose text-muted">Every public song has its own page. Open one to play, share, or download.</p>
       <div className="mt-6">
         <DialSearch
           catalog={catalog}

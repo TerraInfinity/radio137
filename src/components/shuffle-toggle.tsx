@@ -19,7 +19,7 @@ export function ShuffleToggle({ channel, compact = false }: { channel: Channel; 
         disabled={locked}
         onClick={() => toggleShuffle(channel.slug)}
         aria-pressed={mixing}
-        title={locked ? shuffleHint(mode) : mixing ? "Shuffle on — next cut is mixed" : "Shuffle off — playlist order"}
+        title={locked ? shuffleHint(mode) : mixing ? "Shuffle on — next song is mixed" : "Shuffle off — playlist order"}
         className={cn("inline-flex h-11 shrink-0 items-center gap-2 px-2 font-mono text-[11px] uppercase tracking-[0.14em]", locked && "opacity-60")}
       >
         <Shuffle className={cn("size-4", mixing ? "text-gold" : "text-subtle")} />
@@ -65,7 +65,7 @@ export function ShuffleToggle({ channel, compact = false }: { channel: Channel; 
       </div>
       {slug === channel.slug ? (
         <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-          {mixing ? "Next cut is mixed." : "Next cut follows the list."} {locked ? `Desk lock: ${shuffleLabel(mode)}.` : ""}
+          {mixing ? "Next song is mixed." : "Next song follows the list."} {locked ? `Desk lock: ${shuffleLabel(mode)}.` : ""}
         </p>
       ) : null}
     </div>

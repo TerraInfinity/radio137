@@ -79,7 +79,7 @@ export function DeskStations({ channels, r2Configured }: { channels: Channel[]; 
           <StationWorkspace key={selected.slug} channel={selected} channels={channels} r2Configured={r2Configured} />
         ) : (
           <p className="self-start rounded-xl bg-bg-elevated p-6 text-sm text-muted shadow-[var(--shadow-border)]">
-            Pick a station to edit its playlist. Add cuts from another desk, upload files, or drop in a URL.
+            Pick a station to edit its playlist. Add songs from another desk, upload files, or drop in a URL.
           </p>
         )}
       </section>
@@ -406,9 +406,9 @@ function LibraryPicker({ channel, others }: { channel: Channel; others: Channel[
     <div className="mt-3">
       <input className="input" value={needle} onChange={(event) => setNeedle(event.target.value)} placeholder="Search titles across other stations" />
       {needle.trim().length < 2 ? (
-        <p className="mt-2 text-sm text-subtle">Type two letters to find a cut on another desk, then copy or move it here.</p>
+        <p className="mt-2 text-sm text-subtle">Type two letters to find a song on another desk, then copy or move it here.</p>
       ) : hits.length === 0 ? (
-        <p className="mt-2 text-sm text-subtle">No matching cuts.</p>
+        <p className="mt-2 text-sm text-subtle">No matching songs.</p>
       ) : (
         <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto rounded-lg bg-bg p-2">
           {hits.map(({ station, track }) => (
@@ -489,7 +489,7 @@ function Playlist({ channel, others, r2Configured }: { channel: Channel; others:
       </div>
       <input className="input mt-3" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter this playlist" />
       <ul className="mt-3 max-h-[28rem] divide-y divide-line overflow-y-auto rounded-lg bg-bg">
-        {visible.length === 0 ? <li className="p-4 text-sm text-subtle">No cuts match.</li> : null}
+        {visible.length === 0 ? <li className="p-4 text-sm text-subtle">No songs match.</li> : null}
         {visible.map((track) => {
           const index = channel.tracks.findIndex((item) => item.id === track.id);
           return (

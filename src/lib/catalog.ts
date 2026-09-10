@@ -43,7 +43,7 @@ export function kindLabel(kind: string): string {
 export function kindHint(kind: string): string {
   const k = normalizeKind(kind);
   if (k === "fixed") return "Start-to-finish. Plays the list in order.";
-  if (k === "ondemand") return "Vault. Pick any cut.";
+  if (k === "ondemand") return "Vault. Pick any song.";
   return "Clockwork. Shared station clock.";
 }
 
@@ -62,7 +62,7 @@ export function shuffleLabel(mode: ShuffleMode): string {
 }
 
 export function shuffleHint(mode: ShuffleMode): string {
-  if (mode === "on") return "Every listener hears a shuffled mix. The next cut is never the one that just played.";
+  if (mode === "on") return "Every listener hears a shuffled mix. The next song is never the one that just played.";
   if (mode === "off") return "Locked playlist order — for start-to-finish experiences. No shuffle toggle.";
   return "Guests can flip between playlist order and a mix. Experiences that need a sequence should stay on playlist order.";
 }

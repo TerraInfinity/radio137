@@ -40,7 +40,7 @@ export function NowPlayingCard({
     return (
       <section className="rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-border)]">
         <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">Now playing</p>
-        <p className="mt-3 font-display text-xl text-fg">{lockedCut ? "Locked cut" : statusLabel}</p>
+        <p className="mt-3 font-display text-xl text-fg">{lockedCut ? "Locked song" : statusLabel}</p>
       </section>
     );
   }
@@ -50,7 +50,7 @@ export function NowPlayingCard({
         type="button"
         onClick={() => isAdmin && setArtOpen(true)}
         className="size-20 shrink-0 overflow-hidden rounded-md sm:size-24"
-        aria-label={isAdmin ? "Replace this cut’s art" : track.title}
+        aria-label={isAdmin ? "Replace this song’s art" : track.title}
       >
         <CoverArt src={visualSrc(track, channel)} alt="" className="size-full" motion="loop" />
       </button>

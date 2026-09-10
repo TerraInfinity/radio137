@@ -120,7 +120,7 @@ export function AdminRename({
         }}
         aria-expanded={open}
         aria-label="Rename"
-        title="Rename this cut"
+        title="Rename this song"
         className="inline-flex h-11 shrink-0 items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
       >
         <Pencil className="size-3.5" />
