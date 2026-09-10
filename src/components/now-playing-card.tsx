@@ -4,6 +4,7 @@ import { TrackActions } from "@/components/track-actions";
 import { UnallocateControl } from "@/components/unallocate-control";
 import { isAdultTrack, isChannelNsfw, kindLabel, normalizeKind } from "@/lib/catalog";
 import { isOnDemandOverlay, listenModeLabel } from "@/lib/listen-mode";
+import { visualSrc } from "@/lib/media";
 import { songKey } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
 import { useRadioUser } from "@/lib/radio-user";
@@ -44,7 +45,7 @@ export function NowPlayingCard({
         className="mt-3 block w-full overflow-hidden rounded-lg"
         aria-label={isAdmin ? "Replace this cut’s art" : track.title}
       >
-        <CoverArt src={track.coverUrl || channel.cover} alt="" className="aspect-square w-full max-h-80 object-cover" motion="loop" />
+        <CoverArt src={visualSrc(track, channel)} alt="" className="aspect-square w-full max-h-80 object-cover" motion="loop" />
       </button>
       <div className="mt-4 min-w-0">
         <h2 className="font-display text-2xl font-semibold tracking-tight text-fg">

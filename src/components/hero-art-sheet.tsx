@@ -3,7 +3,7 @@ import { CoverArt } from "@/components/cover-art";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getBearerToken } from "@/lib/auth/client";
 import { getSeedCatalog } from "@/lib/catalog";
-import { MEDIA_MAX_IMAGE, MEDIA_MAX_VIDEO } from "@/lib/media";
+import { MEDIA_MAX_IMAGE, MEDIA_MAX_VIDEO, visualSrc } from "@/lib/media";
 import { cn } from "@/lib/cn";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel, Track } from "@/lib/types";
@@ -65,7 +65,7 @@ export function HeroArtSheet({
     }
   }
 
-  const preview = tab === "cut" ? track.coverUrl || channel.cover : channel.cover;
+  const preview = tab === "cut" ? visualSrc(track, channel) : visualSrc(null, channel);
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-end bg-bg/80 p-4 sm:place-items-center" role="dialog" aria-label="Replace art">

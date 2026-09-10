@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Pause, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
+import { Camera, ChevronDown, ChevronUp, Pause, Play, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { CoverArt } from "@/components/cover-art";
 import { HeroArtSheet } from "@/components/hero-art-sheet";
@@ -10,6 +10,7 @@ import { UnallocateControl } from "@/components/unallocate-control";
 import { getChannel, kindLabel, normalizeKind, stationSkin } from "@/lib/catalog";
 import { cn, formatClock } from "@/lib/cn";
 import { isOnDemandOverlay, listenModeLabel } from "@/lib/listen-mode";
+import { visualSrc } from "@/lib/media";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 
@@ -81,7 +82,12 @@ export function MiniPlayer() {
   const { isAdmin } = useRadioUser();
   const [artOpen, setArtOpen] = useState(false);
   const channel = slug ? getChannel(slug) : undefined;
-  const ios = useMemo(() => typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent), []);
+  const ios = useMemo(
+    () =>
+      typeof navigator !== "undefined" &&
+      (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)),
+    [],
+  );
   if (!track || !channel) return null;
   const playing = status === "playing";
   const canSkip = skipAllowed(channel.slug);
@@ -91,8 +97,21 @@ export function MiniPlayer() {
   const skipReason = canSkip ? undefined : overlay ? undefined : "Streaming — skip locked";
   const claimed = !canSkip && deskKind === "live" && !overlay;
   const lockTitle = claimed ? "Desk claimed" : skipReason;
+  const art = visualSrc(track, channel);
   const statusLine =
-    status === "loading" ? "Tuning…" : buffering ? "Buffering…" : deckHint ? deckHint : playing ? (overlay ? "On demand" : listenMode === "stream" && deskKind === "live" ? "Live sync" : "Playing") : "Paused";
+    status === "loading"
+      ? "Tuning…"
+      : buffering
+        ? "Buffering…"
+        : deckHint
+          ? deckHint
+          : playing
+            ? overlay
+              ? "On demand"
+              : listenMode === "stream" && deskKind === "live"
+                ? "Live sync"
+                : "Playing"
+            : "Paused";
 
   return (
     <div
@@ -127,14 +146,11 @@ export function MiniPlayer() {
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             type="button"
-            onClick={() => {
-              if (isAdmin) setArtOpen(true);
-              else setPlayerCollapsed(false);
-            }}
+            onClick={() => setPlayerCollapsed(false)}
             className="shrink-0"
-            aria-label={isAdmin ? "Replace art" : "Expand player"}
+            aria-label="Expand player"
           >
-            <CoverArt src={track.coverUrl || channel.cover} alt="" className={cn("rounded-md", collapsed ? "size-11" : "size-14")} motion={collapsed ? "still" : "loop"} />
+            <CoverArt src={art} alt="" className={cn("rounded-md", collapsed ? "size-11" : "size-14")} motion={collapsed ? "still" : "loop"} />
           </button>
           <div className="min-w-0 flex-1">
             <p className={cn("truncate font-display leading-none", collapsed ? "text-base" : "text-xl", skin === "glaum" && "glaum-title")}>{track.title}</p>
@@ -145,7 +161,17 @@ export function MiniPlayer() {
               {formatClock(currentTime)}
               {collapsed ? ` · -${formatClock(Math.max(0, duration - currentTime))}` : ` / ${formatClock(duration)}`}
             </p>
-            <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.12em] text-gold">{statusLine}</p>
+            <div className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
+              {statusLine}
+              {collapsed && overlay ? (
+                <>
+                  {" · "}
+                  <button type="button" onClick={() => void jumpToLive()} className="uppercase tracking-[0.12em] text-gold">
+                    Jump to live
+                  </button>
+                </>
+              ) : null}
+            </div>
           </div>
           <button
             type="button"
@@ -186,14 +212,26 @@ export function MiniPlayer() {
         </div>
         {!collapsed ? (
           <div className="mt-3 space-y-3">
-            <button
-              type="button"
-              onClick={() => isAdmin && setArtOpen(true)}
-              className="mx-auto block w-full max-w-sm overflow-hidden rounded-xl shadow-[var(--shadow-filigree)]"
-              aria-label={isAdmin ? "Replace this cut’s art" : track.title}
-            >
-              <CoverArt src={track.coverUrl || channel.cover} alt="" className="aspect-square w-full" motion="loop" />
-            </button>
+            <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-xl shadow-[var(--shadow-filigree)]">
+              <button
+                type="button"
+                onClick={() => isAdmin && setArtOpen(true)}
+                className="block w-full"
+                aria-label={isAdmin ? "Replace this cut’s art" : track.title}
+              >
+                <CoverArt src={art} alt="" className="aspect-square w-full" motion="loop" />
+              </button>
+              {isAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => setArtOpen(true)}
+                  className="absolute right-2 top-2 inline-flex size-11 items-center justify-center rounded-md bg-bg/80 text-gold"
+                  aria-label="Replace art"
+                >
+                  <Camera className="size-4" />
+                </button>
+              ) : null}
+            </div>
             <VuMeter playing={playing} skin={skin} />
             <Scrubber currentTime={currentTime} duration={duration} disabled={!canSkip} reason={lockTitle} />
             {!canSkip ? (
@@ -233,16 +271,6 @@ export function MiniPlayer() {
                 />
               </label>
             ) : null}
-          </div>
-        ) : overlay ? (
-          <div className="mt-1 flex justify-end">
-            <button
-              type="button"
-              onClick={() => void jumpToLive()}
-              className="inline-flex h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
-            >
-              Jump to live
-            </button>
           </div>
         ) : null}
       </div>

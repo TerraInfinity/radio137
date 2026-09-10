@@ -176,6 +176,14 @@ export function syncMediaSession() {
   (bindMediaSession as unknown as { _sync?: () => void })._sync?.();
 }
 
+export function flushMediaSession() {
+  lastPosAt = 0;
+  lastArtwork = "";
+  lastTitle = "";
+  lastSkip = null;
+  syncMediaSession();
+}
+
 export function rebindMediaSession() {
   bound = false;
   lastArtwork = "";

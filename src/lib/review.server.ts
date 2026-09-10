@@ -88,14 +88,34 @@ export async function unallocateTrack(
   const sql = await getSql();
   const key = input.audioUrl ? r2KeyFromAudioUrl(input.audioUrl) : null;
   try {
-    await sql`
-      insert into radio_review_queue (
-        track_id, channel_slug, audio_url, title, artist, r2_key, cover_url, status, editor_id, editor_email
-      ) values (
-        ${input.trackId}, ${input.channelSlug}, ${input.audioUrl ?? null}, ${input.title ?? null},
-        ${input.artist ?? null}, ${key}, ${input.coverUrl ?? null}, 'open', ${user.id}, ${user.email}
-      )
+    const open = await sql<{ id: number }>`
+      select id from radio_review_queue
+      where track_id = ${input.trackId} and channel_slug = ${input.channelSlug} and status = 'open'
+      limit 1
     `;
+    if (open[0]) {
+      await sql`
+        update radio_review_queue
+        set title = coalesce(${input.title ?? null}, title),
+            artist = coalesce(${input.artist ?? null}, artist),
+            audio_url = coalesce(${input.audioUrl ?? null}, audio_url),
+            cover_url = coalesce(${input.coverUrl ?? null}, cover_url),
+            r2_key = coalesce(${key}, r2_key),
+            editor_id = ${user.id},
+            editor_email = ${user.email},
+            updated_at = now()
+        where id = ${open[0].id}
+      `;
+    } else {
+      await sql`
+        insert into radio_review_queue (
+          track_id, channel_slug, audio_url, title, artist, r2_key, cover_url, status, editor_id, editor_email
+        ) values (
+          ${input.trackId}, ${input.channelSlug}, ${input.audioUrl ?? null}, ${input.title ?? null},
+          ${input.artist ?? null}, ${key}, ${input.coverUrl ?? null}, 'open', ${user.id}, ${user.email}
+        )
+      `;
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (!/radio_review_queue|does not exist/i.test(message)) throw error;

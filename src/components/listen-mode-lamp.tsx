@@ -13,14 +13,15 @@ export function ListenModeLamp({ compact = false }: { compact?: boolean }) {
       onClick={() => setListenMode(next)}
       aria-pressed={streaming}
       title={listenModeHint(listenMode)}
-      className="inline-flex h-11 shrink-0 items-center gap-2 px-1.5 font-mono text-[11px] uppercase tracking-[0.14em] sm:px-2"
+      className={cn(
+        "inline-flex h-11 shrink-0 items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em]",
+        compact ? "px-1.5" : "px-2",
+      )}
     >
       <span className="lamp-bezel">
         <span className={cn("lamp", streaming && "lamp-live")} />
       </span>
-      <span className={cn(compact ? "hidden sm:inline" : "", streaming ? "lamp-on" : "text-subtle")}>
-        {listenModeLabel(listenMode)}
-      </span>
+      <span className={cn(streaming ? "lamp-on" : "text-subtle")}>{listenModeLabel(listenMode)}</span>
     </button>
   );
 }

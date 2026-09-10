@@ -164,6 +164,7 @@ function PlaylistRow({
       <button
         type="button"
         disabled={!canCue}
+        title={canCue ? undefined : "Streaming — skip locked"}
         onClick={onCue}
         className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left disabled:opacity-60"
       >

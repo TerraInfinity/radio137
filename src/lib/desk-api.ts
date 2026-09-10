@@ -111,16 +111,24 @@ export const rehomeReviewItemFn = createServerFn({ method: "POST" })
     const item = await getReviewItem(data.id);
     if (!item) throw new Error("Review item missing");
     if (!item.audioUrl) throw new Error("No audio URL on this review item");
-    const { addTrack } = await import("@/lib/catalog-edits.server");
-    await addTrack(context.user, {
-      channelSlug: data.toSlug,
-      trackId: item.trackId,
-      title: item.title || "Untitled",
-      artist: item.artist || undefined,
-      audioUrl: item.audioUrl,
-      coverUrl: item.coverUrl || undefined,
-      r2Key: item.r2Key || undefined,
-    });
+    const { getSeedCatalog } = await import("@/lib/catalog");
+    const { applyCatalogEdits } = await import("@/lib/catalog-edits");
+    const { listEdits, listStationEdits, addTrack } = await import("@/lib/catalog-edits.server");
+    const catalog = applyCatalogEdits(getSeedCatalog(), await listEdits(), await listStationEdits());
+    const dest = catalog.channels.find((channel) => channel.slug === data.toSlug);
+    if (!dest) throw new Error("Station not found");
+    const already = dest.tracks.some((track) => track.enabled !== false && track.audioUrl === item.audioUrl);
+    if (!already) {
+      await addTrack(context.user, {
+        channelSlug: data.toSlug,
+        trackId: item.trackId,
+        title: item.title || "Untitled",
+        artist: item.artist || undefined,
+        audioUrl: item.audioUrl,
+        coverUrl: item.coverUrl || undefined,
+        r2Key: item.r2Key || undefined,
+      });
+    }
     await setReviewStatus(data.id, "rehomed");
     return snapshot();
   });

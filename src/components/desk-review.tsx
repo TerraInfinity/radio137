@@ -11,6 +11,7 @@ import {
   restoreReviewItemFn,
 } from "@/lib/desk-api";
 import { audioPathParts } from "@/lib/file-path";
+import { mediaUrl } from "@/lib/media";
 import { usePlayerStore } from "@/lib/player-store";
 import { Link } from "@tanstack/react-router";
 
@@ -189,6 +190,9 @@ function ReviewRow({
       <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
         {item.editorEmail || "desk"} · {new Date(item.createdAt).toLocaleString()}
       </p>
+      {item.audioUrl ? (
+        <audio className="mt-3 w-full" controls preload="none" src={mediaUrl(item.audioUrl)} />
+      ) : null}
       {item.trackId ? (
         <Link to="/player/$id" params={{ id: item.trackId }} className="mt-2 inline-flex h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
           Open cut

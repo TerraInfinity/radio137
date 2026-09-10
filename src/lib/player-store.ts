@@ -18,7 +18,7 @@ import type { CutGroup } from "@/lib/cuts";
 import { durationOf, neighborTrack, nextForward, nextShuffled, rememberDuration, resolveLivePlayhead, walkFrom } from "@/lib/playback";
 import { endPad, radioEngine } from "@/lib/radio-engine";
 import { effectiveKind, listenModeFromLocation, type ListenMode } from "@/lib/listen-mode";
-import { bindMediaSession, ignoreHidePause, rebindMediaSession, syncMediaSession } from "@/lib/media-session";
+import { bindMediaSession, flushMediaSession, ignoreHidePause, rebindMediaSession, syncMediaSession } from "@/lib/media-session";
 import { loadPersisted, savePersisted } from "@/lib/storage";
 import { isLandingLocation } from "@/lib/landing";
 import type { Catalog, Channel, ClaimRecord, Identity, Track } from "@/lib/types";
@@ -344,8 +344,14 @@ async function loadTrack(
   });
   if (playing) usePlayerStore.getState().bumpView(track.id);
   const channel = channelOf(slug);
-  const nxt = pickNext(channel, getPlayableTracks(channel), track.id);
+  const playable = getPlayableTracks(channel);
+  const kind = effectiveKind(channel, listenOf());
+  const nxt =
+    kind === "live"
+      ? playable[(Math.max(0, playable.findIndex((item) => item.id === track.id)) + 1) % Math.max(playable.length, 1)]
+      : pickNext(channel, playable, track.id);
   if (nxt?.audioUrl && nxt.id !== track.id) radioEngine.warm(nxt.audioUrl);
+  flushMediaSession();
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -544,12 +550,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       userPaused = true;
       radioEngine.pause();
       set({ status: "paused" });
+      flushMediaSession();
       return;
     }
     userPaused = false;
     if (state.track) {
       const ok = await radioEngine.resume();
       set({ status: ok ? "playing" : "paused" });
+      flushMediaSession();
       return;
     }
     if (state.channelSlug) await get().tuneIn(state.channelSlug, { forcePlay: true });
@@ -641,6 +649,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     radioEngine.seek(seconds);
     const snap = radioEngine.snapshot();
     set({ currentTime: snap.currentTime, duration: snap.duration || get().duration });
+    flushMediaSession();
   },
 
   setVolume: (volume) => {
@@ -669,13 +678,22 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const channel = channelOf(slug);
     if (value === "stream" && channel && normalizeKind(channel.kind || channel.mode) === "live") {
       void get().jumpToLive();
+    } else {
+      flushMediaSession();
     }
   },
 
   applyListenQuery: (search, hash) => {
     if (typeof window === "undefined") return;
     const forced = listenModeFromLocation(search ?? window.location.search, hash ?? window.location.hash);
-    if (forced && get().listenModeSession !== forced) set({ listenModeSession: forced });
+    if (!forced || get().listenModeSession === forced) return;
+    set({ listenModeSession: forced });
+    const channel = channelOf(get().channelSlug);
+    if (forced === "stream" && channel && normalizeKind(channel.kind || channel.mode) === "live") {
+      void get().jumpToLive();
+    } else {
+      flushMediaSession();
+    }
   },
 
   jumpToLive: async () => {
@@ -695,7 +713,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     loadLock = Promise.resolve(loadLock).then(run, run);
     await loadLock;
     setHint("Back on the station clock.");
-    syncMediaSession();
+    flushMediaSession();
   },
 
   toggleShuffle: (slugArg) => {
@@ -761,7 +779,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       track: still ?? get().track,
     });
     if (playingId && !still) void get().next("ended");
-    syncMediaSession();
+    flushMediaSession();
   },
 
   replaceCutGroups: (groups) => set({ cutGroups: groups }),
