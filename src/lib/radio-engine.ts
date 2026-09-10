@@ -25,10 +25,12 @@ type Handlers = {
 };
 
 export function endPad(duration: number): number {
-  if (!Number.isFinite(duration) || duration <= 0) return 0.35;
-  if (duration < 4) return Math.min(0.28, duration * 0.1);
-  if (duration < 15) return 0.4;
-  return Math.min(1, Math.max(0.35, duration * 0.008));
+  if (!Number.isFinite(duration) || duration <= 0) return 0.08;
+  // Short stings are the whole file — do not reserve a half-second tail.
+  if (duration < 3) return Math.min(0.05, duration * 0.03);
+  if (duration < 8) return 0.1;
+  if (duration < 20) return 0.25;
+  return Math.min(0.7, Math.max(0.25, duration * 0.006));
 }
 
 function waitFor(el: HTMLAudioElement, event: string, gen: number, ms: number, currentGen: () => number): Promise<"ok" | "error" | "timeout" | "stale"> {
@@ -59,6 +61,8 @@ export class RadioEngine {
   private handlers: Handlers | null = null;
   private warmer: HTMLAudioElement | null = null;
   private warmUrl = "";
+  private hangTimer: number | null = null;
+  private startedAt = 0;
 
   attach(handlers: Handlers) {
     this.handlers = handlers;
@@ -112,6 +116,7 @@ export class RadioEngine {
     el.currentTime = Math.min(max, Math.max(0, seconds));
     this.highWater = el.currentTime;
     this.lastAdvanceAt = performance.now();
+    this.startedAt = performance.now() - el.currentTime * 1000;
     this.handlers?.onTime(el.currentTime, el.duration);
   }
 
@@ -151,11 +156,13 @@ export class RadioEngine {
     const el = this.ensure();
     if (!el) return { kind: "stale" };
     const gen = ++this.gen;
+    this.clearHang();
     this.ending = false;
     this.loading = true;
     this.buffering = false;
     this.highWater = 0;
     this.lastAdvanceAt = performance.now();
+    this.startedAt = performance.now();
     this.disarmWatchdog();
     try {
       el.pause();
@@ -180,7 +187,7 @@ export class RadioEngine {
       this.loading = false;
       return { kind: "error" };
     }
-    const duration = Number.isFinite(el.duration) && el.duration > 0.2 ? el.duration : 0;
+    const duration = Number.isFinite(el.duration) && el.duration > 0.05 ? el.duration : 0;
     const pad = endPad(duration || opts.offsetSec);
     const joinOffset = Math.max(0, opts.offsetSec);
     // Never skip a fresh start (offset 0) — leftover from the previous file must not eat this one.
@@ -239,6 +246,7 @@ export class RadioEngine {
       }
     }
     this.armWatchdog();
+    this.startedAt = performance.now() - (el.currentTime || 0) * 1000;
     return { kind: "ready", duration: duration || 0, currentTime: el.currentTime || 0 };
   }
 
@@ -357,29 +365,46 @@ export class RadioEngine {
     if (this.shouldFinish(t, duration)) this.finish("ended");
   }
 
-  /** End-of-file only. A mid-song stall or timeupdate jitter must not kill the cut. */
+  /** End-of-file only. Short stings must play all the way out — native `ended` is the truth. */
   private shouldFinish(t: number, duration: number): boolean {
+    if (!Number.isFinite(duration) || duration <= 0) return false;
+    const remaining = duration - t;
+    const heard = Math.max(t, this.highWater);
     const pad = endPad(duration);
-    const remaining = duration > 0 ? duration - t : Number.POSITIVE_INFINITY;
-    const nearEnd = duration > 0.5 && remaining <= Math.max(pad, 0.5) && t > 0.12;
-    if (nearEnd) return true;
-    if (t + 0.25 < this.highWater && this.highWater > 0.4) {
-      const looped = t < 0.2;
-      const clampedAtEnd = remaining < 1.75 || this.highWater >= duration - 0.6;
-      return looped || clampedAtEnd;
-    }
-    if (this.buffering) return false;
-    const el = this.el;
-    if (!el) return false;
     const stuckFor = performance.now() - this.lastAdvanceAt;
-    const hasData = el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA;
-    return Boolean(hasData && stuckFor > 700 && this.highWater > 0.15 && remaining <= Math.max(pad * 3, 1.4));
+    const playedFor = performance.now() - this.startedAt;
+
+    // Time jumped back to the start after we had already heard the cut — last-granule loop.
+    if (t + 0.3 < this.highWater && t < 0.15 && heard >= duration * 0.7) return true;
+
+    // Wall-clock safety for short files: wait the full length plus a breath, then advance.
+    if (duration < 8 && !this.buffering && this.startedAt > 0) {
+      if (playedFor >= duration * 1000 + 900 && (remaining <= 0.2 || heard >= duration * 0.9)) return true;
+      if (playedFor >= duration * 1000 + 1600) return true;
+    }
+
+    if (this.buffering) return false;
+
+    // Stuck on the last granule (no native ended). Require being actually at the tail.
+    const atTail =
+      remaining <= Math.max(pad, duration < 6 ? 0.08 : 0.12) && heard >= duration - Math.max(pad, duration < 6 ? 0.1 : 0.18);
+    if (atTail && stuckFor > (duration < 6 ? 400 : 900)) return true;
+
+    return false;
+  }
+
+  private clearHang() {
+    if (this.hangTimer != null) {
+      window.clearTimeout(this.hangTimer);
+      this.hangTimer = null;
+    }
   }
 
   private finish(reason: "ended" | "error") {
     if (this.ending || this.loading) return;
     this.ending = true;
     this.disarmWatchdog();
+    this.clearHang();
     const el = this.el;
     try {
       el?.pause();
@@ -388,8 +413,16 @@ export class RadioEngine {
     }
     const measured = Math.max(this.highWater, el?.currentTime || 0);
     const fileDuration = el && Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 0;
-    if (reason === "ended") this.handlers?.onEnded(measured, fileDuration);
-    else this.handlers?.onError();
+    const fire = () => {
+      this.hangTimer = null;
+      if (reason === "ended") this.handlers?.onEnded(measured, fileDuration);
+      else this.handlers?.onError();
+    };
+    // A short breath so a 1–2s sting is heard in full before the next src swap.
+    const hang =
+      reason === "ended" ? (fileDuration > 0 && fileDuration < 8 ? 900 : 180) : 0;
+    if (hang > 0) this.hangTimer = window.setTimeout(fire, hang);
+    else fire();
   }
 }
 
