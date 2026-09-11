@@ -15,7 +15,7 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#070605" },
       {
         name: "description",
-        content: "Welcome to the Light Ages. A chaos primer in relative time — live desks, sequential rooms, and vaults that wait until you open them.",
+        content: "Welcome to the Light Ages. A chaos primer in relative time — a radio of frequencies.",
       },
     ],
     links: [

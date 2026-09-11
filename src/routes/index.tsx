@@ -31,7 +31,7 @@ function Home() {
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Welcome to the Light Ages</p>
       <h1 className="mt-2 font-display text-5xl font-semibold tracking-tight">Radio</h1>
       <p className="mt-3 max-w-prose text-muted">
-        Herein the chaos primer, bound in relative time. Live desks keep one shared present. Sequential rooms are fixed points — they play start to finish, as written. Vaults wait in the archive until you open them.
+        Herein the chaos primer, bound in relative time. A radio of frequencies. Live desks keep one shared present.
       </p>
       <div className="mt-8 max-w-3xl">
         <DialSearch
