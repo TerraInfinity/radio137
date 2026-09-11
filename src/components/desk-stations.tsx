@@ -1,5 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { ArrowUpDown } from "lucide-react";
 import { CoverArt } from "@/components/cover-art";
+import { FoldSection } from "@/components/fold-section";
 import { ModePill } from "@/components/mode-pill";
 import { StationSettingsForm } from "@/components/station-settings";
 import {
@@ -14,9 +17,10 @@ import {
   setFeaturedRail,
 } from "@/lib/desk-api";
 import { applyCatalogEdits, type CatalogEdit, type StationEdit } from "@/lib/catalog-edits";
-import { getSeedCatalog, kindHint, kindLabel } from "@/lib/catalog";
+import { getSeedCatalog, kindHint, kindLabel, normalizeKind } from "@/lib/catalog";
 import { cn, formatClock, slugify } from "@/lib/cn";
 import { fileLocationLabel, r2KeyFromAudioUrl } from "@/lib/file-path";
+import { songKey } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel, StationKind, Track } from "@/lib/types";
 
@@ -28,14 +32,63 @@ function fail(error: unknown) {
   window.alert(error instanceof Error ? error.message : "Desk save failed");
 }
 
+function readDeskStation(): string | null {
+  try {
+    return window.localStorage.getItem("radio.desk.station");
+  } catch {
+    return null;
+  }
+}
+
 export function DeskStations({ channels, r2Configured }: { channels: Channel[]; r2Configured: boolean }) {
   const [query, setQuery] = useState("");
+  const [kindFilter, setKindFilter] = useState<"all" | "live" | "ondemand" | "fixed" | "featured" | "off" | "empty">("all");
   const [open, setOpen] = useState<string | null>(null);
+  const playingSlug = usePlayerStore((s) => s.channelSlug);
   const selected = channels.find((channel) => channel.slug === open) ?? null;
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return channels.filter((channel) => !needle || `${channel.name} ${channel.slug} ${channel.kind}`.toLowerCase().includes(needle));
+    return channels.filter((channel) => {
+      const liveCount = channel.tracks.filter((track) => track.enabled !== false).length;
+      if (kindFilter === "live" && normalizeKind(channel.kind) !== "live") return false;
+      if (kindFilter === "ondemand" && normalizeKind(channel.kind) !== "ondemand") return false;
+      if (kindFilter === "fixed" && normalizeKind(channel.kind) !== "fixed") return false;
+      if (kindFilter === "featured" && !channel.featured) return false;
+      if (kindFilter === "off" && channel.enabled) return false;
+      if (kindFilter === "empty" && liveCount > 0) return false;
+      if (!needle) return true;
+      if (`${channel.name} ${channel.slug} ${channel.kind}`.toLowerCase().includes(needle)) return true;
+      return channel.tracks.some((track) => track.enabled !== false && `${track.title} ${track.artist}`.toLowerCase().includes(needle));
+    });
+  }, [channels, query, kindFilter]);
+  const songHits = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (needle.length < 2) return [];
+    const rows: Array<{ station: Channel; track: Track }> = [];
+    for (const channel of channels) {
+      for (const track of channel.tracks) {
+        if (track.enabled === false) continue;
+        if (!`${track.title} ${track.artist}`.toLowerCase().includes(needle)) continue;
+        rows.push({ station: channel, track });
+        if (rows.length >= 12) return rows;
+      }
+    }
+    return rows;
   }, [channels, query]);
+
+  useEffect(() => {
+    const saved = readDeskStation();
+    if (saved && channels.some((channel) => channel.slug === saved)) setOpen(saved);
+  }, [channels]);
+
+  function pick(slug: string) {
+    setOpen(slug);
+    try {
+      window.localStorage.setItem("radio.desk.station", slug);
+    } catch {
+      /* ignore */
+    }
+  }
 
   return (
     <div className="mt-8 space-y-8">
@@ -45,16 +98,62 @@ export function DeskStations({ channels, r2Configured }: { channels: Channel[]; 
         <div>
           <label className="block">
             <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">Stations</span>
-            <input className="input mt-1" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name or slug" />
+            <input className="input mt-1" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Station or song" />
           </label>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {(
+              [
+                ["all", "All"],
+                ["live", "Live"],
+                ["ondemand", "On demand"],
+                ["fixed", "Fixed"],
+                ["featured", "Featured"],
+                ["off", "Off air"],
+                ["empty", "Empty"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setKindFilter(id)}
+                className={cn(
+                  "inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em]",
+                  kindFilter === id ? "bg-fg text-bg" : "text-gold",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {playingSlug && channels.some((channel) => channel.slug === playingSlug) ? (
+            <button
+              type="button"
+              onClick={() => pick(playingSlug)}
+              className="mt-2 inline-flex h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+            >
+              Open what’s playing
+            </button>
+          ) : null}
+          {songHits.length > 0 ? (
+            <ul className="mt-2 space-y-1 rounded-lg bg-bg p-2">
+              {songHits.map(({ station, track }) => (
+                <li key={`${station.slug}:${track.id}`}>
+                  <button type="button" onClick={() => pick(station.slug)} className="flex w-full items-center gap-2 py-1 text-left">
+                    <span className="min-w-0 flex-1 truncate text-sm">{track.title}</span>
+                    <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">{station.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <ul className="mt-3 max-h-[36rem] space-y-1 overflow-y-auto rounded-xl bg-bg-elevated p-2 shadow-[var(--shadow-filigree)]">
             {visible.map((channel) => {
-              const cuts = channel.tracks.filter((track) => track.enabled !== false).length;
+              const songs = channel.tracks.filter((track) => track.enabled !== false).length;
               return (
                 <li key={channel.slug}>
                   <button
                     type="button"
-                    onClick={() => setOpen(channel.slug)}
+                    onClick={() => pick(channel.slug)}
                     className={cn(
                       "flex w-full items-center gap-3 rounded-lg p-2 text-left",
                       open === channel.slug ? "bg-bg shadow-[var(--shadow-filigree)]" : "hover:bg-bg",
@@ -64,9 +163,10 @@ export function DeskStations({ channels, r2Configured }: { channels: Channel[]; 
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-display text-base font-semibold">{channel.name}</span>
                       <span className="block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-                        {kindLabel(channel.kind)} · {cuts}
+                        {kindLabel(channel.kind)} · {songs} {songs === 1 ? "song" : "songs"}
                         {channel.featured ? " · featured" : ""}
                         {channel.enabled ? "" : " · off air"}
+                        {songs === 0 ? " · empty" : ""}
                       </span>
                     </span>
                   </button>
@@ -113,9 +213,8 @@ function FeaturedRail({ channels }: { channels: Channel[] }) {
   }
 
   return (
-    <section className="rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-filigree)]">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Homepage featured</p>
-      <p className="mt-1 text-sm text-muted">This is the homepage rail. Move, remove, or add a station here — you do not need to open the station first.</p>
+    <FoldSection title={`Featured rail · ${featured.length}`} hint="Edit" className="mt-0">
+      <p className="text-sm text-muted">This is the homepage rail. Move, remove, or add a station here — you do not need to open the station first.</p>
       {featured.length === 0 ? <p className="mt-3 text-sm text-subtle">Nothing on the rail yet.</p> : null}
       <ul className="mt-3 space-y-2">
         {featured.map((channel, index) => (
@@ -181,7 +280,7 @@ function FeaturedRail({ channels }: { channels: Channel[] }) {
           Add to rail
         </button>
       </form>
-    </section>
+    </FoldSection>
   );
 }
 
@@ -192,8 +291,9 @@ function NewStationForm() {
   const [featured, setFeatured] = useState(false);
   const [busy, setBusy] = useState(false);
   return (
+    <FoldSection title="New station" hint="Create" className="mt-0">
     <form
-      className="rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-filigree)]"
+      className="space-y-3"
       onSubmit={(event) => {
         event.preventDefault();
         const nextSlug = slugify(slug || name);
@@ -207,7 +307,7 @@ function NewStationForm() {
             kind,
             featured,
             enabled: true,
-            energy: kind === "fixed" ? "start to finish" : kind === "ondemand" ? "vault" : "clock",
+            energy: kind === "fixed" ? "start to finish" : kind === "ondemand" ? "on demand" : "clock",
             category: "Custom",
           },
         })
@@ -221,8 +321,7 @@ function NewStationForm() {
           .finally(() => setBusy(false));
       }}
     >
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">New station</p>
-      <p className="mt-1 text-sm text-muted">Fixed plays start to finish. Live joins a shared clock. Vault waits on demand.</p>
+      <p className="text-sm text-muted">Fixed plays start to finish. Live joins a shared clock. On demand waits until you pick a song.</p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <input className="input" value={name} onChange={(event) => setName(event.target.value)} placeholder="Name" />
         <input className="input" value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="slug (optional)" />
@@ -246,6 +345,7 @@ function NewStationForm() {
         </button>
       </div>
     </form>
+    </FoldSection>
   );
 }
 
@@ -271,10 +371,21 @@ function StationWorkspace({
         </div>
         <ModePill kind={channel.kind} mode={channel.mode} enabled={channel.enabled} nsfw={channel.nsfw} />
       </div>
-      <div className="mt-4">
-        <StationSettingsForm key={`${channel.slug}:${channel.shuffle}:${channel.kind}`} channel={channel} compact />
-      </div>
       <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            to="/channel/$slug"
+            params={{ slug: channel.slug }}
+            className="inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
+          >
+            View station
+          </Link>
+          <button
+            type="button"
+            onClick={() => void usePlayerStore.getState().tuneIn(channel.slug, { forcePlay: true })}
+            className="inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
+          >
+            Listen
+          </button>
           <button
             type="button"
             disabled={busy}
@@ -308,10 +419,12 @@ function StationWorkspace({
             {channel.enabled ? "Take off air" : "Restore to air"}
           </button>
       </div>
+      <FoldSection title="Station settings" hint="Edit" className="mt-4" titleClassName="text-gold">
+        <StationSettingsForm key={`${channel.slug}:${channel.shuffle}:${channel.kind}`} channel={channel} compact />
+      </FoldSection>
 
-      <div className="mt-8">
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Add songs</p>
-        <div className="mt-2 flex flex-wrap gap-1">
+      <FoldSection title="Add songs" hint="Open" className="mt-8" titleClassName="text-gold">
+        <div className="flex flex-wrap gap-1">
           {(
             [
               ["library", "From another station"],
@@ -332,7 +445,7 @@ function StationWorkspace({
         {addMode === "library" ? <LibraryPicker channel={channel} others={others} /> : null}
         {addMode === "upload" ? r2Configured ? <UploadDrop slug={channel.slug} cover={channel.cover} /> : <p className="mt-3 text-sm text-muted">R2 keys are dark — use the Services tab.</p> : null}
         {addMode === "url" ? <UrlAddForm channel={channel} /> : null}
-      </div>
+      </FoldSection>
 
       <Playlist channel={channel} others={others} r2Configured={r2Configured} />
     </div>
@@ -447,15 +560,41 @@ function Playlist({ channel, others, r2Configured }: { channel: Channel; others:
   const [filter, setFilter] = useState("");
   const [showHidden, setShowHidden] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [arrange, setArrange] = useState(false);
   const [busy, setBusy] = useState(false);
+  const nowId = usePlayerStore((s) => (s.channelSlug === channel.slug ? s.track?.id : null));
   const live = channel.tracks.filter((track) => track.enabled !== false);
   const hidden = channel.tracks.filter((track) => track.enabled === false);
+  const totalSec = live.reduce((sum, track) => sum + (track.durationSec || 0), 0);
   const visible = useMemo(() => {
     const source = showHidden ? channel.tracks : live;
     const q = filter.trim().toLowerCase();
     if (!q) return source;
     return source.filter((track) => `${track.title} ${track.artist}`.toLowerCase().includes(q));
   }, [channel.tracks, filter, live, showHidden]);
+  const alsoOn = useMemo(() => {
+    const titles = new Map<string, Set<string>>();
+    for (const desk of [channel, ...others]) {
+      for (const track of desk.tracks) {
+        if (track.enabled === false) continue;
+        const key = track.title.trim().toLowerCase();
+        const set = titles.get(key) ?? new Set<string>();
+        set.add(desk.slug);
+        titles.set(key, set);
+      }
+    }
+    const map = new Map<string, number>();
+    for (const track of channel.tracks) {
+      const set = titles.get(track.title.trim().toLowerCase());
+      map.set(track.id, Math.max(0, (set?.size ?? 1) - 1));
+    }
+    return map;
+  }, [channel, others]);
+
+  useEffect(() => {
+    if (!nowId) return;
+    document.getElementById(`desk-track-${nowId}`)?.scrollIntoView({ block: "nearest" });
+  }, [nowId]);
 
   async function move(indexInChannel: number, dir: -1 | 1) {
     const ids = channel.tracks.map((item) => item.id);
@@ -479,13 +618,26 @@ function Playlist({ channel, others, r2Configured }: { channel: Channel; others:
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Playlist</p>
           <p className="text-sm text-muted">
-            {live.length} on air{hidden.length ? ` · ${hidden.length} removed` : ""}
+            {live.length} on air · {formatClock(totalSec)}
+            {hidden.length ? ` · ${hidden.length} removed` : ""}
+            {busy ? " · Saving…" : ""}
           </p>
         </div>
-        <label className="inline-flex h-11 items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
-          <input type="checkbox" checked={showHidden} onChange={(event) => setShowHidden(event.target.checked)} />
-          Show removed
-        </label>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setArrange((value) => !value)}
+            aria-pressed={arrange}
+            className="inline-flex h-11 items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-gold"
+          >
+            <ArrowUpDown className="size-3.5" />
+            {arrange ? "Done" : "Arrange"}
+          </button>
+          <label className="inline-flex h-11 items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
+            <input type="checkbox" checked={showHidden} onChange={(event) => setShowHidden(event.target.checked)} />
+            Show removed
+          </label>
+        </div>
       </div>
       <input className="input mt-3" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter this playlist" />
       <ul className="mt-3 max-h-[28rem] divide-y divide-line overflow-y-auto rounded-lg bg-bg">
@@ -501,6 +653,9 @@ function Playlist({ channel, others, r2Configured }: { channel: Channel; others:
               others={others}
               r2Configured={r2Configured}
               editing={editing === track.id}
+              arrange={arrange}
+              playing={nowId === track.id}
+              alsoOn={alsoOn.get(track.id) ?? 0}
               onToggleEdit={() => setEditing((current) => (current === track.id ? null : track.id))}
               onMove={(dir) => void move(index, dir)}
               busy={busy}
@@ -519,6 +674,9 @@ function DeskTrackRow({
   others,
   r2Configured,
   editing,
+  arrange,
+  playing,
+  alsoOn,
   onToggleEdit,
   onMove,
   busy,
@@ -529,6 +687,9 @@ function DeskTrackRow({
   others: Channel[];
   r2Configured: boolean;
   editing: boolean;
+  arrange: boolean;
+  playing: boolean;
+  alsoOn: number;
   onToggleEdit: () => void;
   onMove: (dir: -1 | 1) => void;
   busy: boolean;
@@ -580,24 +741,45 @@ function DeskTrackRow({
   }
 
   return (
-    <li className={cn("p-3", hidden && "opacity-50")}>
+    <li id={`desk-track-${track.id}`} className={cn("p-3", hidden && "opacity-50", playing && "bg-bg")}>
       <div className="flex flex-wrap items-center gap-2">
         <span className="w-8 font-mono text-[11px] tabular-nums text-subtle">{String(index + 1).padStart(2, "0")}</span>
+        <CoverArt src={track.coverUrl || channel.cover} alt="" className="size-10 shrink-0 rounded-md" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate">{track.title}</span>
+          <span className={cn("block truncate", playing && "text-gold")}>{track.title}</span>
           <span className="block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
             {track.artist} · {location}
+            {alsoOn > 0 ? ` · also ${alsoOn}` : ""}
           </span>
         </span>
         <span className="font-mono text-[11px] tabular-nums text-subtle">{formatClock(track.durationSec)}</span>
       </div>
       <div className="mt-2 flex flex-wrap gap-1">
-        <button type="button" disabled={locked} onClick={() => onMove(-1)} className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
-          Up
+        <button
+          type="button"
+          disabled={locked}
+          onClick={() => void usePlayerStore.getState().cueTrack(channel.slug, track.id)}
+          className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+        >
+          Play
         </button>
-        <button type="button" disabled={locked} onClick={() => onMove(1)} className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
-          Down
-        </button>
+        <Link
+          to="/player/$id"
+          params={{ id: songKey(track) }}
+          className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+        >
+          Open
+        </Link>
+        {arrange ? (
+          <>
+            <button type="button" disabled={locked} onClick={() => onMove(-1)} className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
+              Up
+            </button>
+            <button type="button" disabled={locked} onClick={() => onMove(1)} className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
+              Down
+            </button>
+          </>
+        ) : null}
         <button type="button" disabled={locked} onClick={onToggleEdit} className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
           {editing ? "Close" : "Edit"}
         </button>
@@ -615,38 +797,7 @@ function DeskTrackRow({
           >
             Restore
           </button>
-        ) : (
-          <button
-            type="button"
-            disabled={locked}
-            onClick={() => {
-              if (!window.confirm(`Remove “${track.title}” from this station? File stays on R2.`)) return;
-              setLocalBusy(true);
-              void hideStationTrack({ data: { channelSlug: channel.slug, trackId: track.id, audioUrl: track.audioUrl } })
-                .then((result) => applySnapshot(result.tracks, result.stations))
-                .finally(() => setLocalBusy(false));
-            }}
-            className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
-          >
-            Remove
-          </button>
-        )}
-        <button
-          type="button"
-          disabled={locked || !r2Configured || !key}
-          onClick={() => {
-            if (!key || !window.confirm(`Delete on R2?\n${key}`)) return;
-            setLocalBusy(true);
-            void deleteStationFile({
-              data: { channelSlug: channel.slug, trackId: track.id, audioUrl: track.audioUrl, r2Key: key, alsoDeleteR2: true },
-            })
-              .then((result) => applySnapshot(result.tracks, result.stations))
-              .finally(() => setLocalBusy(false));
-          }}
-          className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-ember"
-        >
-          Delete file
-        </button>
+        ) : null}
       </div>
       {editing ? (
         <div className="mt-3 space-y-2 rounded-lg bg-bg-elevated p-3">
@@ -670,6 +821,40 @@ function DeskTrackRow({
             </button>
             <button type="button" disabled={locked || !dest} onClick={() => void place("move")} className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
               Move there
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {hidden ? null : (
+              <button
+                type="button"
+                disabled={locked}
+                onClick={() => {
+                  if (!window.confirm(`Remove “${track.title}” from this station? File stays on R2.`)) return;
+                  setLocalBusy(true);
+                  void hideStationTrack({ data: { channelSlug: channel.slug, trackId: track.id, audioUrl: track.audioUrl } })
+                    .then((result) => applySnapshot(result.tracks, result.stations))
+                    .finally(() => setLocalBusy(false));
+                }}
+                className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+              >
+                Remove from station
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={locked || !r2Configured || !key}
+              onClick={() => {
+                if (!key || !window.confirm(`Delete on R2?\n${key}`)) return;
+                setLocalBusy(true);
+                void deleteStationFile({
+                  data: { channelSlug: channel.slug, trackId: track.id, audioUrl: track.audioUrl, r2Key: key, alsoDeleteR2: true },
+                })
+                  .then((result) => applySnapshot(result.tracks, result.stations))
+                  .finally(() => setLocalBusy(false));
+              }}
+              className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-ember"
+            >
+              Delete file
             </button>
           </div>
         </div>

@@ -1,17 +1,19 @@
 import { Link } from "@tanstack/react-router";
 import { Play } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AdminTrackTools } from "@/components/admin-track-tools";
 import { AdminMergeBox, SongCopies } from "@/components/desk-directory";
 import { CoverArt } from "@/components/cover-art";
 import { DownloadLink } from "@/components/download-link";
+import { FoldSection } from "@/components/fold-section";
 import { ShareLink } from "@/components/share-link";
 import { SignInChoices } from "@/components/sign-in-choices";
 import { TrackActions } from "@/components/track-actions";
-import { stationsForSong } from "@/lib/catalog";
+import { getPlayableTracks, stationsForSong } from "@/lib/catalog";
 import { formatClock } from "@/lib/cn";
+import { durationOf } from "@/lib/playback";
 import { useRadioUser } from "@/lib/radio-user";
-import { aliasPath, songPath } from "@/lib/song-url";
+import { aliasPath, songKey, songPath } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel, Track } from "@/lib/types";
 
@@ -58,6 +60,13 @@ export function SongCut({
   const alsoOn = stationsForSong(track.id).filter((item) => item.slug !== channel.slug);
   const canonical = songPath(track);
   const aliases = track.aliases ?? [];
+  const tags = track.tags ?? [];
+  const playable = getPlayableTracks(channel);
+  const hereIndex = playable.findIndex((item) => item.id === track.id);
+  const more =
+    hereIndex < 0
+      ? playable.filter((item) => item.id !== track.id).slice(0, 8)
+      : [...playable.slice(hereIndex + 1), ...playable.slice(0, hereIndex)].slice(0, 8);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 pb-52">
@@ -68,48 +77,11 @@ export function SongCut({
           <h1 className="font-display text-4xl font-semibold tracking-tight">{track.title}</h1>
           <p className="mt-2 text-muted">{track.artist}</p>
           <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">{formatClock(track.durationSec)}</p>
-          {track.tags && track.tags.length > 0 ? (
-            <ul className="mt-3 flex flex-wrap gap-1">
-              {track.tags.map((tag) => (
-                <li key={tag}>
-                  <Link
-                    to="/"
-                    search={{ q: tag }}
-                    className="inline-flex h-8 items-center rounded-md px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold shadow-[var(--shadow-border)]"
-                  >
-                    {tag}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          {tags.length > 0 ? <SongTags tags={tags} /> : null}
           <TrackActions trackId={track.id} />
         </div>
       </div>
-      <div className="mt-4">
-        <ShareLink path={sharePath} title={track.title} />
-      </div>
-      <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-        Player{" "}
-        <a href={canonical} className="text-gold">
-          {canonical}
-        </a>
-        {aliases.length > 0 ? (
-          <>
-            {" "}
-            · Short{" "}
-            {aliases.map((alias, index) => (
-              <span key={alias}>
-                {index ? " · " : ""}
-                <a href={aliasPath(alias)} className="text-gold">
-                  /{alias}
-                </a>
-              </span>
-            ))}
-          </>
-        ) : null}
-      </p>
-      <div className="mt-6 flex flex-wrap gap-2">
+      <div className="mt-6 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => {
@@ -125,6 +97,7 @@ export function SongCut({
         <Link to="/channel/$slug" params={{ slug: channel.slug }} className="inline-flex h-12 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
           {channel.name}
         </Link>
+        <ShareLink path={sharePath} title={track.title} compact />
       </div>
       {alsoOn.length > 0 ? (
         <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
@@ -139,13 +112,101 @@ export function SongCut({
           ))}
         </p>
       ) : null}
+      {aliases.length > 0 || canonical ? (
+        <FoldSection title="Addresses" hint="Links">
+          <p className="break-all font-mono text-[11px] text-subtle">
+            Player{" "}
+            <a href={canonical} className="text-gold">
+              {canonical}
+            </a>
+          </p>
+          {aliases.length > 0 ? (
+            <p className="mt-2 font-mono text-[11px] text-subtle">
+              Short{" "}
+              {aliases.map((alias, index) => (
+                <span key={alias}>
+                  {index ? " · " : ""}
+                  <a href={aliasPath(alias)} className="text-gold">
+                    /{alias}
+                  </a>
+                </span>
+              ))}
+            </p>
+          ) : null}
+        </FoldSection>
+      ) : null}
+      {more.length > 0 ? (
+        <FoldSection title={`More on ${channel.name}`} hint="Open">
+          <ol className="divide-y divide-line">
+            {more.map((item, index) => (
+              <li key={item.id} className="flex items-center gap-2 py-2">
+                <span className="w-7 shrink-0 text-center font-mono text-[10px] tabular-nums text-subtle">
+                  {String((hereIndex < 0 ? index : (hereIndex + 1 + index) % playable.length) + 1).padStart(2, "0")}
+                </span>
+                <Link to="/player/$id" params={{ id: songKey(item) }} className="min-w-0 flex-1 truncate text-sm">
+                  {item.title}
+                </Link>
+                <span className="w-10 shrink-0 text-right font-mono text-[10px] tabular-nums text-subtle">
+                  {formatClock(durationOf(item))}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void cueTrack(channel.slug, item.id)}
+                  className="inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+                >
+                  Play
+                </button>
+              </li>
+            ))}
+          </ol>
+        </FoldSection>
+      ) : null}
       <SongCopies trackId={track.id} />
-      <AdminTrackTools
-        key={`${channel.slug}:${track.id}:${track.audioUrl}:${track.slug ?? ""}:${aliases.join(",")}:${(track.tags ?? []).join(",")}`}
-        slug={channel.slug}
-        track={track}
-      />
-      {isAdmin ? <AdminMergeBox trackId={track.id} /> : null}
+      {isAdmin ? (
+        <FoldSection title="Edit this song" hint="Edit" titleClassName="text-gold">
+          <AdminTrackTools
+            key={`${channel.slug}:${track.id}:${track.audioUrl}:${track.slug ?? ""}:${aliases.join(",")}:${(track.tags ?? []).join(",")}`}
+            slug={channel.slug}
+            track={track}
+          />
+        </FoldSection>
+      ) : null}
+      {isAdmin ? (
+        <FoldSection title="Merge copies" hint="Open" titleClassName="text-gold">
+          <AdminMergeBox trackId={track.id} />
+        </FoldSection>
+      ) : null}
     </div>
+  );
+}
+
+function SongTags({ tags }: { tags: string[] }) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? tags : tags.slice(0, 4);
+  return (
+    <ul className="mt-3 flex flex-wrap gap-1">
+      {shown.map((tag) => (
+        <li key={tag}>
+          <Link
+            to="/"
+            search={{ q: tag }}
+            className="inline-flex h-8 items-center rounded-md px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold shadow-[var(--shadow-border)]"
+          >
+            {tag}
+          </Link>
+        </li>
+      ))}
+      {tags.length > 4 ? (
+        <li>
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            className="inline-flex h-8 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle"
+          >
+            {open ? "Less" : `+${tags.length - 4}`}
+          </button>
+        </li>
+      ) : null}
+    </ul>
   );
 }

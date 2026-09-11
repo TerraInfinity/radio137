@@ -29,12 +29,29 @@ function applySnapshot(tracks: CatalogEdit[], stations: StationEdit[]) {
   usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), tracks, stations));
 }
 
+const DESK_TABS = ["stations", "directory", "review", "r2", "services"] as const;
+type DeskTab = (typeof DESK_TABS)[number];
+
+function readDeskTab(): DeskTab {
+  try {
+    const value = window.localStorage.getItem("radio.desk.tab");
+    if (value && (DESK_TABS as readonly string[]).includes(value)) return value as DeskTab;
+  } catch {
+    /* ignore */
+  }
+  return "stations";
+}
+
 function DeskPage() {
   const { user, isAdmin, isPending, r2Configured, lamps } = useRadioUser();
   const catalog = usePlayerStore((s) => s.catalog);
   const channels = catalog.channels.length ? catalog.channels : getCatalog().channels;
-  const [tab, setTab] = useState<"stations" | "directory" | "review" | "r2" | "services">("stations");
+  const [tab, setTab] = useState<DeskTab>("stations");
   const [reviewOpen, setReviewOpen] = useState(0);
+
+  useEffect(() => {
+    setTab(readDeskTab());
+  }, []);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -42,6 +59,15 @@ function DeskPage() {
       .then((data) => setReviewOpen(data.open))
       .catch(() => setReviewOpen(0));
   }, [isAdmin, tab]);
+
+  function pickTab(next: DeskTab) {
+    setTab(next);
+    try {
+      window.localStorage.setItem("radio.desk.tab", next);
+    } catch {
+      /* ignore */
+    }
+  }
 
   if (isPending) {
     return (
@@ -77,6 +103,7 @@ function DeskPage() {
       <p className="mt-3 max-w-prose text-muted">
         Featured rail, playlists, and a directory so copied folders list as one song. Files stay on R2.
       </p>
+      <DeskOverview channels={channels} reviewOpen={reviewOpen} />
       <div className="mt-6 flex flex-wrap gap-1">
         {(
           [
@@ -90,7 +117,7 @@ function DeskPage() {
           <button
             key={id}
             type="button"
-            onClick={() => setTab(id)}
+            onClick={() => pickTab(id)}
             className={cn(
               "inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em]",
               tab === id ? "bg-fg text-bg" : "text-gold",
@@ -106,6 +133,20 @@ function DeskPage() {
       {tab === "r2" ? <R2Board channels={channels} r2Configured={r2Configured} /> : null}
       {tab === "services" ? <ServicesBoard r2Configured={r2Configured} lamps={lamps} /> : null}
     </div>
+  );
+}
+
+function DeskOverview({ channels, reviewOpen }: { channels: Channel[]; reviewOpen: number }) {
+  const songs = channels.reduce((sum, channel) => sum + channel.tracks.filter((track) => track.enabled !== false).length, 0);
+  const offAir = channels.filter((channel) => !channel.enabled).length;
+  const empty = channels.filter((channel) => channel.enabled && channel.tracks.filter((track) => track.enabled !== false).length === 0).length;
+  return (
+    <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">
+      {channels.length} stations · {songs} songs
+      {offAir ? ` · ${offAir} off air` : ""}
+      {empty ? ` · ${empty} empty` : ""}
+      {reviewOpen ? ` · ${reviewOpen} in review` : ""}
+    </p>
   );
 }
 

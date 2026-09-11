@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpDown, ChevronRight, GripVertical } from "lucide-react";
 import { AdminRename } from "@/components/admin-rename";
@@ -25,6 +25,13 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
   const [busy, setBusy] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [arrange, setArrange] = useState(false);
+  const [filter, setFilter] = useState("");
+  const totalSec = tracks.reduce((sum, track) => sum + durationOf(track), 0);
+  const needle = filter.trim().toLowerCase();
+  const visible = useMemo(() => {
+    if (!needle) return tracks;
+    return tracks.filter((track) => `${track.title} ${track.artist}`.toLowerCase().includes(needle));
+  }, [needle, tracks]);
 
   async function persist(ids: string[]) {
     const hidden = channel.tracks.filter((track) => track.enabled === false).map((track) => track.id);
@@ -70,6 +77,8 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
       <div className="flex items-center gap-2 px-3 py-1">
         <h2 className="min-w-0 flex-1 truncate py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
           Playlist · {tracks.length}
+          {tracks.length ? ` · ${formatClock(totalSec)}` : ""}
+          {needle ? ` · ${visible.length} shown` : ""}
           {busy ? " · Saving…" : ""}
         </h2>
         {isAdmin ? (
@@ -84,12 +93,25 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
           </button>
         ) : null}
       </div>
+      {tracks.length > 8 ? (
+        <div className="px-3 pb-2">
+          <input
+            className="input"
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+            placeholder="Filter this playlist"
+          />
+        </div>
+      ) : null}
       {isAdmin && arrange ? <AdminShufflePolicy channel={channel} /> : null}
       {tracks.length === 0 ? (
         <p className="px-3 pb-3 text-sm text-muted">Empty desk.</p>
       ) : (
         <ol className="border-t border-line px-2 py-1">
-          {tracks.map((track, index) => (
+          {visible.length === 0 ? <li className="px-2 py-3 text-sm text-muted">No songs match.</li> : null}
+          {visible.map((track) => {
+            const index = tracks.findIndex((item) => item.id === track.id);
+            return (
             <PlaylistRow
               key={track.id}
               slug={channel.slug}
@@ -97,7 +119,7 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
               index={index}
               current={nowId === track.id}
               admin={Boolean(isAdmin)}
-              arrange={arrange}
+              arrange={arrange && !needle}
               dragging={dragId === track.id}
               onCue={() => void cueTrack(channel.slug, track.id)}
               onUp={() => move(index, -1)}
@@ -106,7 +128,8 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
               onDrop={() => dropOn(track.id)}
               onDragEnd={() => setDragId(null)}
             />
-          ))}
+            );
+          })}
         </ol>
       )}
     </section>

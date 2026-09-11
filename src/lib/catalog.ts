@@ -43,7 +43,7 @@ export function kindLabel(kind: string): string {
 export function kindHint(kind: string): string {
   const k = normalizeKind(kind);
   if (k === "fixed") return "Start-to-finish. Plays the list in order.";
-  if (k === "ondemand") return "Vault. Pick any song.";
+  if (k === "ondemand") return "On demand. Pick any song.";
   return "Clockwork. Shared station clock.";
 }
 

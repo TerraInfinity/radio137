@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { FoldSection } from "@/components/fold-section";
 import {
   copiesOf,
   filenameClusters,
@@ -244,9 +245,8 @@ export function SongCopies({ trackId }: { trackId: string }) {
   const copies = copiesOf(catalog, trackId, groups, false);
   if (copies.length <= 1) return null;
   return (
-    <section className="mt-8">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Copies</p>
-      <p className="mt-1 text-sm text-muted">Same song on {copies.length} desks. Each folder keeps its file.</p>
+    <FoldSection title={`Copies · ${copies.length}`} hint="Open">
+      <p className="text-sm text-muted">Same song on {copies.length} desks. Each folder keeps its file.</p>
       <ul className="mt-3 divide-y divide-line">
         {copies.map((copy) => (
           <li key={`${copy.channel.slug}:${copy.track.id}`} className="flex flex-wrap items-center gap-2 py-3">
@@ -269,7 +269,7 @@ export function SongCopies({ trackId }: { trackId: string }) {
           </li>
         ))}
       </ul>
-    </section>
+    </FoldSection>
   );
 }
 

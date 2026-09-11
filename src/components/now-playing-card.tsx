@@ -6,8 +6,8 @@ import { CoverArt } from "@/components/cover-art";
 import { HeroArtSheet } from "@/components/hero-art-sheet";
 import { MarqueeTitle } from "@/components/marquee-title";
 import { UnallocateControl } from "@/components/unallocate-control";
-import { isAdultTrack, isChannelNsfw, kindLabel, normalizeKind } from "@/lib/catalog";
-import { isOnDemandOverlay, listenModeLabel } from "@/lib/listen-mode";
+import { isAdultTrack, isChannelNsfw } from "@/lib/catalog";
+import { isOnDemandOverlay } from "@/lib/listen-mode";
 import { visualSrc } from "@/lib/media";
 import { songKey } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
@@ -66,9 +66,6 @@ export function NowPlayingCard({
           )}
         </h2>
         <p className="mt-0.5 truncate text-sm text-muted">{track.artist}</p>
-        <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">
-          Desk: {kindLabel(normalizeKind(channel.kind || channel.mode))} · You: {listenModeLabel(listenMode)}
-        </p>
         <div className="mt-1 flex flex-wrap items-center gap-1">
           {overlay ? (
             <button
