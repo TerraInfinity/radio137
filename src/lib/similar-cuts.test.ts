@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { CutCopy } from "./cuts.ts";
 import type { Channel, Track } from "./types.ts";
-import { clusterSkipKeys, similarClusters, skipPairKey } from "./similar-cuts.ts";
+import { clusterSkipKeys, playlistDuplicateHints, similarClusters, skipPairKey } from "./similar-cuts.ts";
 
 function channel(slug: string, name = slug): Channel {
   return {
@@ -187,5 +187,39 @@ describe("similar song detector", () => {
       copy("b", "Kira's Ramayan Chhikka — Azeirf", 1331, { slug: "two", artist: "Kira" }),
     ];
     assert.equal(similarClusters(rows, []).length, 1);
+  });
+});
+
+describe("in-playlist duplicate marks", () => {
+  it("flags two copies of the same song on one station", () => {
+    const rows = [
+      copy("a", "Jungle Sloak", 215, { slug: "glaum", artist: "Glaum" }),
+      copy("b", "Jungle Sloak Copy", 215, { slug: "glaum", artist: "Glaum" }),
+      copy("c", "Unrelated Theme", 90, { slug: "glaum", artist: "Glaum" }),
+    ];
+    const marks = playlistDuplicateHints(rows, []);
+    assert.equal(marks.has("a"), true);
+    assert.equal(marks.has("b"), true);
+    assert.equal(marks.has("c"), false);
+  });
+
+  it("does not reflag a pair the desk skipped", () => {
+    const rows = [
+      copy("a", "Jungle Sloak", 215, { slug: "glaum" }),
+      copy("b", "Jungle Sloak Copy", 215, { slug: "glaum" }),
+    ];
+    const marks = playlistDuplicateHints(rows, [], [skipPairKey("a", "b")]);
+    assert.equal(marks.size, 0);
+  });
+
+  it("flags two playlist rows that share the same audio file", () => {
+    const rows = [
+      copy("a", "Clockwork Heart", 200, { slug: "glaum", filename: "clockwork-heart.mp3" }),
+      copy("b", "Clockwork Heart alt", 200, { slug: "glaum", filename: "clockwork-heart-alt.mp3" }),
+    ];
+    rows[1]!.track.audioUrl = rows[0]!.track.audioUrl;
+    const marks = playlistDuplicateHints(rows, []);
+    assert.equal(marks.has("a"), true);
+    assert.equal(marks.has("b"), true);
   });
 });

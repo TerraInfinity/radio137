@@ -13,6 +13,7 @@
   --color-subtle: #6f675c;
   --color-ember: #c45c28;
   --color-gold: #c9a36a;
+  --color-alert: #f4d35e;
   --color-cyan: #6ec8d4;
   --color-glaum: #d239f8;
   --color-glaum-soft: #e8b4ff;
@@ -666,6 +667,10 @@ body:has(.player-stage) .desk-chat {
     -webkit-mask-image: none;
     mask-image: none;
   }
+}
+.playlist-dupe {
+  color: var(--color-alert);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-alert) 70%, transparent));
 }
 .hero-art-overlay {
   position: fixed;

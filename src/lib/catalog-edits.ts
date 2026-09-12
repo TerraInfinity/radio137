@@ -1,5 +1,6 @@
 import type { Catalog, Channel, Track } from "@/lib/types";
 import { normalizeKind, normalizeShuffle, parseTags } from "@/lib/catalog";
+import { sortPlaylistTracks } from "@/lib/track-title";
 import { parseAliases } from "@/lib/song-url";
 
 export type CatalogEdit = {
@@ -41,6 +42,13 @@ export type StationEdit = {
   publicSlug: string | null;
   aliases: string | null;
 };
+
+function orderMap(edits: Iterable<CatalogEdit> | undefined): Map<string, number | null> {
+  const map = new Map<string, number | null>();
+  if (!edits) return map;
+  for (const edit of edits) map.set(edit.trackId, edit.sortOrder);
+  return map;
+}
 
 export function applyCatalogEdits(
   catalog: Catalog,
@@ -114,15 +122,7 @@ export function applyCatalogEdits(
           }),
         ),
     );
-    const hasOrder = [...(bag?.values() ?? [])].some((edit) => edit.sortOrder != null);
-    const ordered = hasOrder
-      ? [...tracks].sort((a, b) => {
-          const ao = bag?.get(a.id)?.sortOrder;
-          const bo = bag?.get(b.id)?.sortOrder;
-          if (ao == null && bo == null) return 0;
-          return (ao ?? 9999) - (bo ?? 9999);
-        })
-      : tracks;
+    const ordered = sortPlaylistTracks(tracks, orderMap(bag?.values()));
     const kind = station?.kind ? normalizeKind(station.kind) : normalizeKind(channel.kind || channel.mode);
     return {
       ...channel,
@@ -166,15 +166,7 @@ export function applyCatalogEdits(
         slug: edit.slug || undefined,
         aliases: parseAliases(edit.aliases),
       }));
-      const hasOrder = extra.some((edit) => edit.sortOrder != null);
-      const ordered = hasOrder
-        ? [...tracks].sort((a, b) => {
-            const ao = bag?.get(a.id)?.sortOrder;
-            const bo = bag?.get(b.id)?.sortOrder;
-            if (ao == null && bo == null) return 0;
-            return (ao ?? 9999) - (bo ?? 9999);
-          })
-        : tracks;
+      const ordered = sortPlaylistTracks(tracks, orderMap(bag?.values() ?? extra));
       return {
         slug: station.slug,
         name: station.name || station.slug,

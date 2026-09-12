@@ -2,8 +2,16 @@ import seed from "@/data/catalog.json";
 import { durationOf, rememberDuration } from "@/lib/playback";
 import { findPlayerSong, findSongByAlias, findStation, findStationByAlias } from "@/lib/song-url";
 import type { Catalog, Channel, ShuffleMode, StationKind, Track } from "@/lib/types";
+import { sortPlaylistTracks } from "@/lib/track-title";
 
-const seedCatalog = seed as Catalog;
+const rawSeed = seed as Catalog;
+const seedCatalog: Catalog = {
+  ...rawSeed,
+  channels: rawSeed.channels.map((channel) => ({
+    ...channel,
+    tracks: sortPlaylistTracks(channel.tracks),
+  })),
+};
 let catalog = seedCatalog;
 
 export function getSeedCatalog(): Catalog {
@@ -17,6 +25,8 @@ export function getCatalog(): Catalog {
 export function setLiveCatalog(next: Catalog) {
   catalog = next;
 }
+
+export { compareTrackTitle, sortPlaylistTracks } from "@/lib/track-title";
 
 export function patchTrackDuration(trackId: string, seconds: number) {
   rememberDuration(trackId, seconds);

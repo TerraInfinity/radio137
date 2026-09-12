@@ -143,6 +143,13 @@ export function extrasToHideOnStation(tracks: Track[], memberIds: string[], cano
   return hits.filter((track) => track.id !== keep.id);
 }
 
+export function stationCopies(channel: Channel): CutCopy[] {
+  return getPlayableTracks(channel).map((track) => {
+    const parts = audioPathParts(track.audioUrl);
+    return { track, channel, folder: parts.folder, filename: parts.filename, stem: parts.stem };
+  });
+}
+
 export function copiesOf(catalog: Catalog, trackId: string, groups: CutGroup[], includeNsfw = false): CutCopy[] {
   const copies = listCutCopies(catalog, includeNsfw);
   const map = autoCanonicalMap(copies, groups);

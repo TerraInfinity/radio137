@@ -464,3 +464,55 @@ export function similarClusters(copies: CutCopy[], groups: CutGroup[], skipKeys:
   }
   return clusters.sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || a.key.localeCompare(b.key));
 }
+
+/** Track ids on one station that look like the same song as another row on that list. */
+export function playlistDuplicateHints(
+  copies: CutCopy[],
+  groups: CutGroup[] = [],
+  skipKeys: Iterable<string> = [],
+): Map<string, string> {
+  const skip = new Set(skipKeys);
+  const marks = new Map<string, string>();
+  const mark = (ids: string[], why: string) => {
+    for (const id of ids) {
+      const partners = ids.filter((other) => other !== id && !skip.has(skipPairKey(id, other)));
+      if (partners.length === 0) continue;
+      if (!marks.has(id)) marks.set(id, why);
+    }
+  };
+  for (const group of groups) {
+    const here = copies.filter((copy) => copy.track.id === group.canonicalId || group.memberIds.includes(copy.track.id));
+    if (here.length >= 2) mark(here.map((copy) => copy.track.id), "already merged");
+  }
+  for (const cluster of similarClusters(copies, groups, skip)) {
+    mark(cluster.copies.map((copy) => copy.track.id), cluster.why?.join(" · ") || "similar names");
+  }
+  const byStem = new Map<string, string[]>();
+  const byTitle = new Map<string, string[]>();
+  const byUrl = new Map<string, string[]>();
+  for (const copy of copies) {
+    const stem = fold(copy.stem || copy.filename);
+    if (stem) {
+      const list = byStem.get(stem) ?? [];
+      list.push(copy.track.id);
+      byStem.set(stem, list);
+    }
+    const title = fold(copy.track.title);
+    const tokens = title.split(" ").filter(Boolean);
+    if (title && (title.length >= 12 || tokens.length >= 3)) {
+      const list = byTitle.get(title) ?? [];
+      list.push(copy.track.id);
+      byTitle.set(title, list);
+    }
+    const url = copy.track.audioUrl;
+    if (url) {
+      const list = byUrl.get(url) ?? [];
+      list.push(copy.track.id);
+      byUrl.set(url, list);
+    }
+  }
+  for (const ids of byStem.values()) mark(ids, "same filename");
+  for (const ids of byTitle.values()) mark(ids, "same title");
+  for (const ids of byUrl.values()) mark(ids, "same file");
+  return marks;
+}
