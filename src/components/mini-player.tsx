@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Camera, ChevronDown, Pause, Pencil, Play, Radio, SkipBack, SkipForward, Volume2 } from "lucide-react";
+import { Camera, ChevronDown, ChevronUp, Pause, Pencil, Play, Radio, SkipBack, SkipForward, Volume1, Volume2, VolumeX, X } from "lucide-react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { RenameCutForm } from "@/components/admin-rename";
 import { CoverArt } from "@/components/cover-art";
@@ -140,10 +140,191 @@ function Scrubber({
           </span>
         ) : null}
       </div>
-      <div className="deck-scrub-times">
-        <span>{formatClock(shown)}</span>
-        <span>-{formatClock(remaining)}</span>
+      {compact ? null : (
+        <div className="deck-scrub-times">
+          <span>{formatClock(shown)}</span>
+          <span>-{formatClock(remaining)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VolumeControl({
+  compact = false,
+  className,
+}: {
+  compact?: boolean;
+  className?: string;
+}) {
+  const volume = usePlayerStore((s) => s.volume);
+  const muted = usePlayerStore((s) => s.muted);
+  const setVolume = usePlayerStore((s) => s.setVolume);
+  const toggleMute = usePlayerStore((s) => s.toggleMute);
+  const hitRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const unbind = useRef<(() => void) | null>(null);
+  const setRef = useRef(setVolume);
+  const [preview, setPreview] = useState<number | null>(null);
+  setRef.current = setVolume;
+  const shown = preview ?? volume;
+  const progress = Math.min(100, Math.max(0, shown * 100));
+  const silent = muted && preview === null;
+  const Icon = silent || shown <= 0 ? VolumeX : shown < 0.4 ? Volume1 : Volume2;
+
+  useEffect(() => () => unbind.current?.(), []);
+
+  function levelAt(clientX: number) {
+    const el = hitRef.current;
+    if (!el) return 0;
+    const rect = el.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(rect.width, 1)));
+  }
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragging.current = true;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* iOS may ignore capture */
+    }
+    const next = levelAt(event.clientX);
+    setPreview(next);
+    setRef.current(next);
+
+    unbind.current?.();
+    const move = (e: PointerEvent) => {
+      if (!dragging.current) return;
+      const t = levelAt(e.clientX);
+      setPreview(t);
+      setRef.current(t);
+    };
+    const up = (e: PointerEvent) => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      setRef.current(levelAt(e.clientX));
+      setPreview(null);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      unbind.current = null;
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    unbind.current = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+  }
+
+  return (
+    <div className={cn("deck-volume", compact && "deck-volume-dock", className)}>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          toggleMute();
+        }}
+        className="grid size-11 shrink-0 place-items-center text-gold"
+        aria-label={silent ? "Unmute" : "Mute"}
+        title={silent ? "Unmute" : "Mute"}
+      >
+        <Icon className="size-5" />
+      </button>
+      <div
+        ref={hitRef}
+        role="slider"
+        tabIndex={0}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(silent ? 0 : progress)}
+        aria-valuetext={silent ? "muted" : `${Math.round(shown * 100)} percent`}
+        aria-label="Volume"
+        className="deck-volume-hit"
+        onPointerDown={onPointerDown}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+            event.preventDefault();
+            setVolume(Math.min(1, volume + 0.05));
+          } else if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+            event.preventDefault();
+            setVolume(Math.max(0, volume - 0.05));
+          } else if (event.key === "Home") {
+            event.preventDefault();
+            setVolume(0);
+          } else if (event.key === "End") {
+            event.preventDefault();
+            setVolume(1);
+          } else if (event.key === "m" || event.key === "M") {
+            event.preventDefault();
+            toggleMute();
+          }
+        }}
+      >
+        <span className={cn("deck-volume-track", silent && "deck-volume-muted")} aria-hidden>
+          <span className="deck-volume-fill" style={{ width: `${progress}%` }} />
+        </span>
+        <span
+          className="deck-volume-thumb"
+          style={{ left: `${progress}%` }}
+          aria-hidden
+        />
       </div>
+    </div>
+  );
+}
+
+function TransportButtons({
+  playing,
+  skipHint,
+  large = false,
+}: {
+  playing: boolean;
+  skipHint?: string;
+  large?: boolean;
+}) {
+  const togglePlay = usePlayerStore((s) => s.togglePlay);
+  const next = usePlayerStore((s) => s.next);
+  const prev = usePlayerStore((s) => s.prev);
+  return (
+    <div className={cn("player-stage-transport", !large && "player-dock-transport")}>
+      <button
+        type="button"
+        onClick={() => void prev()}
+        title={skipHint || "Previous"}
+        className={cn("grid shrink-0 place-items-center text-gold", large ? "size-14" : "size-11")}
+        aria-label="Previous"
+      >
+        <SkipBack className={large ? "size-7" : "size-5"} />
+      </button>
+      <button
+        type="button"
+        onClick={() => void togglePlay()}
+        className={cn(
+          "grid shrink-0 place-items-center rounded-full bg-fg text-bg",
+          large ? "size-16" : "size-12",
+        )}
+        aria-label={playing ? "Pause" : "Play"}
+      >
+        {playing ? (
+          <Pause className={large ? "size-7" : "size-6"} />
+        ) : (
+          <Play className={large ? "size-7 ml-0.5" : "size-6 ml-0.5"} />
+        )}
+      </button>
+      <button
+        type="button"
+        onClick={() => void next("user")}
+        title={skipHint || "Next"}
+        className={cn("grid shrink-0 place-items-center text-gold", large ? "size-14" : "size-11")}
+        aria-label="Next"
+      >
+        <SkipForward className={large ? "size-7" : "size-5"} />
+      </button>
     </div>
   );
 }
@@ -154,16 +335,13 @@ export function MiniPlayer() {
   const slug = usePlayerStore((s) => s.channelSlug);
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
-  const volume = usePlayerStore((s) => s.volume);
   const collapsed = usePlayerStore((s) => s.playerCollapsed);
+  const hidden = usePlayerStore((s) => s.playerHidden);
   const buffering = usePlayerStore((s) => s.buffering);
   const deckHint = usePlayerStore((s) => s.deckHint);
   const listenMode = usePlayerStore((s) => s.listenModeSession ?? s.listenMode);
-  const togglePlay = usePlayerStore((s) => s.togglePlay);
-  const next = usePlayerStore((s) => s.next);
-  const prev = usePlayerStore((s) => s.prev);
-  const setVolume = usePlayerStore((s) => s.setVolume);
   const setPlayerCollapsed = usePlayerStore((s) => s.setPlayerCollapsed);
+  const setPlayerHidden = usePlayerStore((s) => s.setPlayerHidden);
   const jumpToLive = usePlayerStore((s) => s.jumpToLive);
   const { isAdmin } = useRadioUser();
   const [artOpen, setArtOpen] = useState(false);
@@ -178,6 +356,16 @@ export function MiniPlayer() {
   useEffect(() => {
     setRenaming(false);
   }, [track?.id]);
+  useEffect(() => {
+    if (collapsed || hidden) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setPlayerCollapsed(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [collapsed, hidden, setPlayerCollapsed]);
   if (!track || !channel) return null;
   const playing = status === "playing";
   const skin = stationSkin(channel);
@@ -187,103 +375,96 @@ export function MiniPlayer() {
   const art = visualSrc(track, channel);
   const statusLine = status === "loading" ? "Tuning…" : buffering ? "Buffering…" : deckHint ? deckHint : overlay ? "On demand" : liveSync ? "Live" : playing ? "Playing" : "Paused";
   const skipHint = liveSync ? "Leaves streaming" : undefined;
+  const progress = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
+  const shell = cn(skin === "glaum" && "player-shell-glaum", skin === "waheguru" && "player-shell-wahe");
 
-  return (
-    <div
-      className={cn(
-        "player-dock fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur-sm",
-        !collapsed && "player-sheet",
-        skin === "glaum" && "player-shell-glaum",
-        skin === "waheguru" && "player-shell-wahe",
-      )}
-    >
-      <div className="mx-auto max-w-6xl px-3 pt-1 sm:px-4">
-        {collapsed ? <Scrubber currentTime={currentTime} duration={duration} compact /> : null}
-        <div className="flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
-            <button
-              type="button"
-              onClick={() => collapsed && setPlayerCollapsed(false)}
-              className="flex w-full min-w-0 items-center gap-2.5 text-left"
-              aria-label={collapsed ? "Expand player" : track.title}
-            >
-              <CoverArt src={art} alt="" className="size-12 shrink-0 overflow-hidden rounded-md" motion="still" />
-              {collapsed ? (
-                <span className="min-w-0 flex-1 overflow-hidden">
-                  <MarqueeTitle
-                    text={track.title}
-                    className={cn("min-w-0 w-full font-display text-base leading-tight", skin === "glaum" && "glaum-title")}
-                  />
-                  <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-                    {track.artist ? `${track.artist} · ` : ""}
-                    {statusLine}
-                  </span>
-                </span>
-              ) : (
-                <span className="min-w-0 flex-1" />
-              )}
-            </button>
-          </div>
-          {overlay && collapsed ? (
-            <button
-              type="button"
-              onClick={() => void jumpToLive()}
-              className="inline-flex h-11 shrink-0 items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
-              title="Jump to the station clock"
-            >
-              <Radio className="size-3.5" />
-              Live
-            </button>
-          ) : null}
-          {collapsed ? <ListenModeLamp compact bare /> : null}
+  const extras = (
+    <div className="player-stage-extras">
+      {overlay ? (
+        <button
+          type="button"
+          onClick={() => void jumpToLive()}
+          className="inline-flex h-11 items-center justify-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+        >
+          <Radio className="size-3.5" />
+          Live
+        </button>
+      ) : null}
+      <ListenModeLamp compact />
+      <AutoplayLamp compact />
+      <ShuffleToggle channel={channel} compact />
+      <TrackActions trackId={track.id} compact />
+      <UnallocateControl channel={channel} track={track} />
+      {isAdmin ? (
+        <button
+          type="button"
+          onClick={() => setRenaming((value) => !value)}
+          aria-expanded={renaming}
+          className="inline-flex h-11 items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+        >
+          <Pencil className="size-3.5" />
+          Rename
+        </button>
+      ) : null}
+      <ShareLink path={songPath(track)} title={track.title} compact />
+    </div>
+  );
+
+  const artSheet = isAdmin ? <HeroArtSheet channel={channel} track={track} open={artOpen} onClose={() => setArtOpen(false)} /> : null;
+
+  if (hidden) {
+    return (
+      <button
+        type="button"
+        className={cn("player-dock player-sliver", shell)}
+        onClick={() => setPlayerHidden(false)}
+        aria-label="Show player"
+        title="Show player"
+      >
+        <span className="player-sliver-rail" aria-hidden>
+          <span className="player-sliver-fill" style={{ width: `${progress}%` }} />
+        </span>
+        <ChevronUp className="player-sliver-mark size-4" />
+      </button>
+    );
+  }
+
+  if (!collapsed) {
+    return (
+      <div className={cn("player-stage", shell)} role="dialog" aria-label="Now playing">
+        <div className="player-stage-chrome">
           <button
             type="button"
-            onClick={() => void prev()}
-            title={skipHint || "Previous"}
+            onClick={() => setPlayerCollapsed(true)}
             className="grid size-11 shrink-0 place-items-center text-gold"
-            aria-label="Previous"
+            aria-label="Collapse player"
+            title="Collapse player"
           >
-            <SkipBack className="size-5" />
+            <ChevronDown className="size-5" />
           </button>
+          <p className="min-w-0 flex-1 truncate text-center font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">
+            {statusLine}
+          </p>
           <button
             type="button"
-            onClick={() => void togglePlay()}
-            className="grid size-12 shrink-0 place-items-center rounded-full bg-fg text-bg"
-            aria-label={playing ? "Pause" : "Play"}
+            onClick={() => setPlayerHidden(true)}
+            className="grid size-11 shrink-0 place-items-center text-subtle hover:text-fg"
+            aria-label="Hide player"
+            title="Hide player"
           >
-            {playing ? <Pause className="size-6" /> : <Play className="size-6 ml-0.5" />}
+            <X className="size-5" />
           </button>
-          <button
-            type="button"
-            onClick={() => void next("user")}
-            title={skipHint || "Next"}
-            className="grid size-11 shrink-0 place-items-center text-gold"
-            aria-label="Next"
-          >
-            <SkipForward className="size-5" />
-          </button>
-          {!collapsed ? (
-            <button
-              type="button"
-              onClick={() => setPlayerCollapsed(true)}
-              className="grid size-11 shrink-0 place-items-center text-subtle"
-              aria-label="Collapse player"
-            >
-              <ChevronDown className="size-5" />
-            </button>
-          ) : null}
         </div>
-
-        {!collapsed ? (
-          <div className="mt-4 space-y-4 pb-2">
-            <div className="player-hero relative overflow-hidden rounded-xl shadow-[var(--shadow-filigree)]">
+        <div className="player-stage-body">
+          <div className="player-stage-art">
+            <div className="player-stage-art-frame">
               <button
                 type="button"
                 onClick={() => isAdmin && setArtOpen(true)}
-                className="block w-full"
+                className="block size-full"
                 aria-label={isAdmin ? "Replace this song’s art" : track.title}
               >
-                <CoverArt src={art} alt="" className="aspect-square w-full" motion="loop" />
+                <CoverArt src={art} alt="" className="size-full" motion="loop" />
               </button>
               {isAdmin ? (
                 <button
@@ -296,74 +477,99 @@ export function MiniPlayer() {
                 </button>
               ) : null}
             </div>
-            <div className="min-w-0 text-center">
+          </div>
+          <div className="player-stage-copy">
+            <div className="min-w-0 text-center md:text-left">
               {isAdmin && renaming ? (
                 <RenameCutForm slug={channel.slug} track={track} appearance="title" onClose={() => setRenaming(false)} />
               ) : (
-                <p className={cn("min-w-0 font-display text-2xl font-semibold leading-tight", skin === "glaum" && "glaum-title")}>
+                <p className={cn("min-w-0 font-display text-2xl font-semibold leading-tight sm:text-3xl", skin === "glaum" && "glaum-title")}>
                   <MarqueeTitle text={track.title} />
                 </p>
               )}
-              <p className="mt-1 text-sm text-muted">
+              <p className="mt-1 truncate text-sm text-muted">
                 {track.artist || "Unknown"}
                 <span className="text-subtle"> · {channel.name}</span>
               </p>
             </div>
-            <VuMeter playing={playing} skin={skin} />
+            <div className="player-stage-vu flex justify-center md:justify-start">
+              <VuMeter playing={playing} skin={skin} />
+            </div>
+            <TransportButtons playing={playing} skipHint={skipHint} large />
             <Scrubber currentTime={currentTime} duration={duration} />
-            {overlay ? (
-              <button
-                type="button"
-                onClick={() => void jumpToLive()}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-md font-mono text-[11px] uppercase tracking-[0.14em] text-gold shadow-[var(--shadow-filigree)]"
-              >
-                <Radio className="size-4" />
-                Jump to live
-              </button>
-            ) : null}
-            <p className="text-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+            {!ios ? <VolumeControl className="w-full max-w-sm md:max-w-none" /> : null}
+            {extras}
+            <p className="player-stage-desk text-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle md:text-left">
               Desk: {kindLabel(deskKind)} · You: {listenModeLabel(listenMode)}
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-1">
-              <ListenModeLamp />
-              <AutoplayLamp compact />
-              <ShuffleToggle channel={channel} compact />
-              <TrackActions trackId={track.id} compact />
-              <UnallocateControl channel={channel} track={track} />
-              {isAdmin ? (
-                <button
-                  type="button"
-                  onClick={() => setRenaming((value) => !value)}
-                  aria-expanded={renaming}
-                  className="inline-flex h-11 items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
-                >
-                  <Pencil className="size-3.5" />
-                  Rename
-                </button>
-              ) : null}
-            </div>
-            <div className="flex justify-center">
-              <ShareLink path={songPath(track)} title={track.title} compact />
-            </div>
-            {!ios ? (
-              <label className="mx-auto flex max-w-sm items-center gap-2">
-                <Volume2 className="size-4 text-subtle" />
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={volume}
-                  onChange={(event) => setVolume(Number(event.target.value))}
-                  className="h-11 w-full"
-                  aria-label="Volume"
-                />
-              </label>
-            ) : null}
           </div>
-        ) : null}
+        </div>
+        {artSheet}
       </div>
-      {isAdmin ? <HeroArtSheet channel={channel} track={track} open={artOpen} onClose={() => setArtOpen(false)} /> : null}
+    );
+  }
+
+  return (
+    <div className={cn("player-dock fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur-sm", shell)}>
+      <div className="mx-auto max-w-6xl px-3 pt-1 sm:px-4">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setPlayerCollapsed(false)}
+            className="grid size-11 shrink-0 place-items-center text-gold"
+            aria-label="Expand player"
+            title="Expand player"
+          >
+            <ChevronUp className="size-5" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <Scrubber currentTime={currentTime} duration={duration} compact />
+          </div>
+          <button
+            type="button"
+            onClick={() => setPlayerHidden(true)}
+            className="grid size-11 shrink-0 place-items-center text-subtle hover:text-fg"
+            aria-label="Hide player"
+            title="Hide player"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <button
+            type="button"
+            onClick={() => setPlayerCollapsed(false)}
+            className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+            aria-label="Expand player"
+          >
+            <CoverArt src={art} alt="" className="size-12 shrink-0 overflow-hidden rounded-md" motion="still" />
+            <span className="min-w-0 flex-1 overflow-hidden">
+              <MarqueeTitle
+                text={track.title}
+                className={cn("min-w-0 w-full font-display text-base leading-tight", skin === "glaum" && "glaum-title")}
+              />
+              <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+                {track.artist ? `${track.artist} · ` : ""}
+                {statusLine}
+              </span>
+            </span>
+          </button>
+          {overlay ? (
+            <button
+              type="button"
+              onClick={() => void jumpToLive()}
+              className="inline-flex h-11 shrink-0 items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+              title="Jump to the station clock"
+            >
+              <Radio className="size-3.5" />
+              <span className="hidden sm:inline">Live</span>
+            </button>
+          ) : null}
+          <TransportButtons playing={playing} skipHint={skipHint} />
+          {!ios ? <VolumeControl compact /> : null}
+        </div>
+      </div>
+      {artSheet}
     </div>
   );
 }

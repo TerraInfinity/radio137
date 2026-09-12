@@ -351,7 +351,7 @@ export const mergeStationCuts = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { mergeCuts } = await import("@/lib/cuts.server");
     const groups = await mergeCuts(context.user, data.canonicalId, data.memberIds);
-    return { groups };
+    return { groups, ...(await snapshot()) };
   });
 
 export const mergeStationCutClusters = createServerFn({ method: "POST" })
@@ -366,7 +366,7 @@ export const mergeStationCutClusters = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { mergeCutClusters } = await import("@/lib/cuts.server");
     const groups = await mergeCutClusters(context.user, data.clusters);
-    return { groups };
+    return { groups, ...(await snapshot()) };
   });
 
 export const unmergeStationCut = createServerFn({ method: "POST" })
@@ -385,6 +385,22 @@ export const dissolveStationCut = createServerFn({ method: "POST" })
     const { dissolveCut } = await import("@/lib/cuts.server");
     const groups = await dissolveCut(data.canonicalId);
     return { groups };
+  });
+
+export const listCutSkips = createServerFn({ method: "GET" })
+  .middleware([adminMiddleware])
+  .handler(async () => {
+    const { listCutSkips: list } = await import("@/lib/cuts.server");
+    return { keys: await list() };
+  });
+
+export const skipSimilarCuts = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) => z.object({ memberIds: z.array(z.string().min(1)).min(2) }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { skipCutPairs } = await import("@/lib/cuts.server");
+    const keys = await skipCutPairs(context.user, data.memberIds);
+    return { keys };
   });
 
 export const pingServices = createServerFn({ method: "GET" })

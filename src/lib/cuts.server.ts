@@ -60,6 +60,8 @@ export async function mergeCuts(user: RadioUser, canonicalId: string, memberIds:
         updated_at = now()
     `;
   }
+  const { hideSameStationMergedCopies } = await import("@/lib/catalog-edits.server");
+  await hideSameStationMergedCopies(user, canonicalId, ids);
   return listCutGroups();
 }
 
@@ -102,4 +104,32 @@ export async function dissolveCut(canonicalId: string): Promise<CutGroup[]> {
   const sql = await getSql();
   await sql`delete from radio_cut_members where canonical_id = ${canonicalId} or member_id = ${canonicalId}`;
   return listCutGroups();
+}
+
+type SkipRow = { pair_key: string; left_id: string; right_id: string };
+
+export async function listCutSkips(): Promise<string[]> {
+  const sql = await getSql();
+  try {
+    const rows = await sql<SkipRow>`select pair_key, left_id, right_id from radio_cut_skips`;
+    return rows.map((row) => row.pair_key);
+  } catch {
+    return [];
+  }
+}
+
+export async function skipCutPairs(user: RadioUser, memberIds: string[]): Promise<string[]> {
+  const sql = await getSql();
+  const { clusterSkipKeys } = await import("@/lib/similar-cuts");
+  const keys = clusterSkipKeys(memberIds);
+  for (const key of keys) {
+    const [left, right] = key.split("|");
+    if (!left || !right) continue;
+    await sql`
+      insert into radio_cut_skips (pair_key, left_id, right_id, editor_id, editor_email, created_at)
+      values (${key}, ${left}, ${right}, ${user.id}, ${user.email}, now())
+      on conflict (pair_key) do nothing
+    `;
+  }
+  return listCutSkips();
 }

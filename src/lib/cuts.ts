@@ -17,8 +17,10 @@ export type CutCopy = {
 
 export type CutCluster = {
   key: string;
-  reason: "file" | "title" | "merged";
+  reason: "file" | "title" | "merged" | "similar";
   copies: CutCopy[];
+  why?: string[];
+  score?: number;
 };
 
 function fold(value: string): string {
@@ -124,6 +126,28 @@ export function autoCanonicalMap(copies: CutCopy[], groups: CutGroup[]): Map<str
     }
   }
   return map;
+}
+
+export function idsShareSong(a: string, b: string, groups: CutGroup[]): boolean {
+  if (a === b) return true;
+  const map = memberMap(groups);
+  return (map.get(a) ?? a) === (map.get(b) ?? b);
+}
+
+/** Keep one row per station. Extra members of a merge group are hidden, not deleted. */
+export function extrasToHideOnStation(tracks: Track[], memberIds: string[], canonicalId: string): Track[] {
+  const group = new Set(memberIds.filter(Boolean));
+  const hits = tracks.filter((track) => track.enabled !== false && group.has(track.id));
+  if (hits.length < 2) return [];
+  const keep = hits.find((track) => track.id === canonicalId) ?? hits[0];
+  return hits.filter((track) => track.id !== keep.id);
+}
+
+export function stationCopies(channel: Channel): CutCopy[] {
+  return getPlayableTracks(channel).map((track) => {
+    const parts = audioPathParts(track.audioUrl);
+    return { track, channel, folder: parts.folder, filename: parts.filename, stem: parts.stem };
+  });
 }
 
 export function copiesOf(catalog: Catalog, trackId: string, groups: CutGroup[], includeNsfw = false): CutCopy[] {

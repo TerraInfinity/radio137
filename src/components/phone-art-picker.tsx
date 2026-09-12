@@ -1,27 +1,31 @@
+import { ImagePlus } from "lucide-react";
 import { ART_ACCEPT } from "@/lib/media";
 import { cn } from "@/lib/cn";
 
-function FileChip({
-  accept,
+/**
+ * One iOS-safe file input: the <input> IS the tap target (opacity overlay),
+ * never a hidden input clicked from JS. Combined accept lets Photos, the
+ * camera roll, Files, and the desktop chooser all flow through one control.
+ */
+export function PhoneArtPicker({
   disabled,
-  label,
   onFile,
+  label = "Choose file",
 }: {
-  accept: string;
   disabled?: boolean;
-  label: string;
   onFile: (file: File) => void;
+  label?: string;
 }) {
   return (
     <label
       className={cn(
-        "relative inline-flex h-11 flex-1 cursor-pointer items-center justify-center rounded-md px-3 font-mono text-[11px] uppercase tracking-[0.14em]",
+        "relative inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md px-3 font-mono text-[11px] uppercase tracking-[0.14em]",
         disabled ? "pointer-events-none opacity-50" : "bg-fg text-bg",
       )}
     >
       <input
         type="file"
-        accept={accept}
+        accept={ART_ACCEPT}
         disabled={disabled}
         className="absolute inset-0 cursor-pointer opacity-0"
         onChange={(event) => {
@@ -30,24 +34,8 @@ function FileChip({
           if (file) onFile(file);
         }}
       />
+      <ImagePlus className="size-4" aria-hidden />
       {label}
     </label>
-  );
-}
-
-/** iOS-friendly pickers: the input is the tap target, not a hidden click(). */
-export function PhoneArtPicker({
-  disabled,
-  onFile,
-}: {
-  disabled?: boolean;
-  onFile: (file: File) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      <FileChip accept="image/*" disabled={disabled} label="Photo" onFile={onFile} />
-      <FileChip accept="video/*" disabled={disabled} label="Video" onFile={onFile} />
-      <FileChip accept={ART_ACCEPT} disabled={disabled} label="Files" onFile={onFile} />
-    </div>
   );
 }

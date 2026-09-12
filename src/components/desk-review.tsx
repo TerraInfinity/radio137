@@ -111,6 +111,7 @@ export function DeskReview() {
               try {
                 const result = await mergeStationCuts({ data: { canonicalId, memberIds } });
                 usePlayerStore.getState().replaceCutGroups(result.groups);
+                if (result.tracks) applySnap(result.tracks, result.stations ?? []);
                 await dismissReviewItemFn({ data: { id: item.id, status: "merged" } });
                 await refresh();
               } catch (error) {

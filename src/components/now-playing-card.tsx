@@ -6,6 +6,7 @@ import { CoverArt } from "@/components/cover-art";
 import { HeroArtSheet } from "@/components/hero-art-sheet";
 import { MarqueeTitle } from "@/components/marquee-title";
 import { UnallocateControl } from "@/components/unallocate-control";
+import { AdminTrackTools } from "@/components/admin-track-tools";
 import { isAdultTrack, isChannelNsfw } from "@/lib/catalog";
 import { isOnDemandOverlay } from "@/lib/listen-mode";
 import { visualSrc } from "@/lib/media";
@@ -78,6 +79,7 @@ export function NowPlayingCard({
             </button>
           ) : null}
           <UnallocateControl channel={channel} track={track} />
+          {isAdmin ? <AdminTrackTools slug={channel.slug} track={track} compact /> : null}
           {isAdmin ? (
             <button
               type="button"

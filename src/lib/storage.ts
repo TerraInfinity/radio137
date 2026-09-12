@@ -7,9 +7,13 @@ const LEGACY = "radio.persist.v3";
 export type Persisted = {
   autoplay: boolean;
   lastSlug: string | null;
+  lastTrackId: string | null;
+  lastOffsetSec: number;
   visited: boolean;
   playerCollapsed: boolean;
+  playerHidden: boolean;
   volume: number;
+  muted: boolean;
   identityName: string | null;
   points: number;
   glaumules: number;
@@ -22,9 +26,13 @@ export type Persisted = {
 const defaults: Persisted = {
   autoplay: true,
   lastSlug: null,
+  lastTrackId: null,
+  lastOffsetSec: 0,
   visited: false,
   playerCollapsed: true,
+  playerHidden: false,
   volume: 0.85,
+  muted: false,
   identityName: null,
   points: 0,
   glaumules: 0,
@@ -43,12 +51,18 @@ export function loadPersisted(): Persisted {
     return {
       ...defaults,
       ...parsed,
+      autoplay: parsed.autoplay === false ? false : parsed.autoplay === true ? true : defaults.autoplay,
       liked: Array.isArray(parsed.liked) ? parsed.liked : [],
       favorites: Array.isArray(parsed.favorites) ? parsed.favorites : [],
       shuffleBySlug:
         parsed.shuffleBySlug && typeof parsed.shuffleBySlug === "object" ? parsed.shuffleBySlug : {},
       points: Number.isFinite(parsed.points) ? Number(parsed.points) : 0,
       glaumules: Number.isFinite(parsed.glaumules) ? Number(parsed.glaumules) : 0,
+      lastTrackId: typeof parsed.lastTrackId === "string" && parsed.lastTrackId ? parsed.lastTrackId : null,
+      lastOffsetSec: Number.isFinite(parsed.lastOffsetSec) ? Math.max(0, Number(parsed.lastOffsetSec)) : 0,
+      volume: Number.isFinite(parsed.volume) ? Math.min(1, Math.max(0, Number(parsed.volume))) : 0.85,
+      muted: Boolean(parsed.muted),
+      playerHidden: Boolean(parsed.playerHidden),
       listenMode: parseListenMode(parsed.listenMode) ?? "ondemand",
     };
   } catch {

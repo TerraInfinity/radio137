@@ -1,13 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowUpDown, ChevronRight, GripVertical } from "lucide-react";
+import { ArrowUpDown, ChevronRight, CircleAlert, GripVertical } from "lucide-react";
 import { AdminRename } from "@/components/admin-rename";
+import { AdminTrackTools } from "@/components/admin-track-tools";
 import { MarqueeTitle } from "@/components/marquee-title";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getPlayableTracks, getSeedCatalog, normalizeShuffle } from "@/lib/catalog";
 import { cn, formatClock } from "@/lib/cn";
-import { reorderStationTracks, saveStation } from "@/lib/desk-api";
+import { stationCopies } from "@/lib/cuts";
+import { listCutSkips, reorderStationTracks, saveStation } from "@/lib/desk-api";
+import { effectiveKind } from "@/lib/listen-mode";
 import { durationOf } from "@/lib/playback";
+import { playlistDuplicateHints } from "@/lib/similar-cuts";
 import { useRadioUser } from "@/lib/radio-user";
 import { songKey } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
@@ -17,21 +21,104 @@ function applySnapshot(tracks: Parameters<typeof applyCatalogEdits>[1], stations
   usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), tracks, stations));
 }
 
+const SPAN_KEY = "radio.playlist.span.v1";
+const PRESETS = [3, 5, 10] as const;
+type SpanMode = "3" | "5" | "10" | "all" | "custom";
+
+function loadSpan(): { mode: SpanMode; custom: number } {
+  if (typeof window === "undefined") return { mode: "5", custom: 8 };
+  try {
+    const raw = window.localStorage.getItem(SPAN_KEY);
+    if (!raw) return { mode: "5", custom: 8 };
+    const parsed = JSON.parse(raw) as { mode?: string; custom?: number };
+    const mode: SpanMode =
+      parsed.mode === "3" || parsed.mode === "5" || parsed.mode === "10" || parsed.mode === "all" || parsed.mode === "custom"
+        ? parsed.mode
+        : "5";
+    const custom = Number.isFinite(parsed.custom) ? Math.min(99, Math.max(1, Math.round(Number(parsed.custom)))) : 8;
+    return { mode, custom };
+  } catch {
+    return { mode: "5", custom: 8 };
+  }
+}
+
+function saveSpan(next: { mode: SpanMode; custom: number }) {
+  try {
+    window.localStorage.setItem(SPAN_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
+
+function upcomingFrom(tracks: Track[], nowId: string | null, wrap: boolean): Track[] {
+  if (tracks.length === 0) return [];
+  const index = nowId ? tracks.findIndex((track) => track.id === nowId) : -1;
+  if (index < 0) return tracks;
+  const rest = tracks.slice(index + 1);
+  return wrap ? rest.concat(tracks.slice(0, index)) : rest;
+}
+
 export function StationPlaylist({ channel }: { channel: Channel }) {
   const { isAdmin } = useRadioUser();
   const cueTrack = usePlayerStore((s) => s.cueTrack);
   const nowId = usePlayerStore((s) => (s.channelSlug === channel.slug ? s.track?.id : null));
+  const listenMode = usePlayerStore((s) => s.listenModeSession ?? s.listenMode);
+  const cutGroups = usePlayerStore((s) => s.cutGroups);
   const tracks = getPlayableTracks(channel);
   const [busy, setBusy] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [arrange, setArrange] = useState(false);
   const [filter, setFilter] = useState("");
+  const [open, setOpen] = useState(false);
+  const [span, setSpan] = useState<{ mode: SpanMode; custom: number }>({ mode: "5", custom: 8 });
+  const [skipKeys, setSkipKeys] = useState<string[]>([]);
+  const wrap = effectiveKind(channel, listenMode) !== "fixed";
+  const upcoming = useMemo(() => upcomingFrom(tracks, nowId ?? null, wrap), [tracks, nowId, wrap]);
   const totalSec = tracks.reduce((sum, track) => sum + durationOf(track), 0);
+  const dupes = useMemo(() => {
+    if (!isAdmin) return new Map<string, string>();
+    return playlistDuplicateHints(stationCopies(channel), cutGroups, skipKeys);
+  }, [channel, cutGroups, isAdmin, skipKeys, tracks]);
+
+  useEffect(() => {
+    setSpan(loadSpan());
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    void listCutSkips()
+      .then((data) => setSkipKeys(data.keys))
+      .catch(() => setSkipKeys([]));
+  }, [isAdmin]);
+
+  useEffect(() => {
+    setOpen(false);
+    setArrange(false);
+    setFilter("");
+  }, [channel.slug]);
+
+  function pickSpan(mode: SpanMode, custom = span.custom) {
+    const next = { mode, custom };
+    setSpan(next);
+    saveSpan(next);
+    if (mode !== "all") setArrange(false);
+  }
+
   const needle = filter.trim().toLowerCase();
-  const visible = useMemo(() => {
-    if (!needle) return tracks;
-    return tracks.filter((track) => `${track.title} ${track.artist}`.toLowerCase().includes(needle));
-  }, [needle, tracks]);
+  const showAll = open && span.mode === "all";
+  const limit = !open
+    ? 1
+    : span.mode === "all"
+      ? tracks.length
+      : span.mode === "custom"
+        ? Math.min(Math.max(1, span.custom), upcoming.length || tracks.length)
+        : Math.min(Number(span.mode), upcoming.length || tracks.length);
+  const source = showAll ? tracks : upcoming;
+  const filtered = useMemo(() => {
+    if (!showAll || !needle) return source;
+    return source.filter((track) => `${track.title} ${track.artist}`.toLowerCase().includes(needle));
+  }, [needle, showAll, source]);
+  const visible = showAll ? filtered : source.slice(0, Math.max(0, limit));
 
   async function persist(ids: string[]) {
     const hidden = channel.tracks.filter((track) => track.enabled === false).map((track) => track.id);
@@ -72,16 +159,25 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
     void persist(ids);
   }
 
+  const canArrange = Boolean(isAdmin && open && showAll && !needle);
+  const nextTrack = upcoming[0];
+
   return (
     <section className="mt-6 overflow-hidden rounded-xl bg-bg-elevated shadow-[var(--shadow-border)]">
       <div className="flex items-center gap-2 px-3 py-1">
         <h2 className="min-w-0 flex-1 truncate py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
-          Playlist · {tracks.length}
-          {tracks.length ? ` · ${formatClock(totalSec)}` : ""}
-          {needle ? ` · ${visible.length} shown` : ""}
+          {open ? "Playlist" : "Up next"}
+          {open
+            ? ` · ${tracks.length}${tracks.length ? ` · ${formatClock(totalSec)}` : ""}`
+            : nextTrack
+              ? ` · ${upcoming.length} remain`
+              : ""}
+          {open && !showAll ? ` · ${visible.length} shown` : ""}
+          {open && needle ? ` · ${visible.length} match` : ""}
+          {isAdmin && open && dupes.size > 0 ? ` · ${dupes.size} possible duplicates` : ""}
           {busy ? " · Saving…" : ""}
         </h2>
-        {isAdmin ? (
+        {isAdmin && open && showAll ? (
           <button
             type="button"
             onClick={() => setArrange((value) => !value)}
@@ -92,8 +188,67 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
             {arrange ? "Done" : "Arrange"}
           </button>
         ) : null}
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          className="inline-flex h-11 shrink-0 items-center font-mono text-[10px] uppercase tracking-[0.14em] text-gold"
+        >
+          {open ? "Close" : "Open"}
+        </button>
       </div>
-      {tracks.length > 8 ? (
+      {open ? (
+        <div className="flex flex-wrap items-center gap-1 px-3 pb-2">
+          {PRESETS.map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => pickSpan(String(n) as SpanMode)}
+              className={cn(
+                "inline-flex h-11 min-w-11 items-center justify-center px-3 font-mono text-[10px] uppercase tracking-[0.12em]",
+                span.mode === String(n) ? "bg-fg text-bg" : "text-gold",
+              )}
+            >
+              {n}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => pickSpan("all")}
+            className={cn(
+              "inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em]",
+              span.mode === "all" ? "bg-fg text-bg" : "text-gold",
+            )}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => pickSpan("custom")}
+            className={cn(
+              "inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em]",
+              span.mode === "custom" ? "bg-fg text-bg" : "text-gold",
+            )}
+          >
+            Custom
+          </button>
+          {span.mode === "custom" ? (
+            <input
+              className="input h-11 w-16 px-2 text-center"
+              type="number"
+              min={1}
+              max={99}
+              value={span.custom}
+              aria-label="Custom playlist length"
+              onChange={(event) => {
+                const n = Math.min(99, Math.max(1, Number(event.target.value) || 1));
+                pickSpan("custom", n);
+              }}
+            />
+          ) : null}
+        </div>
+      ) : null}
+      {open && showAll && tracks.length > 8 ? (
         <div className="px-3 pb-2">
           <input
             className="input"
@@ -103,31 +258,35 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
           />
         </div>
       ) : null}
-      {isAdmin && arrange ? <AdminShufflePolicy channel={channel} /> : null}
+      {canArrange && arrange ? <AdminShufflePolicy channel={channel} /> : null}
       {tracks.length === 0 ? (
         <p className="px-3 pb-3 text-sm text-muted">Empty desk.</p>
+      ) : !open && !nextTrack ? (
+        <p className="px-3 pb-3 text-sm text-muted">Last song on the desk.</p>
+      ) : visible.length === 0 ? (
+        <p className="px-3 pb-3 text-sm text-muted">{needle ? "No songs match." : "Last song on the desk."}</p>
       ) : (
         <ol className="border-t border-line px-2 py-1">
-          {visible.length === 0 ? <li className="px-2 py-3 text-sm text-muted">No songs match.</li> : null}
           {visible.map((track) => {
             const index = tracks.findIndex((item) => item.id === track.id);
             return (
-            <PlaylistRow
-              key={track.id}
-              slug={channel.slug}
-              track={track}
-              index={index}
-              current={nowId === track.id}
-              admin={Boolean(isAdmin)}
-              arrange={arrange && !needle}
-              dragging={dragId === track.id}
-              onCue={() => void cueTrack(channel.slug, track.id)}
-              onUp={() => move(index, -1)}
-              onDown={() => move(index, 1)}
-              onDragStart={() => setDragId(track.id)}
-              onDrop={() => dropOn(track.id)}
-              onDragEnd={() => setDragId(null)}
-            />
+              <PlaylistRow
+                key={track.id}
+                slug={channel.slug}
+                track={track}
+                index={index}
+                current={nowId === track.id}
+                admin={Boolean(isAdmin)}
+                arrange={canArrange && arrange}
+                dragging={dragId === track.id}
+                onCue={() => void cueTrack(channel.slug, track.id)}
+                onUp={() => move(index, -1)}
+                onDown={() => move(index, 1)}
+                onDragStart={() => setDragId(track.id)}
+                onDrop={() => dropOn(track.id)}
+                onDragEnd={() => setDragId(null)}
+                duplicate={isAdmin ? dupes.get(track.id) : undefined}
+              />
             );
           })}
         </ol>
@@ -135,6 +294,7 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
     </section>
   );
 }
+
 
 function PlaylistRow({
   slug,
@@ -150,6 +310,7 @@ function PlaylistRow({
   onDragStart,
   onDrop,
   onDragEnd,
+  duplicate,
 }: {
   slug: string;
   track: Track;
@@ -164,6 +325,7 @@ function PlaylistRow({
   onDragStart: () => void;
   onDrop: () => void;
   onDragEnd: () => void;
+  duplicate?: string;
 }) {
   return (
     <li
@@ -201,6 +363,15 @@ function PlaylistRow({
         onClick={onCue}
         className="flex min-w-0 flex-1 basis-0 items-center gap-2 overflow-hidden py-2 text-left"
       >
+        {admin && duplicate ? (
+          <span
+            className="playlist-dupe inline-flex size-7 shrink-0 items-center justify-center"
+            title={`Possible duplicate · ${duplicate}`}
+            aria-label={`Possible duplicate: ${duplicate}`}
+          >
+            <CircleAlert className="size-4" />
+          </span>
+        ) : null}
         <MarqueeTitle text={track.title} className={cn("min-w-0 w-0 flex-1 text-sm", current && "text-gold")} />
         <span className="w-10 shrink-0 text-right font-mono text-[10px] tabular-nums text-subtle">{formatClock(durationOf(track))}</span>
       </button>
@@ -224,6 +395,7 @@ function PlaylistRow({
         </>
       ) : null}
       {admin && !arrange ? <AdminRename slug={slug} track={track} compact={!current} /> : null}
+      {admin ? <AdminTrackTools slug={slug} track={track} compact /> : null}
     </li>
   );
 }

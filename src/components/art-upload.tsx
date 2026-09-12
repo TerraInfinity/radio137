@@ -70,6 +70,8 @@ export function ArtUpload({
     }
   }
 
+  const mb = Math.round(MEDIA_MAX_VIDEO / (1024 * 1024));
+
   return (
     <div className="space-y-2">
       {current ? <CoverArt src={current} alt="" className="h-28 w-full rounded-lg" motion="loop" /> : null}
@@ -77,12 +79,12 @@ export function ArtUpload({
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Upload art</span>
         <p className="mt-1 text-sm text-muted">
           {r2Configured
-            ? `Phone photos shrink automatically. Short looping mp4 or mov under ${Math.round(MEDIA_MAX_VIDEO / (1024 * 1024))} MB. Cards stay still; the open station or song page loops it.`
+            ? `Photos, HEIC, or a looping clip under ${mb} MB. Cards stay still; the open page loops it.`
             : "R2 keys are dark — paste a URL instead."}
         </p>
         {r2Configured ? (
           <div className="mt-3">
-            <PhoneArtPicker disabled={busy} onFile={(file) => void upload(file)} />
+            <PhoneArtPicker disabled={busy} onFile={(file) => void upload(file)} label={busy ? "Working…" : "Choose file"} />
           </div>
         ) : null}
       </div>

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FoldSection } from "@/components/fold-section";
 import {
   copiesOf,
@@ -12,7 +12,17 @@ import {
   type CutCopy,
   type CutGroup,
 } from "@/lib/cuts";
-import { dissolveStationCut, mergeStationCutClusters, mergeStationCuts, unmergeStationCut } from "@/lib/desk-api";
+import { similarClusters } from "@/lib/similar-cuts";
+import {
+  dissolveStationCut,
+  listCutSkips,
+  mergeStationCutClusters,
+  mergeStationCuts,
+  skipSimilarCuts,
+  unmergeStationCut,
+} from "@/lib/desk-api";
+import { applyCatalogEdits, type CatalogEdit, type StationEdit } from "@/lib/catalog-edits";
+import { getSeedCatalog } from "@/lib/catalog";
 import { formatClock } from "@/lib/cn";
 import { DownloadLink } from "@/components/download-link";
 import { songKey } from "@/lib/song-url";
@@ -23,15 +33,32 @@ function saveGroups(groups: CutGroup[]) {
   usePlayerStore.getState().replaceCutGroups(groups);
 }
 
+function applyMerge(result: { groups: CutGroup[]; tracks?: CatalogEdit[]; stations?: StationEdit[] }) {
+  saveGroups(result.groups);
+  if (result.tracks) {
+    usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), result.tracks, result.stations ?? []));
+  }
+}
+
 function fail(error: unknown) {
   window.alert(error instanceof Error ? error.message : "Directory save failed");
 }
 
+function reasonLabel(cluster: CutCluster): string {
+  if (cluster.reason === "file") return "same filename";
+  if (cluster.reason === "title") return "same title";
+  if (cluster.reason === "similar") return cluster.why?.join(" · ") || "similar names";
+  return "merged";
+}
+
+type DirTab = "similar" | "file" | "title" | "merged";
+
 export function DeskDirectory({ catalog }: { catalog: Catalog }) {
   const groups = usePlayerStore((s) => s.cutGroups);
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<"file" | "title" | "merged">("file");
+  const [tab, setTab] = useState<DirTab | null>(null);
   const [busy, setBusy] = useState(false);
+  const [skipKeys, setSkipKeys] = useState<string[]>([]);
   const copies = useMemo(() => listCutCopies(catalog, true), [catalog]);
   const files = useMemo(() => filenameClusters(copies), [copies]);
   const merged = useMemo(() => mergedClusters(copies, groups), [copies, groups]);
@@ -41,19 +68,47 @@ export function DeskDirectory({ catalog }: { catalog: Catalog }) {
     return ids;
   }, [files, groups]);
   const titles = useMemo(() => titleClusters(copies, skipIds), [copies, skipIds]);
+  const similar = useMemo(() => similarClusters(copies, groups, skipKeys), [copies, groups, skipKeys]);
   const needle = query.trim().toLowerCase();
+  const resolvedTab: DirTab = tab ?? (similar.length > 0 ? "similar" : "file");
 
-  const visible = (tab === "file" ? files : tab === "title" ? titles : merged).filter((cluster) => {
-    if (!needle) return true;
-    return cluster.copies.some((copy) => `${copy.track.title} ${copy.channel.name} ${copy.filename} ${copy.folder}`.toLowerCase().includes(needle));
-  });
+  useEffect(() => {
+    void listCutSkips()
+      .then((data) => setSkipKeys(data.keys))
+      .catch(() => setSkipKeys([]));
+  }, []);
+
+  const visible = (resolvedTab === "similar" ? similar : resolvedTab === "file" ? files : resolvedTab === "title" ? titles : merged).filter(
+    (cluster) => {
+      if (!needle) return true;
+      return cluster.copies.some((copy) => `${copy.track.title} ${copy.channel.name} ${copy.filename} ${copy.folder}`.toLowerCase().includes(needle));
+    },
+  );
 
   async function mergeOne(cluster: CutCluster, canonicalId?: string) {
     const keep = canonicalId || preferCanonical(cluster.copies).track.id;
     setBusy(true);
     try {
       const result = await mergeStationCuts({ data: { canonicalId: keep, memberIds: cluster.copies.map((copy) => copy.track.id) } });
-      saveGroups(result.groups);
+      applyMerge(result);
+    } catch (error) {
+      fail(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function skipOne(cluster: CutCluster) {
+    if (
+      !window.confirm(
+        "Mark these as different songs? They will not be suggested again. Files stay. You can still merge them later by hand.",
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      const result = await skipSimilarCuts({ data: { memberIds: cluster.copies.map((copy) => copy.track.id) } });
+      setSkipKeys(result.keys);
     } catch (error) {
       fail(error);
     } finally {
@@ -62,7 +117,7 @@ export function DeskDirectory({ catalog }: { catalog: Catalog }) {
   }
 
   async function mergeAllFiles() {
-    if (!window.confirm(`Merge ${files.length} filename clusters into one directory row each?\n\nR2 files stay. Station playlists keep their copies. Search will show one song.`)) return;
+    if (!window.confirm(`Merge ${files.length} filename clusters into one directory row each?\n\nR2 files stay. Each station keeps one copy. Search will show one song.`)) return;
     setBusy(true);
     try {
       const result = await mergeStationCutClusters({
@@ -73,7 +128,7 @@ export function DeskDirectory({ catalog }: { catalog: Catalog }) {
           }),
         },
       });
-      saveGroups(result.groups);
+      applyMerge(result);
       setTab("merged");
     } catch (error) {
       fail(error);
@@ -87,10 +142,10 @@ export function DeskDirectory({ catalog }: { catalog: Catalog }) {
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Directory</p>
       <h2 className="mt-1 font-display text-2xl font-semibold">One song, many folders</h2>
       <p className="mt-2 max-w-prose text-muted">
-        Copies in different R2 folders stay put. Merge them here so search lists one song. Station desks still play their own file.
+        Copies in different R2 folders stay put. Merge them here so search lists one song. A station that already has the song keeps that one row — merge will not add a second copy or pull it off the desk.
       </p>
       <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.12em] text-subtle">
-        {copies.length} copies · {files.length} same filename · {titles.length} same title · {merged.length} merged
+        {copies.length} copies · {similar.length} similar · {files.length} same filename · {titles.length} same title · {merged.length} merged
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <button
@@ -106,6 +161,7 @@ export function DeskDirectory({ catalog }: { catalog: Catalog }) {
       <div className="mt-4 flex flex-wrap gap-1">
         {(
           [
+            ["similar", `Similar · ${similar.length}`],
             ["file", `Filename · ${files.length}`],
             ["title", `Title · ${titles.length}`],
             ["merged", `Merged · ${merged.length}`],
@@ -115,16 +171,25 @@ export function DeskDirectory({ catalog }: { catalog: Catalog }) {
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={`inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] ${tab === id ? "bg-fg text-bg" : "text-gold"}`}
+            className={`inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] ${resolvedTab === id ? "bg-fg text-bg" : "text-gold"}`}
           >
             {label}
           </button>
         ))}
       </div>
-      {visible.length === 0 ? <p className="mt-6 text-muted">Nothing in this list.</p> : null}
+      {resolvedTab === "similar" ? (
+        <p className="mt-4 max-w-prose text-sm text-muted">
+          Close titles and matching length — likely the same song with a spelling or folder drift. Merge to list them as one. Skip if they are different; that pair will not come back.
+        </p>
+      ) : null}
+      {visible.length === 0 ? (
+        <p className="mt-6 text-muted">
+          {resolvedTab === "similar" ? "No similar songs waiting. Filename and title matches still have their own lists." : "Nothing in this list."}
+        </p>
+      ) : null}
       <ul className="mt-4 space-y-3">
         {visible.slice(0, 80).map((cluster) => (
-          <ClusterCard key={`${cluster.reason}:${cluster.key}`} cluster={cluster} busy={busy} onMerge={mergeOne} />
+          <ClusterCard key={`${cluster.reason}:${cluster.key}`} cluster={cluster} busy={busy} onMerge={mergeOne} onSkip={skipOne} />
         ))}
       </ul>
     </div>
@@ -135,10 +200,12 @@ function ClusterCard({
   cluster,
   busy,
   onMerge,
+  onSkip,
 }: {
   cluster: CutCluster;
   busy: boolean;
   onMerge: (cluster: CutCluster, canonicalId?: string) => Promise<void>;
+  onSkip: (cluster: CutCluster) => Promise<void>;
 }) {
   const preferred = preferCanonical(cluster.copies);
   const [keep, setKeep] = useState(preferred.track.id);
@@ -148,7 +215,7 @@ function ClusterCard({
         <div className="min-w-0">
           <p className="font-display text-lg">{preferred.track.title}</p>
           <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-            {cluster.copies.length} copies · {cluster.reason === "file" ? "same filename" : cluster.reason === "title" ? "same title" : "merged"}
+            {cluster.copies.length} copies · {reasonLabel(cluster)}
           </p>
         </div>
         {cluster.reason === "merged" ? (
@@ -166,14 +233,26 @@ function ClusterCard({
             Split
           </button>
         ) : (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void onMerge(cluster, keep)}
-            className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg"
-          >
-            Merge
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {cluster.reason === "similar" ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void onSkip(cluster)}
+                className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+              >
+                Skip
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void onMerge(cluster, keep)}
+              className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg"
+            >
+              Merge
+            </button>
+          </div>
         )}
       </div>
       <ul className="mt-3 space-y-2">
@@ -292,7 +371,7 @@ export function AdminMergeBox({ trackId }: { trackId: string }) {
     setBusy(true);
     try {
       const result = await mergeStationCuts({ data: { canonicalId: trackId, memberIds: [trackId, id] } });
-      saveGroups(result.groups);
+      applyMerge(result);
       setNeedle("");
     } catch (error) {
       fail(error);
@@ -304,7 +383,7 @@ export function AdminMergeBox({ trackId }: { trackId: string }) {
   return (
     <div className="mt-4 rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Treat as the same song</p>
-      <p className="mt-1 text-sm text-muted">Search another title or filename. Merge does not delete R2 files.</p>
+      <p className="mt-1 text-sm text-muted">Search another title or filename. Each station keeps one row. Files stay on R2.</p>
       <input className="input mt-2" value={needle} onChange={(event) => setNeedle(event.target.value)} placeholder="Other title or filename" />
       {hits.length > 0 ? (
         <ul className="mt-2 space-y-1">

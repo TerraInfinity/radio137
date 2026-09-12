@@ -15,10 +15,42 @@ type Orb = {
   dur: number;
 };
 
+/** Storm = clustered; trickle = occasional; hush = long empty stretches. */
+type Weather = "storm" | "trickle" | "hush";
+
 let seq = 1;
 
 function pick(pool: string[]): string {
   return pool[Math.floor(Math.random() * pool.length)] || "glåüm";
+}
+
+function rand(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+function pickWeather(prev?: Weather): Weather {
+  const roll = Math.random();
+  if (prev === "storm") return roll < 0.74 ? "hush" : "trickle";
+  if (prev === "hush") {
+    if (roll < 0.42) return "storm";
+    if (roll < 0.82) return "trickle";
+    return "hush";
+  }
+  if (roll < 0.26) return "storm";
+  if (roll < 0.62) return "hush";
+  return "trickle";
+}
+
+function weatherMs(kind: Weather, mobile: boolean): number {
+  if (kind === "storm") return mobile ? rand(1600, 4800) : rand(2200, 7200);
+  if (kind === "trickle") return mobile ? rand(7000, 16000) : rand(9000, 22000);
+  return mobile ? rand(18000, 58000) : rand(24000, 90000);
+}
+
+function spawnGap(kind: Weather, mobile: boolean): number {
+  if (kind === "storm") return mobile ? rand(200, 720) : rand(120, 520);
+  if (kind === "trickle") return mobile ? rand(5500, 15000) : rand(7000, 20000);
+  return mobile ? rand(16000, 52000) : rand(22000, 80000);
 }
 
 function glaumFromPath(pathname: string): boolean {
@@ -33,6 +65,10 @@ function glaumFromPath(pathname: string): boolean {
   return Boolean(station && stationSkin(station) === "glaum") || isGlaumDesk(alias);
 }
 
+function musicPlaying(): boolean {
+  return usePlayerStore.getState().status === "playing";
+}
+
 export function LoveLayer() {
   const slug = usePlayerStore((s) => s.channelSlug);
   const status = usePlayerStore((s) => s.status);
@@ -40,11 +76,13 @@ export function LoveLayer() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const channel = slug ? getChannel(slug) : undefined;
   const skin = channel ? stationSkin(channel) : "none";
-  const playingGlaum = Boolean(channel && status === "playing" && (channel.loveBubbles || channel.glaumules || skin === "glaum"));
+  const glaumDesk = Boolean(channel && (channel.loveBubbles || channel.glaumules || skin === "glaum"));
   const pageGlaum = glaumFromPath(pathname);
-  const active = playingGlaum || pageGlaum;
+  const onGlaum = glaumDesk || pageGlaum;
+  const spawning = status === "playing" && onGlaum;
   const [orbs, setOrbs] = useState<Orb[]>([]);
   const poolRef = useRef<string[]>(GLAUM_DEFAULT_WORDS);
+  const expireRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     let alive = true;
@@ -66,16 +104,35 @@ export function LoveLayer() {
   }, []);
 
   useEffect(() => {
-    if (!active) {
-      setOrbs([]);
-      return;
-    }
+    return () => {
+      for (const id of expireRef.current) window.clearTimeout(id);
+      expireRef.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (spawning || orbs.length === 0) return;
+    const id = window.setTimeout(() => setOrbs([]), 420);
+    return () => window.clearTimeout(id);
+  }, [spawning, orbs.length]);
+
+  useEffect(() => {
+    if (!spawning) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) return;
     const mobile = window.matchMedia("(max-width: 640px)").matches;
     const maxOrbs = mobile ? 7 : 14;
+    const timeouts = new Set<number>();
+    const later = (fn: () => void, ms: number) => {
+      const id = window.setTimeout(() => {
+        timeouts.delete(id);
+        fn();
+      }, ms);
+      timeouts.add(id);
+      return id;
+    };
     const spawn = (kind: Orb["kind"], label?: string) => {
-      if (document.hidden) return;
+      if (!musicPlaying() || document.hidden) return;
       const id = seq++;
       const orb: Orb = {
         id,
@@ -87,33 +144,59 @@ export function LoveLayer() {
         dur: kind === "pop" ? 1.8 : mobile ? 6 + Math.random() * 2.5 : 7.5 + Math.random() * 4,
       };
       setOrbs((current) => [...current, orb].slice(-maxOrbs));
-      window.setTimeout(() => {
+      const expire = window.setTimeout(() => {
+        expireRef.current.delete(expire);
         setOrbs((current) => current.filter((item) => item.id !== id));
       }, orb.dur * 1000);
+      expireRef.current.add(expire);
     };
-    const interval = mobile ? 2800 : 1700;
-    const timer = window.setInterval(() => {
-      spawn("float");
-      if (!mobile && Math.random() > 0.62) spawn("float");
-    }, interval);
-    spawn("float", "glåüm");
-    spawn("float");
+    let weather: Weather = Math.random() < 0.28 ? "storm" : Math.random() < 0.5 ? "trickle" : "hush";
+    let until = Date.now() + weatherMs(weather, mobile);
+    const tick = () => {
+      if (!musicPlaying()) return;
+      if (document.hidden) {
+        later(tick, 900);
+        return;
+      }
+      if (Date.now() >= until) {
+        weather = pickWeather(weather);
+        until = Date.now() + weatherMs(weather, mobile);
+      }
+      const fire =
+        weather === "storm" ||
+        weather === "trickle" ||
+        Math.random() < 0.22;
+      if (fire) spawn("float");
+      if (weather === "storm" && Math.random() < (mobile ? 0.28 : 0.48)) {
+        later(() => spawn("float"), rand(70, 340));
+        if (Math.random() < 0.32) later(() => spawn("float"), rand(180, 560));
+      }
+      later(tick, spawnGap(weather, mobile));
+    };
+    if (weather === "storm") {
+      spawn("float", "glåüm");
+      later(() => spawn("float"), rand(120, 380));
+    }
+    later(tick, weather === "hush" ? spawnGap("hush", mobile) : spawnGap(weather, mobile));
     const onLove = (event: Event) => {
+      if (!musicPlaying()) return;
       const detail = (event as CustomEvent).detail as { kind?: string } | undefined;
       spawn("pop", detail?.kind === "like" ? "♡" : "glåüm");
-      spawn("float", pick(poolRef.current));
+      if (Math.random() < 0.55) spawn("float", pick(poolRef.current));
     };
     window.addEventListener("radio-love", onLove);
     return () => {
-      window.clearInterval(timer);
+      for (const id of timeouts) window.clearTimeout(id);
+      timeouts.clear();
       window.removeEventListener("radio-love", onLove);
     };
-  }, [active]);
+  }, [spawning]);
 
-  if (!active && orbs.length === 0) return null;
+  if (!onGlaum && orbs.length === 0) return null;
+  if (!spawning && orbs.length === 0) return null;
 
   return (
-    <div className="love-layer" aria-hidden>
+    <div className={spawning ? "love-layer" : "love-layer love-layer-still"} aria-hidden>
       {orbs.map((orb) => (
         <button
           key={orb.id}
@@ -126,6 +209,7 @@ export function LoveLayer() {
             ["--orb-dur" as string]: `${orb.dur}s`,
           }}
           onClick={() => {
+            if (!musicPlaying()) return;
             collect(1);
             setOrbs((current) => current.filter((item) => item.id !== orb.id));
             window.dispatchEvent(new CustomEvent("radio-love", { detail: { kind: "collect" } }));
