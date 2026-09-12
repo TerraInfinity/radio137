@@ -12,7 +12,8 @@ export const Route = createFileRoute("/api/desk/upload")({
       POST: async ({ request }) => {
         try {
           assertSameSiteRequest();
-          const user = await requireAdmin();
+          const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || undefined;
+          const user = await requireAdmin(bearer);
           if (!r2Configured()) {
             return Response.json({ error: "R2 keys are not set" }, { status: 400 });
           }

@@ -1,5 +1,5 @@
 import { getSql } from "@/lib/db";
-import { r2KeyFromAudioUrl } from "@/lib/file-path";
+import { r2KeyFromAudioUrl, normalizeR2Key } from "@/lib/file-path";
 import type { CatalogEdit, StationEdit } from "@/lib/catalog-edits";
 import type { RadioUser } from "@/lib/sso.server";
 
@@ -340,11 +340,18 @@ export async function addTrack(
 ) {
   const catalog = await liveCatalog();
   const channel = catalog.channels.find((item) => item.slug === input.channelSlug);
-  if (channel && input.audioUrl && !input.trackId) {
-    const exists = channel.tracks.some((item) => item.enabled !== false && item.audioUrl === input.audioUrl);
+  if (channel && (input.audioUrl || input.r2Key) && !input.trackId) {
+    const want = normalizeR2Key(input.r2Key || r2KeyFromAudioUrl(input.audioUrl) || "");
+    const exists = channel.tracks.some((item) => {
+      if (item.enabled === false) return false;
+      if (item.audioUrl && input.audioUrl && item.audioUrl === input.audioUrl) return true;
+      if (!want) return false;
+      const have = normalizeR2Key(r2KeyFromAudioUrl(item.audioUrl) || "");
+      return Boolean(have) && have === want;
+    });
     if (exists) throw new Error(`Already on ${channel.name}`);
   }
-  const trackId = input.trackId || `desk-${input.channelSlug}-${Date.now().toString(36)}`;
+  const trackId = input.trackId || `desk-${input.channelSlug}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
   return upsertEdit(user, {
     channelSlug: input.channelSlug,
     trackId,

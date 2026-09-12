@@ -57,7 +57,7 @@ function cleanKey(key: string): string {
   return cleaned;
 }
 
-export async function listR2Prefix(prefix: string, maxKeys = 400): Promise<R2Object[]> {
+export async function listR2Prefix(prefix: string, maxKeys = 2500): Promise<R2Object[]> {
   const cleaned = prefix.replace(/^\/+/, "");
   const out: R2Object[] = [];
   let token: string | undefined;

@@ -299,7 +299,9 @@ export const saveStation = createServerFn({ method: "POST" })
 
 export const listStationR2 = createServerFn({ method: "GET" })
   .middleware([adminMiddleware])
-  .validator((input: unknown) => z.object({ prefix: z.string().optional(), slug: z.string().optional() }).parse(input))
+  .validator((input: unknown) =>
+    z.object({ prefix: z.string().optional(), slug: z.string().optional(), maxKeys: z.number().int().positive().optional() }).parse(input),
+  )
   .handler(async ({ data }) => {
     const { listR2Prefix, defaultPrefixForSlug, r2PublicBase, r2Configured } = await import("@/lib/r2.server");
     if (!r2Configured()) {
@@ -307,7 +309,7 @@ export const listStationR2 = createServerFn({ method: "GET" })
     }
     try {
       const prefix = data.prefix || (data.slug ? defaultPrefixForSlug(data.slug) : "radio/");
-      const objects = await listR2Prefix(prefix);
+      const objects = await listR2Prefix(prefix, data.maxKeys ?? 2500);
       return { ok: true as const, prefix, base: r2PublicBase(), objects };
     } catch (error) {
       return {
@@ -318,6 +320,59 @@ export const listStationR2 = createServerFn({ method: "GET" })
         error: error instanceof Error ? error.message : "R2 list failed",
       };
     }
+  });
+
+export const importR2Tracks = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z
+      .object({
+        channelSlugs: z.array(z.string().min(1)).min(1),
+        items: z
+          .array(
+            z.object({
+              key: z.string().min(1),
+              url: z.string().min(8),
+              title: z.string().optional(),
+            }),
+          )
+          .min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { addTrack } = await import("@/lib/catalog-edits.server");
+    const { getSeedCatalog } = await import("@/lib/catalog");
+    const { applyCatalogEdits } = await import("@/lib/catalog-edits");
+    const { listEdits, listStationEdits } = await import("@/lib/catalog-edits.server");
+    const { titleFromR2Key } = await import("@/lib/file-path");
+    const catalog = applyCatalogEdits(getSeedCatalog(), await listEdits(), await listStationEdits());
+    let added = 0;
+    let skipped = 0;
+    for (const slug of data.channelSlugs) {
+      const dest = catalog.channels.find((channel) => channel.slug === slug);
+      if (!dest) throw new Error(`Station not found: ${slug}`);
+      for (const item of data.items) {
+        try {
+          await addTrack(context.user, {
+            channelSlug: slug,
+            title: (item.title || titleFromR2Key(item.key)).slice(0, 180),
+            audioUrl: item.url,
+            coverUrl: dest.cover,
+            r2Key: item.key,
+          });
+          added += 1;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "";
+          if (/already on/i.test(message)) {
+            skipped += 1;
+            continue;
+          }
+          throw error;
+        }
+      }
+    }
+    return { added, skipped, ...(await snapshot()) };
   });
 
 export const moveR2Object = createServerFn({ method: "POST" })

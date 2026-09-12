@@ -1,4 +1,5 @@
 import { mediaKeyFromUrl } from "@/lib/media";
+import type { Channel } from "@/lib/types";
 
 export function r2KeyFromAudioUrl(url: string): string | null {
   return mediaKeyFromUrl(url);
@@ -23,4 +24,44 @@ export function audioPathParts(url: string): { folder: string; filename: string;
   const folder = slash >= 0 ? path.slice(0, slash) : "";
   const stem = filename.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/-\d{4,}$/, "");
   return { folder, filename, stem };
+}
+
+export function isAudioKey(key: string): boolean {
+  return /\.(mp3|wav|flac|m4a|ogg|aac)$/i.test(key.split("?")[0]);
+}
+
+export function normalizeR2Key(key: string): string {
+  const cleaned = key.replace(/^\/+/, "").replace(/\\/g, "/");
+  try {
+    return decodeURIComponent(cleaned);
+  } catch {
+    return cleaned;
+  }
+}
+
+export function titleFromR2Key(key: string): string {
+  const name = normalizeR2Key(key).split("/").pop() || key;
+  return name.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/\s+/g, " ").trim() || "Untitled";
+}
+
+export function formatBytes(size: number): string {
+  if (!Number.isFinite(size) || size <= 0) return "";
+  if (size < 1024) return `${Math.round(size)} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function desksHoldingKey(channels: Channel[], key: string): string[] {
+  const want = normalizeR2Key(key);
+  if (!want) return [];
+  const hits: string[] = [];
+  for (const channel of channels) {
+    const on = channel.tracks.some((track) => {
+      if (track.enabled === false) return false;
+      const have = normalizeR2Key(r2KeyFromAudioUrl(track.audioUrl) || "");
+      return Boolean(have) && have === want;
+    });
+    if (on) hits.push(channel.slug);
+  }
+  return hits;
 }

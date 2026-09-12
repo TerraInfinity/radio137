@@ -106,16 +106,6 @@ body:before {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  opacity: 1;
-  transition: opacity 0.38s ease;
-}
-.love-layer-still {
-  opacity: 0;
-  pointer-events: none;
-}
-.love-layer-still .love-orb {
-  animation-play-state: paused;
-  pointer-events: none;
 }
 .love-orb {
   --orb-drift: 12vw;
@@ -149,6 +139,12 @@ body:before {
   min-height: 2.6rem;
   font-size: 0.7rem;
   animation: glaum-pop 1.8s var(--ease-out-smooth) forwards;
+}
+.love-layer-still .love-orb,
+.love-layer-still .love-orb-pop {
+  animation-play-state: paused;
+  opacity: 0.35;
+  filter: saturate(0.7);
 }
 .love-orb-glaum {
   backdrop-filter: blur(6px);
@@ -254,10 +250,15 @@ body:before {
   color: var(--color-subtle);
 }
 .deck-scrub-dock {
-  margin: 0.1rem -0.25rem 0.2rem;
+  margin: 0.05rem -0.25rem 0;
 }
 .deck-scrub-dock .deck-scrub-hit {
   height: 2.75rem;
+}
+.deck-scrub-dock .deck-scrub-times {
+  margin-top: -0.7rem;
+  padding-bottom: 0.15rem;
+  pointer-events: none;
 }
 .deck-volume {
   display: flex;
@@ -598,74 +599,6 @@ body:has(.player-stage) .desk-chat {
 .desk-chat-glaum {
   background: color-mix(in oklab, #1a0a24 92%, transparent);
 }
-.desk-chat-sliver {
-  z-index: 38;
-  width: 2.75rem;
-  height: 3.5rem;
-  padding: 0;
-  cursor: pointer;
-  background: transparent;
-  box-shadow: none;
-  border: 0;
-  border-radius: 0;
-  overflow: visible;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  place-items: center;
-  display: grid;
-}
-.desk-chat-sliver-rail {
-  background: var(--color-bg-elevated);
-  width: 8px;
-  height: 3.5rem;
-  box-shadow: var(--shadow-filigree);
-  transition: width 0.16s var(--ease-out-smooth);
-  position: absolute;
-  top: 0;
-}
-.desk-chat-sliver-right .desk-chat-sliver-rail {
-  right: 0;
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-}
-.desk-chat-sliver-left .desk-chat-sliver-rail {
-  left: 0;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-}
-.desk-chat-sliver-mark {
-  z-index: 1;
-  color: var(--color-gold);
-  position: relative;
-  transition: transform 0.16s var(--ease-out-smooth);
-}
-.desk-chat-sliver-right:hover .desk-chat-sliver-rail,
-.desk-chat-sliver-right:focus-visible .desk-chat-sliver-rail {
-  width: 12px;
-}
-.desk-chat-sliver-left:hover .desk-chat-sliver-rail,
-.desk-chat-sliver-left:focus-visible .desk-chat-sliver-rail {
-  width: 12px;
-}
-.desk-chat-sliver-right:hover .desk-chat-sliver-mark,
-.desk-chat-sliver-right:focus-visible .desk-chat-sliver-mark {
-  transform: translateX(-2px);
-}
-.desk-chat-sliver-left:hover .desk-chat-sliver-mark,
-.desk-chat-sliver-left:focus-visible .desk-chat-sliver-mark {
-  transform: translateX(2px);
-}
-.desk-chat-glaum.desk-chat-sliver .desk-chat-sliver-rail {
-  background: color-mix(in oklab, #1a0a24 92%, transparent);
-  box-shadow: var(--shadow-glaum);
-}
-.desk-chat-glaum .desk-chat-sliver-mark {
-  color: var(--color-glaum-gold);
-}
-@media (prefers-reduced-motion: reduce) {
-  .desk-chat-sliver-rail,
-  .desk-chat-sliver-mark {
-    transition: none;
-  }
-}
 .player-hero {
   width: min(100%, 16rem);
   margin-inline: auto;
@@ -821,4 +754,78 @@ body:has(.player-stage) .desk-chat {
   .hero-art-preview {
     width: min(100%, 18rem, 42dvh);
   }
+}
+
+.desk-chat-sliver {
+  width: 2.75rem;
+  height: 3.5rem;
+  max-width: 2.75rem;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  justify-content: center;
+  align-items: center;
+}
+.desk-chat-sliver-rail {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-border);
+  transition: width 0.16s var(--ease-out-smooth);
+}
+.desk-chat-sliver-right .desk-chat-sliver-rail {
+  right: 0;
+  left: auto;
+}
+.desk-chat-sliver-left .desk-chat-sliver-rail {
+  left: 0;
+  right: auto;
+}
+.desk-chat-sliver-mark {
+  z-index: 1;
+  color: var(--color-gold);
+  transition: transform 0.16s var(--ease-out-smooth);
+}
+.desk-chat-sliver-right:hover .desk-chat-sliver-rail,
+.desk-chat-sliver-right:focus-visible .desk-chat-sliver-rail,
+.desk-chat-sliver-left:hover .desk-chat-sliver-rail,
+.desk-chat-sliver-left:focus-visible .desk-chat-sliver-rail {
+  width: 12px;
+}
+.desk-chat-sliver-right:hover .desk-chat-sliver-mark,
+.desk-chat-sliver-right:focus-visible .desk-chat-sliver-mark {
+  transform: translateX(-2px);
+}
+.desk-chat-sliver-left:hover .desk-chat-sliver-mark,
+.desk-chat-sliver-left:focus-visible .desk-chat-sliver-mark {
+  transform: translateX(2px);
+}
+.desk-chat-glaum.desk-chat-sliver .desk-chat-sliver-rail {
+  background: color-mix(in oklab, #1a0a24 92%, transparent);
+}
+.desk-chat-glaum .desk-chat-sliver-mark {
+  color: var(--color-glaum-gold);
+}
+@media (prefers-reduced-motion: reduce) {
+  .desk-chat-sliver-rail,
+  .desk-chat-sliver-mark {
+    transition: none;
+  }
+}
+
+.desk-add-drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: var(--color-bg);
+  box-shadow: var(--shadow-border);
+}
+.desk-add-drop-hot {
+  box-shadow: var(--shadow-filigree);
 }

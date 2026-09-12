@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpDown } from "lucide-react";
+import { AddSongsPanel } from "@/components/desk-add-songs";
 import { CoverArt } from "@/components/cover-art";
 import { FoldSection } from "@/components/fold-section";
 import { ModePill } from "@/components/mode-pill";
 import { StationSettingsForm } from "@/components/station-settings";
 import {
-  addStationTrack,
   deleteStationFile,
   hideStationTrack,
   patchStationTrack,
@@ -44,8 +44,11 @@ export function DeskStations({ channels, r2Configured }: { channels: Channel[]; 
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState<"all" | "live" | "ondemand" | "fixed" | "featured" | "off" | "empty">("all");
   const [open, setOpen] = useState<string | null>(null);
+  const held = useRef<Channel | null>(null);
   const playingSlug = usePlayerStore((s) => s.channelSlug);
   const selected = channels.find((channel) => channel.slug === open) ?? null;
+  if (selected) held.current = selected;
+  const view = selected ?? (held.current?.slug === open ? held.current : null);
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return channels.filter((channel) => {
@@ -77,9 +80,10 @@ export function DeskStations({ channels, r2Configured }: { channels: Channel[]; 
   }, [channels, query]);
 
   useEffect(() => {
+    if (open) return;
     const saved = readDeskStation();
     if (saved && channels.some((channel) => channel.slug === saved)) setOpen(saved);
-  }, [channels]);
+  }, [channels, open]);
 
   function pick(slug: string) {
     setOpen(slug);
@@ -175,11 +179,11 @@ export function DeskStations({ channels, r2Configured }: { channels: Channel[]; 
             })}
           </ul>
         </div>
-        {selected ? (
-          <StationWorkspace key={selected.slug} channel={selected} channels={channels} r2Configured={r2Configured} />
+        {view ? (
+          <StationWorkspace key={view.slug} channel={view} channels={channels} r2Configured={r2Configured} />
         ) : (
           <p className="self-start rounded-xl bg-bg-elevated p-6 text-sm text-muted shadow-[var(--shadow-border)]">
-            Pick a station to edit its playlist. Add songs from another desk, upload files, or drop in a URL.
+            Pick a station to edit its playlist. Search R2, upload from this device, or paste a URL — the form stays put while the playlist updates.
           </p>
         )}
       </section>
@@ -359,7 +363,6 @@ function StationWorkspace({
   r2Configured: boolean;
 }) {
   const [busy, setBusy] = useState(false);
-  const [addMode, setAddMode] = useState<"library" | "upload" | "url">("library");
   const others = channels.filter((item) => item.slug !== channel.slug);
 
   return (
@@ -423,135 +426,9 @@ function StationWorkspace({
         <StationSettingsForm key={`${channel.slug}:${channel.shuffle}:${channel.kind}`} channel={channel} compact />
       </FoldSection>
 
-      <FoldSection title="Add songs" hint="Open" className="mt-8" titleClassName="text-gold">
-        <div className="flex flex-wrap gap-1">
-          {(
-            [
-              ["library", "From another station"],
-              ["upload", "Upload files"],
-              ["url", "From URL"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setAddMode(id)}
-              className={cn("inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em]", addMode === id ? "bg-fg text-bg" : "text-gold")}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {addMode === "library" ? <LibraryPicker channel={channel} others={others} /> : null}
-        {addMode === "upload" ? r2Configured ? <UploadDrop slug={channel.slug} cover={channel.cover} /> : <p className="mt-3 text-sm text-muted">R2 keys are dark — use the Services tab.</p> : null}
-        {addMode === "url" ? <UrlAddForm channel={channel} /> : null}
-      </FoldSection>
+      <AddSongsPanel channel={channel} channels={channels} r2Configured={r2Configured} />
 
       <Playlist channel={channel} others={others} r2Configured={r2Configured} />
-    </div>
-  );
-}
-
-function UrlAddForm({ channel }: { channel: Channel }) {
-  const [title, setTitle] = useState("");
-  const [audioUrl, setAudioUrl] = useState("");
-  const [busy, setBusy] = useState(false);
-  return (
-    <form
-      className="mt-3 flex flex-wrap gap-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!title.trim() || !audioUrl.trim()) return;
-        setBusy(true);
-        void addStationTrack({ data: { channelSlug: channel.slug, title: title.trim(), audioUrl: audioUrl.trim(), coverUrl: channel.cover } })
-          .then((result) => {
-            applySnapshot(result.tracks, result.stations);
-            setTitle("");
-            setAudioUrl("");
-          })
-          .catch(fail)
-          .finally(() => setBusy(false));
-      }}
-    >
-      <input className="input max-w-xs" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title" />
-      <input className="input min-w-64 flex-1" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="https://…" />
-      <button type="submit" disabled={busy} className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
-        Add URL
-      </button>
-    </form>
-  );
-}
-
-function LibraryPicker({ channel, others }: { channel: Channel; others: Channel[] }) {
-  const [needle, setNeedle] = useState("");
-  const [busy, setBusy] = useState<string | null>(null);
-  const hits = useMemo(() => {
-    const q = needle.trim().toLowerCase();
-    if (q.length < 2) return [];
-    const rows: Array<{ station: Channel; track: Track }> = [];
-    for (const station of others) {
-      for (const track of station.tracks) {
-        if (track.enabled === false) continue;
-        if (!`${track.title} ${track.artist} ${station.name}`.toLowerCase().includes(q)) continue;
-        rows.push({ station, track });
-        if (rows.length >= 40) return rows;
-      }
-    }
-    return rows;
-  }, [needle, others]);
-
-  async function place(station: Channel, track: Track, mode: "copy" | "move") {
-    const key = `${mode}:${track.id}`;
-    setBusy(key);
-    try {
-      const result = await placeStationTrack({
-        data: { fromSlug: station.slug, trackId: track.id, toSlug: channel.slug, mode },
-      });
-      applySnapshot(result.tracks, result.stations);
-    } catch (error) {
-      fail(error);
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  return (
-    <div className="mt-3">
-      <input className="input" value={needle} onChange={(event) => setNeedle(event.target.value)} placeholder="Search titles across other stations" />
-      {needle.trim().length < 2 ? (
-        <p className="mt-2 text-sm text-subtle">Type two letters to find a song on another desk, then copy or move it here.</p>
-      ) : hits.length === 0 ? (
-        <p className="mt-2 text-sm text-subtle">No matching songs.</p>
-      ) : (
-        <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto rounded-lg bg-bg p-2">
-          {hits.map(({ station, track }) => (
-            <li key={`${station.slug}:${track.id}`} className="flex flex-wrap items-center gap-2 py-1">
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm">{track.title}</span>
-                <span className="block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-                  {station.name} · {track.artist}
-                </span>
-              </span>
-              <button
-                type="button"
-                disabled={Boolean(busy)}
-                onClick={() => void place(station, track, "copy")}
-                className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
-              >
-                {busy === `copy:${track.id}` ? "…" : "Copy here"}
-              </button>
-              <button
-                type="button"
-                disabled={Boolean(busy)}
-                onClick={() => void place(station, track, "move")}
-                className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
-              >
-                {busy === `move:${track.id}` ? "…" : "Move here"}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
@@ -593,6 +470,8 @@ function Playlist({ channel, others, r2Configured }: { channel: Channel; others:
 
   useEffect(() => {
     if (!nowId) return;
+    const active = document.activeElement as HTMLElement | null;
+    if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.tagName === "SELECT" || active.isContentEditable)) return;
     document.getElementById(`desk-track-${nowId}`)?.scrollIntoView({ block: "nearest" });
   }, [nowId]);
 
@@ -613,7 +492,7 @@ function Playlist({ channel, others, r2Configured }: { channel: Channel; others:
   }
 
   return (
-    <div className="mt-8">
+    <div className="mt-8 border-t border-line pt-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Playlist</p>
@@ -860,58 +739,5 @@ function DeskTrackRow({
         </div>
       ) : null}
     </li>
-  );
-}
-
-function UploadDrop({ slug, cover }: { slug: string; cover: string }) {
-  const [busy, setBusy] = useState(false);
-  const [hint, setHint] = useState("");
-  async function send(file: File) {
-    setBusy(true);
-    setHint(`Uploading ${file.name}…`);
-    try {
-      const body = new FormData();
-      body.set("slug", slug);
-      body.set("coverUrl", cover);
-      body.set("file", file);
-      const res = await fetch("/api/desk/upload", { method: "POST", body });
-      const json = (await res.json()) as { error?: string; tracks?: CatalogEdit[]; stations?: StationEdit[] };
-      if (!res.ok) throw new Error(json.error || "Upload failed");
-      if (json.tracks) applySnapshot(json.tracks, json.stations ?? []);
-      setHint(`Added ${file.name}`);
-    } catch (error) {
-      setHint(error instanceof Error ? error.message : "Upload failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function sendMany(files: File[]) {
-    for (const file of files) await send(file);
-  }
-  return (
-    <label
-      className="mt-3 block cursor-pointer rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]"
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => {
-        event.preventDefault();
-        const files = [...event.dataTransfer.files];
-        if (files.length) void sendMany(files);
-      }}
-    >
-      <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Upload to this station</span>
-      <p className="mt-1 text-sm text-muted">{hint || "Drop mp3 / wav / flac / m4a here. Multiple files are fine."}</p>
-      <input
-        type="file"
-        multiple
-        accept="audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/ogg,audio/aac,.mp3,.wav,.flac,.m4a,.ogg,.aac"
-        disabled={busy}
-        className="mt-2 block w-full text-sm text-muted file:mr-3 file:h-11 file:rounded-md file:border-0 file:bg-fg file:px-3 file:font-mono file:text-[11px] file:uppercase file:tracking-[0.14em] file:text-bg"
-        onChange={(event) => {
-          const files = [...(event.target.files ?? [])];
-          event.target.value = "";
-          if (files.length) void sendMany(files);
-        }}
-      />
-    </label>
   );
 }

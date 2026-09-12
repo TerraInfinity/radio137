@@ -4,8 +4,8 @@ import { DeskStations } from "@/components/desk-stations";
 import { DeskDirectory } from "@/components/desk-directory";
 import { DeskReview } from "@/components/desk-review";
 import {
-  addStationTrack,
   deleteR2Object,
+  importR2Tracks,
   listStationR2,
   moveR2Object,
   pingServices,
@@ -14,6 +14,7 @@ import {
 import { applyCatalogEdits, type CatalogEdit, type StationEdit } from "@/lib/catalog-edits";
 import { getCatalog, getSeedCatalog } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
+import { desksHoldingKey, formatBytes, isAudioKey, titleFromR2Key } from "@/lib/file-path";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 import { SignInChoices } from "@/components/sign-in-choices";
@@ -101,7 +102,7 @@ function DeskPage() {
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">C · God desk</p>
       <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight">Station desk</h1>
       <p className="mt-3 max-w-prose text-muted">
-        Featured rail, playlists, and a directory so copied folders list as one song. Files stay on R2.
+        Featured rail, playlists, and a directory so copied folders list as one song. Files dropped on R2 stay off-air until you import them onto a station.
       </p>
       <DeskOverview channels={channels} reviewOpen={reviewOpen} />
       <div className="mt-6 flex flex-wrap gap-1">
@@ -170,11 +171,15 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
   const [objects, setObjects] = useState<Array<{ key: string; size: number; url: string }>>([]);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [assign, setAssign] = useState(channels[0]?.slug ?? "");
+  const [assign, setAssign] = useState<string[]>(channels[0]?.slug ? [channels[0].slug] : []);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [onlyNew, setOnlyNew] = useState(true);
+  const [filter, setFilter] = useState("");
+  const [busy, setBusy] = useState(false);
 
   function refresh(nextPrefix = prefix) {
     setStatus("loading");
-    void listStationR2({ data: { prefix: nextPrefix } })
+    void listStationR2({ data: { prefix: nextPrefix, maxKeys: 2500 } })
       .then((result) => {
         setObjects(result.objects);
         setStatus(result.ok ? "ready" : "error");
@@ -191,6 +196,57 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [r2Configured]);
 
+  function toggleAssign(slug: string) {
+    setAssign((current) => (current.includes(slug) ? current.filter((item) => item !== slug) : [...current, slug]));
+  }
+
+  function togglePick(key: string) {
+    setPicked((current) => (current.includes(key) ? current.filter((item) => item !== key) : [...current, key]));
+  }
+
+  const rows = useMemo(() => {
+    const needle = filter.trim().toLowerCase();
+    return objects
+      .map((object) => ({
+        ...object,
+        audio: isAudioKey(object.key),
+        desks: desksHoldingKey(channels, object.key),
+        title: titleFromR2Key(object.key),
+      }))
+      .filter((object) => {
+        if (onlyNew && object.audio && object.desks.length > 0) return false;
+        if (onlyNew && !object.audio) return false;
+        if (needle && !`${object.title} ${object.key}`.toLowerCase().includes(needle)) return false;
+        return true;
+      });
+  }, [objects, channels, onlyNew, filter]);
+
+  async function importKeys(keys: string[]) {
+    const items = objects
+      .filter((object) => keys.includes(object.key) && isAudioKey(object.key))
+      .map((object) => ({ key: object.key, url: object.url, title: titleFromR2Key(object.key) }));
+    if (!items.length || assign.length === 0) {
+      window.alert(assign.length === 0 ? "Pick at least one station." : "Pick audio files to import.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await importR2Tracks({ data: { channelSlugs: assign, items } });
+      applySnapshot(result.tracks, result.stations);
+      setPicked([]);
+      window.alert(
+        result.added
+          ? `Added ${result.added} song${result.added === 1 ? "" : "s"}${result.skipped ? ` · ${result.skipped} already listed` : ""}`
+          : "Those files are already on the selected station(s).",
+      );
+      refresh();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Import failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!r2Configured) {
     return (
       <div className="mt-8 rounded-xl bg-bg-elevated p-4">
@@ -202,8 +258,40 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
 
   return (
     <div className="mt-8">
+      <p className="max-w-prose text-sm text-muted">
+        Files dropped in the bucket stay silent until you import them onto a station. Scan a folder, tick songs, pick one or more desks, then import.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            setPrefix("radio/");
+            refresh("radio/");
+          }}
+          className={cn("inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em]", prefix === "radio/" ? "bg-fg text-bg" : "text-gold")}
+        >
+          All radio/
+        </button>
+        {channels.map((channel) => {
+          const folder = `radio/${channel.slug}/`;
+          return (
+            <button
+              key={channel.slug}
+              type="button"
+              onClick={() => {
+                setPrefix(folder);
+                setAssign([channel.slug]);
+                refresh(folder);
+              }}
+              className={cn("inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em]", prefix === folder ? "bg-fg text-bg" : "text-gold")}
+            >
+              {channel.name}
+            </button>
+          );
+        })}
+      </div>
       <form
-        className="flex flex-wrap gap-2"
+        className="mt-3 flex flex-wrap gap-2"
         onSubmit={(event) => {
           event.preventDefault();
           refresh(prefix);
@@ -214,6 +302,50 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
           List
         </button>
       </form>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setOnlyNew((value) => !value)}
+          className={cn("inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em]", onlyNew ? "bg-fg text-bg" : "text-gold")}
+        >
+          {onlyNew ? "New audio only" : "Show all files"}
+        </button>
+        <input className="input min-w-48 flex-1" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter keys" />
+      </div>
+      <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">Import onto</p>
+      <div className="mt-1 flex flex-wrap gap-1">
+        {channels.map((channel) => (
+          <button
+            key={channel.slug}
+            type="button"
+            onClick={() => toggleAssign(channel.slug)}
+            className={cn(
+              "inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em]",
+              assign.includes(channel.slug) ? "bg-fg text-bg" : "text-gold",
+            )}
+          >
+            {channel.name}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={busy || picked.length === 0}
+          onClick={() => void importKeys(picked)}
+          className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg"
+        >
+          {busy ? "Importing…" : `Import selected (${picked.length})`}
+        </button>
+        <button
+          type="button"
+          disabled={busy || rows.filter((item) => item.audio && item.desks.length === 0).length === 0}
+          onClick={() => void importKeys(rows.filter((item) => item.audio && item.desks.length === 0).map((item) => item.key))}
+          className="inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
+        >
+          Import all new
+        </button>
+      </div>
       <form
         className="mt-4 flex flex-wrap gap-2"
         onSubmit={(event) => {
@@ -237,28 +369,38 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
       {status === "loading" ? <p className="mt-4 text-sm text-muted">Listing…</p> : null}
       {status === "error" ? <p className="mt-4 text-sm text-ember">{error}</p> : null}
       <ul className="mt-4 max-h-[28rem] space-y-1 overflow-y-auto rounded-xl bg-bg-elevated p-3">
-        {objects.map((object) => (
+        {rows.map((object) => (
           <li key={object.key} className="flex flex-wrap items-center gap-2 py-1">
-            <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-subtle">{object.key}</span>
-            <select className="input w-40" value={assign} onChange={(event) => setAssign(event.target.value)}>
-              {channels.map((channel) => (
-                <option key={channel.slug} value={channel.slug}>
-                  {channel.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => {
-                const objectTitle = object.key.split("/").pop()?.replace(/\.[^.]+$/, "") || object.key;
-                void addStationTrack({ data: { channelSlug: assign, title: objectTitle, audioUrl: object.url, r2Key: object.key } })
-                  .then((result) => applySnapshot(result.tracks, result.stations))
-                  .catch((err: unknown) => window.alert(err instanceof Error ? err.message : "Import failed"));
-              }}
-              className="inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
-            >
-              Import
-            </button>
+            <label className="flex min-w-0 flex-1 items-center gap-2">
+              <input
+                type="checkbox"
+                checked={picked.includes(object.key)}
+                disabled={!object.audio}
+                onChange={() => togglePick(object.key)}
+                className="size-4"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-mono text-[11px] text-subtle">{object.key}</span>
+                <span className="block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+                  {formatBytes(object.size)}
+                  {object.audio
+                    ? object.desks.length
+                      ? ` · on ${object.desks.map((slug) => channels.find((item) => item.slug === slug)?.name || slug).join(", ")}`
+                      : " · not on a station"
+                    : " · not audio"}
+                </span>
+              </span>
+            </label>
+            {object.audio ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void importKeys([object.key])}
+                className="inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+              >
+                Import
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => {

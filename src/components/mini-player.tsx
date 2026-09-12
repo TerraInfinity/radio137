@@ -140,12 +140,12 @@ function Scrubber({
           </span>
         ) : null}
       </div>
-      {compact ? null : (
-        <div className="deck-scrub-times">
-          <span>{formatClock(shown)}</span>
-          <span>-{formatClock(remaining)}</span>
-        </div>
-      )}
+      <div className="deck-scrub-times">
+        <span>{formatClock(shown)}</span>
+        <span>
+          {compact ? formatClock(max) : `-${formatClock(remaining)}`}
+        </span>
+      </div>
     </div>
   );
 }
