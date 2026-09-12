@@ -20,6 +20,7 @@ type Lexicon = {
 
 export function GlaumWordBooth({ nextPath = "/channel/official-glaum-frequency" }: { nextPath?: string }) {
   const { user, isAdmin, isPending } = useRadioUser();
+  const [open, setOpen] = useState(false);
   const [lex, setLex] = useState<Lexicon | null>(null);
   const [word, setWord] = useState("");
   const [adminWord, setAdminWord] = useState("");
@@ -79,9 +80,19 @@ export function GlaumWordBooth({ nextPath = "/channel/official-glaum-frequency" 
   }
 
   return (
-    <section className="glaum-panel mt-6 rounded-xl p-4">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-glaum">Lantern words</p>
-      <p className="mt-2 text-sm text-muted">
+    <section className="glaum-panel mt-6 overflow-hidden rounded-xl">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex h-12 w-full items-center justify-between gap-3 px-3 text-left"
+      >
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-glaum">Lantern words</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-gold">{open ? "Close" : "Open"}</span>
+      </button>
+      {open ? (
+        <div className="border-t border-line p-3">
+      <p className="text-sm text-muted">
         Drop a word into the bubbles. Emoji and symbols are welcome. Under 10 characters, no profanity. Guest words fade after a month.
       </p>
       {isPending ? <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">Checking…</p> : null}
@@ -181,6 +192,8 @@ export function GlaumWordBooth({ nextPath = "/channel/official-glaum-frequency" 
               </ul>
             </>
           ) : null}
+        </div>
+      ) : null}
         </div>
       ) : null}
     </section>

@@ -9,6 +9,7 @@ import { usePlayerStore } from "@/lib/player-store";
 import { cn, slugify } from "@/lib/cn";
 import { parseTags } from "@/lib/search";
 import { ArtUpload } from "@/components/art-upload";
+import { FoldDetails } from "@/components/fold-section";
 import { StationSettingsForm } from "@/components/station-settings";
 import type { Channel, Track } from "@/lib/types";
 
@@ -169,9 +170,8 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
   }
 
   return (
-    <div className="mt-8 rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-filigree)]">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">C desk · this cut</p>
-      <p className="mt-1 break-all font-mono text-[11px] text-subtle" title={track.audioUrl}>
+    <div>
+      <p className="break-all font-mono text-[11px] text-subtle" title={track.audioUrl}>
         {location}
       </p>
       <form
@@ -184,90 +184,96 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
         <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title shown on the site" />
         <input className="input" value={artist} onChange={(event) => setArtist(event.target.value)} placeholder="Artist" />
         <label className="block">
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Public URL ending</span>
-          <input
-            className="input mt-1"
-            value={publicSlug}
-            onChange={(event) => setPublicSlug(event.target.value)}
-            placeholder={slugify(title) || "karma-7-hari-singh-ong-namo"}
-          />
-          <span className="mt-1 block font-mono text-[10px] text-subtle">/player/{slugify(publicSlug || title) || "…"}</span>
-          <span className="mt-1 block text-sm text-muted">Canonical player URL. Blank uses the song title. Same on both Radio hosts.</span>
-          <button type="button" onClick={() => setPublicSlug(slugify(title))} className="mt-1 inline-flex h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
-            Use title
-          </button>
-        </label>
-        <label className="block">
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Aliases</span>
-          <input className="input mt-1" value={aliases} onChange={(event) => setAliases(event.target.value)} placeholder="hari, gong" />
-          <span className="mt-1 block font-mono text-[10px] text-subtle">radio.terrainfinity.ca/hari · radio.cyber-athens.ca/hari</span>
-          <span className="mt-1 block text-sm text-muted">
-            Custom site endings without /player. Type hari or /hari. The address bar stays /hari — it does not bounce to the public /player/… URL. Comma-separated. Does not rename the file or the display title.
-          </span>
-        </label>
-        <label className="block">
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Tags</span>
           <input className="input mt-1" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="glados, sting, voice" />
         </label>
         <label className="block">
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Art URL</span>
           <input className="input mt-1" value={coverUrl} onChange={(event) => setCoverUrl(event.target.value)} placeholder="/covers/… or https://… jpg or mp4" />
-          <span className="mt-1 block text-sm text-muted">Still under 2 MB or looping mp4 under 10 MB. Plays on this cut page only, not on every list thumbnail.</span>
+          <span className="mt-1 block text-sm text-muted">Still under 2 MB or looping mp4 under 32 MB. Phone photos shrink on the way in. Plays on this song page only, not on every list thumbnail.</span>
         </label>
         <ArtUpload slug={slug} trackId={track.id} current={coverUrl} onUrl={setCoverUrl} />
-        <label className="block">
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Audio file URL</span>
-          <input className="input mt-1" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="https://r2.terrainfinity.ca/radio/…" />
-        </label>
-        {key ? (
+        <FoldDetails title="Public URLs" hint="Edit">
           <label className="block">
-            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">R2 file name</span>
-            <input className="input mt-1" value={filename} onChange={(event) => setFilename(event.target.value)} placeholder="Karma 7 Hari Singh.mp3" />
-            <span className="mt-1 block truncate font-mono text-[10px] text-subtle">{audioPathParts(track.audioUrl).folder || "radio/"}</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Public URL ending</span>
+            <input
+              className="input mt-1"
+              value={publicSlug}
+              onChange={(event) => setPublicSlug(event.target.value)}
+              placeholder={slugify(title) || "karma-7-hari-singh-ong-namo"}
+            />
+            <span className="mt-1 block font-mono text-[10px] text-subtle">/player/{slugify(publicSlug || title) || "…"}</span>
+            <span className="mt-1 block text-sm text-muted">Canonical player URL. Blank uses the song title. Same on both Radio hosts.</span>
+            <button type="button" onClick={() => setPublicSlug(slugify(title))} className="mt-1 inline-flex h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
+              Use title
+            </button>
           </label>
-        ) : null}
-        <div className="flex flex-wrap gap-2">
-          <button type="submit" disabled={Boolean(busy)} className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
-            {busy === "save" ? "Saving…" : "Save cut"}
-          </button>
+          <label className="block">
+            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Aliases</span>
+            <input className="input mt-1" value={aliases} onChange={(event) => setAliases(event.target.value)} placeholder="hari, gong" />
+            <span className="mt-1 block font-mono text-[10px] text-subtle">radio.terrainfinity.ca/hari · radio.cyber-athens.ca/hari</span>
+            <span className="mt-1 block text-sm text-muted">
+              Custom site endings without /player. Type hari or /hari. The address bar stays /hari — it does not bounce to the public /player/… URL. Comma-separated. Does not rename the file or the display title.
+            </span>
+          </label>
+        </FoldDetails>
+        <FoldDetails title="Audio file" hint="Open">
+          <label className="block">
+            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Audio file URL</span>
+            <input className="input mt-1" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="https://r2.terrainfinity.ca/radio/…" />
+          </label>
+          {key ? (
+            <label className="block">
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">R2 file name</span>
+              <input className="input mt-1" value={filename} onChange={(event) => setFilename(event.target.value)} placeholder="Karma 7 Hari Singh.mp3" />
+              <span className="mt-1 block truncate font-mono text-[10px] text-subtle">{audioPathParts(track.audioUrl).folder || "radio/"}</span>
+            </label>
+          ) : null}
           {key ? (
             <button type="button" disabled={Boolean(busy) || !r2Configured} onClick={() => void renameFile()} className="inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
               {busy === "rename" ? "Renaming…" : "Rename file on R2"}
             </button>
           ) : null}
+          <label className="block cursor-pointer rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Replace audio file</span>
+            <p className="mt-1 text-sm text-muted">
+              {r2Configured ? "Upload a new mp3 / wav / flac / m4a. The song keeps its id and tags." : "R2 keys are dark — paste a new URL above instead."}
+            </p>
+            <input
+              type="file"
+              accept="audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/ogg,audio/aac,.mp3,.wav,.flac,.m4a,.ogg,.aac"
+              disabled={Boolean(busy) || !r2Configured}
+              className="mt-2 block w-full text-sm text-muted file:mr-3 file:h-11 file:rounded-md file:border-0 file:bg-fg file:px-3 file:font-mono file:text-[11px] file:uppercase file:tracking-[0.14em] file:text-bg"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void replaceFile(file);
+              }}
+            />
+          </label>
+        </FoldDetails>
+        <div className="flex flex-wrap gap-2">
+          <button type="submit" disabled={Boolean(busy)} className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
+            {busy === "save" ? "Saving…" : "Save song"}
+          </button>
         </div>
         {hint ? <p className="text-sm text-muted">{hint}</p> : null}
       </form>
-      <label className="mt-4 block cursor-pointer rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Replace audio file</span>
-        <p className="mt-1 text-sm text-muted">
-          {r2Configured ? "Upload a new mp3 / wav / flac / m4a. The cut keeps its id and tags." : "R2 keys are dark — paste a new URL above instead."}
-        </p>
-        <input
-          type="file"
-          accept="audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/ogg,audio/aac,.mp3,.wav,.flac,.m4a,.ogg,.aac"
-          disabled={Boolean(busy) || !r2Configured}
-          className="mt-2 block w-full text-sm text-muted file:mr-3 file:h-11 file:rounded-md file:border-0 file:bg-fg file:px-3 file:font-mono file:text-[11px] file:uppercase file:tracking-[0.14em] file:text-bg"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (file) void replaceFile(file);
-          }}
-        />
-      </label>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" disabled={Boolean(busy)} onClick={() => void hide()} className="inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-          {busy === "hide" ? "Removing…" : "Remove from station"}
-        </button>
-        <button
-          type="button"
-          disabled={Boolean(busy) || !r2Configured}
-          onClick={() => void destroy()}
-          className={cn("inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em]", r2Configured ? "text-ember" : "text-subtle")}
-        >
-          {busy === "r2" ? "Deleting…" : "Delete on R2"}
-        </button>
-      </div>
+      <FoldDetails title="Remove or delete" hint="Open">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={Boolean(busy)} onClick={() => void hide()} className="inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+            {busy === "hide" ? "Removing…" : "Remove from station"}
+          </button>
+          <button
+            type="button"
+            disabled={Boolean(busy) || !r2Configured}
+            onClick={() => void destroy()}
+            className={cn("inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em]", r2Configured ? "text-ember" : "text-subtle")}
+          >
+            {busy === "r2" ? "Deleting…" : "Delete on R2"}
+          </button>
+        </div>
+      </FoldDetails>
     </div>
   );
 }
@@ -307,9 +313,5 @@ export function AdminAddTrack({ slug, cover }: { slug: string; cover: string }) 
 export function AdminStationEdit({ channel }: { channel: Channel }) {
   const { isAdmin, isPending } = useRadioUser();
   if (isPending || !isAdmin) return null;
-  return (
-    <div className="mt-4">
-      <StationSettingsForm key={channel.slug} channel={channel} />
-    </div>
-  );
+  return <StationSettingsForm key={channel.slug} channel={channel} compact />;
 }

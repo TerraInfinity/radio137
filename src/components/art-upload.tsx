@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { CoverArt } from "@/components/cover-art";
+import { PhoneArtPicker } from "@/components/phone-art-picker";
 import { getBearerToken } from "@/lib/auth/client";
 import { getSeedCatalog } from "@/lib/catalog";
 import { MEDIA_MAX_VIDEO } from "@/lib/media";
+import { prepareArtFile } from "@/lib/prepare-art";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 
@@ -32,12 +34,14 @@ export function ArtUpload({
 
   async function upload(file: File) {
     setBusy(true);
-    setHint(`Uploading ${file.name}…`);
+    setHint(`Preparing ${file.name || "file"}…`);
     try {
+      const ready = await prepareArtFile(file);
+      setHint(`Uploading ${ready.name}…`);
       const body = new FormData();
       body.set("slug", slug);
       if (trackId) body.set("trackId", trackId);
-      body.set("file", file);
+      body.set("file", ready);
       const token = getBearerToken();
       const res = await fetch("/api/desk/upload-art", {
         method: "POST",
@@ -45,13 +49,19 @@ export function ArtUpload({
         credentials: "include",
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      const json = (await res.json()) as Snapshot;
+      const raw = await res.text();
+      let json: Snapshot = {};
+      try {
+        json = raw ? (JSON.parse(raw) as Snapshot) : {};
+      } catch {
+        throw new Error(res.status === 413 ? "That clip is too large. Try a shorter video." : "Upload failed");
+      }
       if (!res.ok) throw new Error(json.error || "Upload failed");
       if (json.tracks) {
         usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), json.tracks, json.stations ?? []));
       }
       if (json.object?.url) onUrl?.(json.object.url);
-      setHint(file.name.toLowerCase().endsWith(".mp4") || file.name.toLowerCase().endsWith(".webm") ? "Looping video saved" : "Still saved");
+      setHint(ready.type.startsWith("video/") ? "Looping video saved" : "Photo saved");
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Upload failed");
       setHint("");
@@ -63,25 +73,19 @@ export function ArtUpload({
   return (
     <div className="space-y-2">
       {current ? <CoverArt src={current} alt="" className="h-28 w-full rounded-lg" motion="loop" /> : null}
-      <label className="block cursor-pointer rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
+      <div className="rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Upload art</span>
         <p className="mt-1 text-sm text-muted">
           {r2Configured
-            ? `Jpg, png, webp, or a short looping mp4 under ${Math.round(MEDIA_MAX_VIDEO / (1024 * 1024))} MB. Cards stay still; the open station or song page loops it.`
+            ? `Phone photos shrink automatically. Short looping mp4 or mov under ${Math.round(MEDIA_MAX_VIDEO / (1024 * 1024))} MB. Cards stay still; the open station or song page loops it.`
             : "R2 keys are dark — paste a URL instead."}
         </p>
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.webm"
-          disabled={busy || !r2Configured}
-          className="mt-2 block w-full text-sm text-muted file:mr-3 file:h-11 file:rounded-md file:border-0 file:bg-fg file:px-3 file:font-mono file:text-[11px] file:uppercase file:tracking-[0.14em] file:text-bg"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (file) void upload(file);
-          }}
-        />
-      </label>
+        {r2Configured ? (
+          <div className="mt-3">
+            <PhoneArtPicker disabled={busy} onFile={(file) => void upload(file)} />
+          </div>
+        ) : null}
+      </div>
       {hint ? <p className="text-sm text-muted">{hint}</p> : null}
     </div>
   );

@@ -57,7 +57,7 @@ export function DeskReview() {
     <section className="mt-6">
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Review queue</p>
       <p className="mt-2 max-w-prose text-sm text-muted">
-        Cuts unallocated from a station. Files stay on R2. Cousins on other desks stay on air until you merge or move them.
+        Songs unallocated from a station. Files stay on R2. Cousins on other desks stay on air until you merge or move them.
       </p>
       {items.length === 0 ? <p className="mt-6 text-muted">Nothing to review.</p> : null}
       <ul className="mt-4 space-y-3">
@@ -201,7 +201,7 @@ function ReviewRow({
       ) : null}
       {item.trackId ? (
         <Link to="/player/$id" params={{ id: item.trackId }} className="mt-2 inline-flex h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
-          Open cut
+          Open song
         </Link>
       ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
@@ -246,7 +246,7 @@ function ReviewRow({
               onClick={() => void onMerge(item.trackId, cousins.map((copy) => copy.track.id))}
               className="mt-2 inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
             >
-              Merge into cut group
+              Merge into song group
             </button>
           ) : null}
         </div>

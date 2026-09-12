@@ -9,7 +9,7 @@ export function AutoplayLamp({ label = "Auto", compact = false }: { label?: stri
       type="button"
       onClick={() => setAutoplay(!autoplay)}
       aria-pressed={autoplay}
-      title={autoplay ? "Autoplay on — next cut starts itself" : "Autoplay off — this cut finishes, then stop"}
+      title={autoplay ? "Autoplay on — next song starts itself" : "Autoplay off — this song finishes, then stop"}
       className="inline-flex h-11 shrink-0 items-center gap-2 px-1.5 font-mono text-[11px] uppercase tracking-[0.14em] sm:px-2"
     >
       <span className="lamp-bezel">

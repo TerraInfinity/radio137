@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Camera, ChevronDown, FastForward, Pause, Play, Radio, Rewind, SkipBack, SkipForward, Volume2 } from "lucide-react";
+import { Camera, ChevronDown, Pause, Pencil, Play, Radio, SkipBack, SkipForward, Volume2 } from "lucide-react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
+import { RenameCutForm } from "@/components/admin-rename";
 import { CoverArt } from "@/components/cover-art";
 import { HeroArtSheet } from "@/components/hero-art-sheet";
 import { ListenModeLamp } from "@/components/listen-mode-lamp";
+import { MarqueeTitle } from "@/components/marquee-title";
 import { ShareLink } from "@/components/share-link";
 import { ShuffleToggle } from "@/components/shuffle-toggle";
 import { TrackActions } from "@/components/track-actions";
@@ -30,12 +32,10 @@ function Scrubber({
   currentTime,
   duration,
   compact = false,
-  leaveHint,
 }: {
   currentTime: number;
   duration: number;
   compact?: boolean;
-  leaveHint?: string;
 }) {
   const seek = usePlayerStore((s) => s.seek);
   const hitRef = useRef<HTMLDivElement>(null);
@@ -102,78 +102,48 @@ function Scrubber({
     };
   }
 
-  function nudge(delta: number) {
-    seek(Math.min(max, Math.max(0, currentTime + delta)));
-  }
-
   return (
     <div className={cn("deck-scrub", compact && "deck-scrub-dock")}>
-      <button
-        type="button"
-        className="deck-scrub-nudge"
-        onClick={(event) => {
-          event.stopPropagation();
-          nudge(-10);
+      <div
+        ref={hitRef}
+        role="slider"
+        tabIndex={0}
+        aria-valuemin={0}
+        aria-valuemax={Math.round(max)}
+        aria-valuenow={Math.round(shown)}
+        aria-label="Seek"
+        className="deck-scrub-hit"
+        onPointerDown={onPointerDown}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+            event.preventDefault();
+            seek(Math.min(max, currentTime + 5));
+          } else if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+            event.preventDefault();
+            seek(Math.max(0, currentTime - 5));
+          } else if (event.key === "Home") {
+            event.preventDefault();
+            seek(0);
+          } else if (event.key === "End") {
+            event.preventDefault();
+            seek(max);
+          }
         }}
-        aria-label="Back 10 seconds"
-        title={leaveHint || "Back 10 seconds"}
       >
-        <Rewind className="size-4" />
-      </button>
-      <div className="deck-scrub-main">
-        <div
-          ref={hitRef}
-          role="slider"
-          tabIndex={0}
-          aria-valuemin={0}
-          aria-valuemax={Math.round(max)}
-          aria-valuenow={Math.round(shown)}
-          aria-label="Seek"
-          className="deck-scrub-hit"
-          onPointerDown={onPointerDown}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowRight" || event.key === "ArrowUp") {
-              event.preventDefault();
-              seek(Math.min(max, currentTime + 5));
-            } else if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
-              event.preventDefault();
-              seek(Math.max(0, currentTime - 5));
-            } else if (event.key === "Home") {
-              event.preventDefault();
-              seek(0);
-            } else if (event.key === "End") {
-              event.preventDefault();
-              seek(max);
-            }
-          }}
-        >
-          <span className="deck-scrub-track" aria-hidden>
-            <span className="deck-scrub-fill" style={{ width: `${progress}%` }} />
+        <span className="deck-scrub-track" aria-hidden>
+          <span className="deck-scrub-fill" style={{ width: `${progress}%` }} />
+        </span>
+        <span className="deck-scrub-thumb" style={{ left: `${progress}%` }} aria-hidden />
+        {preview !== null ? (
+          <span className="deck-scrub-tip" style={{ left: `${progress}%` }} aria-hidden>
+            {formatClock(preview)}
           </span>
-          <span className="deck-scrub-thumb" style={{ left: `${progress}%` }} aria-hidden />
-          {preview !== null ? (
-            <span className="deck-scrub-tip" style={{ left: `${progress}%` }} aria-hidden>
-              {formatClock(preview)}
-            </span>
-          ) : null}
-        </div>
-        <div className="deck-scrub-times">
-          <span>{formatClock(shown)}</span>
-          <span>-{formatClock(remaining)}</span>
-        </div>
+        ) : null}
       </div>
-      <button
-        type="button"
-        className="deck-scrub-nudge"
-        onClick={(event) => {
-          event.stopPropagation();
-          nudge(10);
-        }}
-        aria-label="Forward 10 seconds"
-        title={leaveHint || "Forward 10 seconds"}
-      >
-        <FastForward className="size-4" />
-      </button>
+      <div className="deck-scrub-times">
+        <span>{formatClock(shown)}</span>
+        <span>-{formatClock(remaining)}</span>
+      </div>
     </div>
   );
 }
@@ -197,6 +167,7 @@ export function MiniPlayer() {
   const jumpToLive = usePlayerStore((s) => s.jumpToLive);
   const { isAdmin } = useRadioUser();
   const [artOpen, setArtOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const channel = slug ? getChannel(slug) : undefined;
   const ios = useMemo(
     () =>
@@ -204,6 +175,9 @@ export function MiniPlayer() {
       (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)),
     [],
   );
+  useEffect(() => {
+    setRenaming(false);
+  }, [track?.id]);
   if (!track || !channel) return null;
   const playing = status === "playing";
   const skin = stationSkin(channel);
@@ -224,7 +198,7 @@ export function MiniPlayer() {
       )}
     >
       <div className="mx-auto max-w-6xl px-3 pt-1 sm:px-4">
-        {collapsed ? <Scrubber currentTime={currentTime} duration={duration} compact leaveHint={skipHint} /> : null}
+        {collapsed ? <Scrubber currentTime={currentTime} duration={duration} compact /> : null}
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
             <button
@@ -235,8 +209,11 @@ export function MiniPlayer() {
             >
               <CoverArt src={art} alt="" className="size-12 shrink-0 overflow-hidden rounded-md" motion="still" />
               {collapsed ? (
-                <span className="min-w-0 flex-1">
-                  <span className={cn("block truncate font-display text-base leading-tight", skin === "glaum" && "glaum-title")}>{track.title}</span>
+                <span className="min-w-0 flex-1 overflow-hidden">
+                  <MarqueeTitle
+                    text={track.title}
+                    className={cn("min-w-0 w-full font-display text-base leading-tight", skin === "glaum" && "glaum-title")}
+                  />
                   <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
                     {track.artist ? `${track.artist} · ` : ""}
                     {statusLine}
@@ -304,7 +281,7 @@ export function MiniPlayer() {
                 type="button"
                 onClick={() => isAdmin && setArtOpen(true)}
                 className="block w-full"
-                aria-label={isAdmin ? "Replace this cut’s art" : track.title}
+                aria-label={isAdmin ? "Replace this song’s art" : track.title}
               >
                 <CoverArt src={art} alt="" className="aspect-square w-full" motion="loop" />
               </button>
@@ -319,15 +296,21 @@ export function MiniPlayer() {
                 </button>
               ) : null}
             </div>
-            <div className="text-center">
-              <p className={cn("font-display text-2xl font-semibold leading-tight", skin === "glaum" && "glaum-title")}>{track.title}</p>
+            <div className="min-w-0 text-center">
+              {isAdmin && renaming ? (
+                <RenameCutForm slug={channel.slug} track={track} appearance="title" onClose={() => setRenaming(false)} />
+              ) : (
+                <p className={cn("min-w-0 font-display text-2xl font-semibold leading-tight", skin === "glaum" && "glaum-title")}>
+                  <MarqueeTitle text={track.title} />
+                </p>
+              )}
               <p className="mt-1 text-sm text-muted">
                 {track.artist || "Unknown"}
                 <span className="text-subtle"> · {channel.name}</span>
               </p>
             </div>
             <VuMeter playing={playing} skin={skin} />
-            <Scrubber currentTime={currentTime} duration={duration} leaveHint={skipHint} />
+            <Scrubber currentTime={currentTime} duration={duration} />
             {overlay ? (
               <button
                 type="button"
@@ -347,6 +330,17 @@ export function MiniPlayer() {
               <ShuffleToggle channel={channel} compact />
               <TrackActions trackId={track.id} compact />
               <UnallocateControl channel={channel} track={track} />
+              {isAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => setRenaming((value) => !value)}
+                  aria-expanded={renaming}
+                  className="inline-flex h-11 items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+                >
+                  <Pencil className="size-3.5" />
+                  Rename
+                </button>
+              ) : null}
             </div>
             <div className="flex justify-center">
               <ShareLink path={songPath(track)} title={track.title} compact />

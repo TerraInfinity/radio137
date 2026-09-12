@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { AdminStationEdit } from "@/components/admin-track-tools";
+import { FoldSection } from "@/components/fold-section";
 import { GlaumWordBooth } from "@/components/glaum-word-booth";
 import { ClaimBooth } from "@/components/claim-booth";
 import { ModePill } from "@/components/mode-pill";
@@ -14,6 +15,7 @@ import { cn } from "@/lib/cn";
 import { isOnDemandOverlay, listenModeLabel } from "@/lib/listen-mode";
 import { resolveLivePlayhead } from "@/lib/playback";
 import { stationPath } from "@/lib/song-url";
+import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel } from "@/lib/types";
 
@@ -25,6 +27,7 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
   const status = usePlayerStore((s) => s.status);
   const glaumules = usePlayerStore((s) => s.glaumules);
   const listenMode = usePlayerStore((s) => s.listenModeSession ?? s.listenMode);
+  const { isAdmin } = useRadioUser();
   const playable = getPlayableTracks(channel);
   const kind = normalizeKind(channel.kind || channel.mode);
   const live = kind === "live";
@@ -32,6 +35,7 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
   const now = here ? track : live ? resolveLivePlayhead(playable, Date.now(), channel.slug)?.track ?? playable[0] : playable[0];
   const skin = stationSkin(channel);
   const statusLabel = !channel.enabled ? "Off air" : playable.length === 0 ? "Empty desk" : here ? status : kindHint(kind);
+  const tags = channel.tags ?? [];
 
   useEffect(() => {
     if (!ready || !channel.enabled || playable.length === 0) return;
@@ -44,7 +48,8 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
         <StationVisual channel={channel} size="hero" className="aspect-[4/3] w-full sm:aspect-auto sm:h-64" />
       </div>
       <p className={cn("mt-6 font-mono text-[11px] uppercase tracking-[0.2em]", skin === "glaum" ? "glaum-kicker" : "text-gold")}>
-        {channel.category} · {channel.tags.join(" · ")}
+        {channel.category}
+        {tags[0] ? ` · ${tags[0]}` : ""}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <h1 className={cn("font-display text-4xl font-semibold tracking-tight", skin === "glaum" && "glaum-title")}>{channel.name}</h1>
@@ -52,17 +57,12 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
       </div>
       <p className="mt-3 max-w-prose text-muted">{channel.description}</p>
       {skin === "glaum" ? <p className="glaum-sponsor mt-2 font-mono text-[10px] uppercase">Sponsored by Shrimp™</p> : null}
-      <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">
-        Desk: {kindLabel(kind)} · You: {listenModeLabel(listenMode)}
-        {isOnDemandOverlay(channel, listenMode) ? " · overlay" : ""}
-      </p>
-      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">{kindHint(kind)}</p>
       {channel.glaumules ? (
         <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-glaum">
           {glaumules} glåümules collected · tap the purple bubbles
         </p>
       ) : null}
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => void tuneIn(channel.slug, { forcePlay: true })}
@@ -73,12 +73,8 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
         >
           Tune in
         </button>
-      </div>
-      <div className="mt-4">
-        <ShareLink path={sharePath || stationPath(channel)} title={channel.name} />
-      </div>
-      <div className="mt-6">
-        <ShuffleToggle channel={channel} />
+        <ShuffleToggle channel={channel} compact />
+        <ShareLink path={sharePath || stationPath(channel)} title={channel.name} compact />
       </div>
       <div className="mt-8">
         <NowPlayingCard channel={channel} track={now ?? null} statusLabel={statusLabel} />
@@ -87,7 +83,21 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
       <StationPlaylist channel={channel} />
       <StationChat slug={channel.slug} />
       <ClaimBooth channel={channel} />
-      <AdminStationEdit channel={channel} />
+      <FoldSection title="About this frequency" hint="Open">
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">
+          Desk: {kindLabel(kind)} · You: {listenModeLabel(listenMode)}
+          {isOnDemandOverlay(channel, listenMode) ? " · overlay" : ""}
+        </p>
+        <p className="mt-2 text-sm text-muted">{kindHint(kind)}</p>
+        {tags.length > 1 ? (
+          <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">{tags.join(" · ")}</p>
+        ) : null}
+      </FoldSection>
+      {isAdmin ? (
+        <FoldSection title="Station settings" hint="Edit" titleClassName="text-gold">
+          <AdminStationEdit channel={channel} />
+        </FoldSection>
+      ) : null}
     </div>
   );
 }

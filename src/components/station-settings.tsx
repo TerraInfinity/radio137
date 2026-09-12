@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ArtUpload } from "@/components/art-upload";
+import { FoldDetails } from "@/components/fold-section";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getSeedCatalog, kindHint, kindLabel, normalizeKind, normalizeShuffle, shuffleHint, shuffleLabel } from "@/lib/catalog";
 import { cn, slugify } from "@/lib/cn";
@@ -56,31 +57,33 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
           .finally(() => setBusy(false));
       }}
     >
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">C desk · this station</p>
+      {compact ? null : <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">C desk · this station</p>}
       <input className="input" value={name} onChange={(event) => setName(event.target.value)} placeholder="Name shown on the site" />
       <textarea className="input" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Description" />
-      <label className="block">
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Public URL ending</span>
-        <input
-          className="input mt-1"
-          value={publicSlug}
-          onChange={(event) => setPublicSlug(event.target.value)}
-          placeholder={channel.slug}
-        />
-        <span className="mt-1 block font-mono text-[10px] text-subtle">/channel/{slugify(publicSlug) || channel.slug}</span>
-        <span className="mt-1 block text-sm text-muted">Canonical station URL. Blank keeps the internal slug. Same on both Radio hosts.</span>
-        <button type="button" onClick={() => setPublicSlug(slugify(name) || channel.slug)} className="mt-1 inline-flex h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
-          Use name
-        </button>
-      </label>
-      <label className="block">
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Aliases</span>
-        <input className="input mt-1" value={aliases} onChange={(event) => setAliases(event.target.value)} placeholder="glaum, gong" />
-        <span className="mt-1 block font-mono text-[10px] text-subtle">radio.terrainfinity.ca/glaum · radio.cyber-athens.ca/glaum</span>
-        <span className="mt-1 block text-sm text-muted">
-          Custom site endings without /channel. Type glaum or /glaum. The address bar stays /glaum. Comma-separated. Must not collide with a song alias or another station.
-        </span>
-      </label>
+      <FoldDetails title="Public URLs" hint="Edit">
+        <label className="block">
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Public URL ending</span>
+          <input
+            className="input mt-1"
+            value={publicSlug}
+            onChange={(event) => setPublicSlug(event.target.value)}
+            placeholder={channel.slug}
+          />
+          <span className="mt-1 block font-mono text-[10px] text-subtle">/channel/{slugify(publicSlug) || channel.slug}</span>
+          <span className="mt-1 block text-sm text-muted">Canonical station URL. Blank keeps the internal slug. Same on both Radio hosts.</span>
+          <button type="button" onClick={() => setPublicSlug(slugify(name) || channel.slug)} className="mt-1 inline-flex h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
+            Use name
+          </button>
+        </label>
+        <label className="block">
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Aliases</span>
+          <input className="input mt-1" value={aliases} onChange={(event) => setAliases(event.target.value)} placeholder="glaum, gong" />
+          <span className="mt-1 block font-mono text-[10px] text-subtle">radio.terrainfinity.ca/glaum · radio.cyber-athens.ca/glaum</span>
+          <span className="mt-1 block text-sm text-muted">
+            Custom site endings without /channel. Type glaum or /glaum. The address bar stays /glaum. Comma-separated. Must not collide with a song alias or another station.
+          </span>
+        </label>
+      </FoldDetails>
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Type</p>
         <div className="mt-2 flex flex-wrap gap-2">
@@ -108,7 +111,7 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="block">
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Category</span>
-          <input className="input mt-1" value={category} onChange={(event) => setCategory(event.target.value)} placeholder="Temple, vault…" />
+          <input className="input mt-1" value={category} onChange={(event) => setCategory(event.target.value)} placeholder="Temple, frequency…" />
         </label>
         <label className="block">
           <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Energy</span>

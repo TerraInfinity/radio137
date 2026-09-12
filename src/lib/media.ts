@@ -1,7 +1,10 @@
 /** Public media origin. Flip VITE_MEDIA_PUBLIC_BASE to move buckets without rewriting catalog URLs. */
 export const DEFAULT_MEDIA_BASE = "https://r2.terrainfinity.ca";
 export const MEDIA_MAX_IMAGE = 2 * 1024 * 1024;
-export const MEDIA_MAX_VIDEO = 10 * 1024 * 1024;
+export const MEDIA_MAX_IMAGE_PICK = 24 * 1024 * 1024;
+export const MEDIA_MAX_VIDEO = 32 * 1024 * 1024;
+export const ART_ACCEPT =
+  "image/*,video/*,image/heic,image/heif,image/heic-sequence,video/quicktime,video/mp4,video/webm,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif,.avif,.mp4,.webm,.mov,.m4v";
 
 const HOST_SUFFIXES = [".r2.dev", ".r2.cloudflarestorage.com"];
 const HOSTS = new Set(["r2.terrainfinity.ca"]);
@@ -69,15 +72,14 @@ export function mediaUrl(src?: string | null): string {
 export function isLoopingVisual(src?: string | null): boolean {
   if (!src) return false;
   const path = src.split("?")[0].toLowerCase();
-  return /\.(mp4|webm|mov)$/.test(path);
+  return /\.(mp4|webm|mov|m4v)$/.test(path);
 }
 
 export function downloadPath(trackId: string): string {
   return `/api/media/download?id=${encodeURIComponent(trackId)}`;
 }
 
-/** Still or looping visual for a cut, falling back through station motion fields. */
+/** Still or looping visual for a song, falling back through station motion fields. */
 export function visualSrc(track?: { coverUrl?: string | null } | null, channel?: { cover?: string; animationUrl?: string; videoUrl?: string } | null): string {
   return track?.coverUrl || channel?.animationUrl || channel?.videoUrl || channel?.cover || "";
 }
-

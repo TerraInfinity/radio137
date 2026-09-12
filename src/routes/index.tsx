@@ -28,9 +28,11 @@ function Home() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 pb-52">
-      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Clockwork temple</p>
+      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Welcome to the Light Ages</p>
       <h1 className="mt-2 font-display text-5xl font-semibold tracking-tight">Radio</h1>
-      <p className="mt-3 max-w-prose text-muted">A dark-elf clockwork temple. Live desks share a station clock. Fixed rooms play start to finish. Vaults wait on demand.</p>
+      <p className="mt-3 max-w-prose text-muted">
+        Herein the chaos primer, bound in relative time. A radio of frequencies. Live desks keep one shared present.
+      </p>
       <div className="mt-8 max-w-3xl">
         <DialSearch
           catalog={catalog.channels.length ? catalog : { ...catalog, channels }}

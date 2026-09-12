@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Radio } from "lucide-react";
+import { Pencil, Radio } from "lucide-react";
+import { RenameCutForm } from "@/components/admin-rename";
 import { CoverArt } from "@/components/cover-art";
 import { HeroArtSheet } from "@/components/hero-art-sheet";
+import { MarqueeTitle } from "@/components/marquee-title";
 import { UnallocateControl } from "@/components/unallocate-control";
-import { isAdultTrack, isChannelNsfw, kindLabel, normalizeKind } from "@/lib/catalog";
-import { isOnDemandOverlay, listenModeLabel } from "@/lib/listen-mode";
+import { isAdultTrack, isChannelNsfw } from "@/lib/catalog";
+import { isOnDemandOverlay } from "@/lib/listen-mode";
 import { visualSrc } from "@/lib/media";
 import { songKey } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
@@ -26,13 +28,19 @@ export function NowPlayingCard({
   const slug = usePlayerStore((s) => s.channelSlug);
   const { isAdmin } = useRadioUser();
   const [artOpen, setArtOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const lockedCut = Boolean(track && isAdultTrack(track) && !isChannelNsfw(channel));
   const overlay = isOnDemandOverlay(channel, listenMode) && slug === channel.slug;
+
+  useEffect(() => {
+    setRenaming(false);
+  }, [track?.id]);
+
   if (!track || lockedCut) {
     return (
       <section className="rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-border)]">
         <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">Now playing</p>
-        <p className="mt-3 font-display text-xl text-fg">{lockedCut ? "Locked cut" : statusLabel}</p>
+        <p className="mt-3 font-display text-xl text-fg">{lockedCut ? "Locked song" : statusLabel}</p>
       </section>
     );
   }
@@ -42,21 +50,22 @@ export function NowPlayingCard({
         type="button"
         onClick={() => isAdmin && setArtOpen(true)}
         className="size-20 shrink-0 overflow-hidden rounded-md sm:size-24"
-        aria-label={isAdmin ? "Replace this cut’s art" : track.title}
+        aria-label={isAdmin ? "Replace this song’s art" : track.title}
       >
         <CoverArt src={visualSrc(track, channel)} alt="" className="size-full" motion="loop" />
       </button>
       <div className="min-w-0 flex-1">
         <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ember">Now playing</p>
-        <h2 className="mt-1 truncate font-display text-xl font-semibold tracking-tight text-fg sm:text-2xl">
-          <Link to="/player/$id" params={{ id: songKey(track) }}>
-            {track.title}
-          </Link>
+        <h2 className="mt-1 min-w-0 wrap-normal font-display text-xl font-semibold tracking-tight text-fg sm:text-2xl">
+          {isAdmin && renaming ? (
+            <RenameCutForm slug={channel.slug} track={track} appearance="title" onClose={() => setRenaming(false)} />
+          ) : (
+            <Link to="/player/$id" params={{ id: songKey(track) }} className="block min-w-0">
+              <MarqueeTitle text={track.title} />
+            </Link>
+          )}
         </h2>
         <p className="mt-0.5 truncate text-sm text-muted">{track.artist}</p>
-        <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">
-          Desk: {kindLabel(normalizeKind(channel.kind || channel.mode))} · You: {listenModeLabel(listenMode)}
-        </p>
         <div className="mt-1 flex flex-wrap items-center gap-1">
           {overlay ? (
             <button
@@ -69,6 +78,17 @@ export function NowPlayingCard({
             </button>
           ) : null}
           <UnallocateControl channel={channel} track={track} />
+          {isAdmin ? (
+            <button
+              type="button"
+              onClick={() => setRenaming((value) => !value)}
+              aria-expanded={renaming}
+              className="inline-flex h-11 items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+            >
+              <Pencil className="size-3.5" />
+              Rename
+            </button>
+          ) : null}
         </div>
       </div>
       {isAdmin ? <HeroArtSheet channel={channel} track={track} open={artOpen} onClose={() => setArtOpen(false)} /> : null}

@@ -11,7 +11,7 @@ export function StationChat({ slug }: { slug: string }) {
   const { user } = useRadioUser();
   const identity = usePlayerStore((s) => s.identity);
   const setIdentityName = usePlayerStore((s) => s.setIdentityName);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<Line[]>([]);
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
