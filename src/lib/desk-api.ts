@@ -351,7 +351,7 @@ export const mergeStationCuts = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { mergeCuts } = await import("@/lib/cuts.server");
     const groups = await mergeCuts(context.user, data.canonicalId, data.memberIds);
-    return { groups };
+    return { groups, ...(await snapshot()) };
   });
 
 export const mergeStationCutClusters = createServerFn({ method: "POST" })
@@ -366,7 +366,7 @@ export const mergeStationCutClusters = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { mergeCutClusters } = await import("@/lib/cuts.server");
     const groups = await mergeCutClusters(context.user, data.clusters);
-    return { groups };
+    return { groups, ...(await snapshot()) };
   });
 
 export const unmergeStationCut = createServerFn({ method: "POST" })

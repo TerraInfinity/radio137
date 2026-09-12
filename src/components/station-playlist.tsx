@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpDown, ChevronRight, GripVertical } from "lucide-react";
 import { AdminRename } from "@/components/admin-rename";
+import { AdminTrackTools } from "@/components/admin-track-tools";
 import { MarqueeTitle } from "@/components/marquee-title";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getPlayableTracks, getSeedCatalog, normalizeShuffle } from "@/lib/catalog";
@@ -224,6 +225,7 @@ function PlaylistRow({
         </>
       ) : null}
       {admin && !arrange ? <AdminRename slug={slug} track={track} compact={!current} /> : null}
+      {admin ? <AdminTrackTools slug={slug} track={track} compact /> : null}
     </li>
   );
 }

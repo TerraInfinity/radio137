@@ -13,6 +13,8 @@ import {
   type CutGroup,
 } from "@/lib/cuts";
 import { dissolveStationCut, mergeStationCutClusters, mergeStationCuts, unmergeStationCut } from "@/lib/desk-api";
+import { applyCatalogEdits, type CatalogEdit, type StationEdit } from "@/lib/catalog-edits";
+import { getSeedCatalog } from "@/lib/catalog";
 import { formatClock } from "@/lib/cn";
 import { DownloadLink } from "@/components/download-link";
 import { songKey } from "@/lib/song-url";
@@ -21,6 +23,13 @@ import type { Catalog } from "@/lib/types";
 
 function saveGroups(groups: CutGroup[]) {
   usePlayerStore.getState().replaceCutGroups(groups);
+}
+
+function applyMerge(result: { groups: CutGroup[]; tracks?: CatalogEdit[]; stations?: StationEdit[] }) {
+  saveGroups(result.groups);
+  if (result.tracks) {
+    usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), result.tracks, result.stations ?? []));
+  }
 }
 
 function fail(error: unknown) {
@@ -53,7 +62,7 @@ export function DeskDirectory({ catalog }: { catalog: Catalog }) {
     setBusy(true);
     try {
       const result = await mergeStationCuts({ data: { canonicalId: keep, memberIds: cluster.copies.map((copy) => copy.track.id) } });
-      saveGroups(result.groups);
+      applyMerge(result);
     } catch (error) {
       fail(error);
     } finally {
@@ -62,7 +71,7 @@ export function DeskDirectory({ catalog }: { catalog: Catalog }) {
   }
 
   async function mergeAllFiles() {
-    if (!window.confirm(`Merge ${files.length} filename clusters into one directory row each?\n\nR2 files stay. Station playlists keep their copies. Search will show one song.`)) return;
+    if (!window.confirm(`Merge ${files.length} filename clusters into one directory row each?\n\nR2 files stay. Each station keeps one copy. Search will show one song.`)) return;
     setBusy(true);
     try {
       const result = await mergeStationCutClusters({
@@ -73,7 +82,7 @@ export function DeskDirectory({ catalog }: { catalog: Catalog }) {
           }),
         },
       });
-      saveGroups(result.groups);
+      applyMerge(result);
       setTab("merged");
     } catch (error) {
       fail(error);
@@ -87,7 +96,7 @@ export function DeskDirectory({ catalog }: { catalog: Catalog }) {
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Directory</p>
       <h2 className="mt-1 font-display text-2xl font-semibold">One song, many folders</h2>
       <p className="mt-2 max-w-prose text-muted">
-        Copies in different R2 folders stay put. Merge them here so search lists one song. Station desks still play their own file.
+        Copies in different R2 folders stay put. Merge them here so search lists one song. A station that already has the song keeps that one row — merge will not add a second copy or pull it off the desk.
       </p>
       <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.12em] text-subtle">
         {copies.length} copies · {files.length} same filename · {titles.length} same title · {merged.length} merged
@@ -292,7 +301,7 @@ export function AdminMergeBox({ trackId }: { trackId: string }) {
     setBusy(true);
     try {
       const result = await mergeStationCuts({ data: { canonicalId: trackId, memberIds: [trackId, id] } });
-      saveGroups(result.groups);
+      applyMerge(result);
       setNeedle("");
     } catch (error) {
       fail(error);
@@ -304,7 +313,7 @@ export function AdminMergeBox({ trackId }: { trackId: string }) {
   return (
     <div className="mt-4 rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Treat as the same song</p>
-      <p className="mt-1 text-sm text-muted">Search another title or filename. Merge does not delete R2 files.</p>
+      <p className="mt-1 text-sm text-muted">Search another title or filename. Each station keeps one row. Files stay on R2.</p>
       <input className="input mt-2" value={needle} onChange={(event) => setNeedle(event.target.value)} placeholder="Other title or filename" />
       {hits.length > 0 ? (
         <ul className="mt-2 space-y-1">

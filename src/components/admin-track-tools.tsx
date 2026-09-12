@@ -44,7 +44,7 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
   const key = r2KeyFromAudioUrl(track.audioUrl);
 
   async function hide() {
-    if (!window.confirm(`Remove “${track.title}” from this station? The file stays on R2.`)) return;
+    if (!window.confirm(`Remove “${track.title}” from this station? Other desks keep their copy. The file stays on R2.`)) return;
     setBusy("hide");
     try {
       const result = await hideStationTrack({ data: { channelSlug: slug, trackId: track.id, audioUrl: track.audioUrl } });
@@ -162,7 +162,8 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
           event.stopPropagation();
           void hide();
         }}
-        className="inline-flex h-7 items-center px-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-gold"
+        title="Remove this song from this station"
+        className="inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
       >
         {busy === "hide" ? "…" : "Remove"}
       </button>

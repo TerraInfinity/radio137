@@ -126,6 +126,21 @@ export function autoCanonicalMap(copies: CutCopy[], groups: CutGroup[]): Map<str
   return map;
 }
 
+export function idsShareSong(a: string, b: string, groups: CutGroup[]): boolean {
+  if (a === b) return true;
+  const map = memberMap(groups);
+  return (map.get(a) ?? a) === (map.get(b) ?? b);
+}
+
+/** Keep one row per station. Extra members of a merge group are hidden, not deleted. */
+export function extrasToHideOnStation(tracks: Track[], memberIds: string[], canonicalId: string): Track[] {
+  const group = new Set(memberIds.filter(Boolean));
+  const hits = tracks.filter((track) => track.enabled !== false && group.has(track.id));
+  if (hits.length < 2) return [];
+  const keep = hits.find((track) => track.id === canonicalId) ?? hits[0];
+  return hits.filter((track) => track.id !== keep.id);
+}
+
 export function copiesOf(catalog: Catalog, trackId: string, groups: CutGroup[], includeNsfw = false): CutCopy[] {
   const copies = listCutCopies(catalog, includeNsfw);
   const map = autoCanonicalMap(copies, groups);

@@ -60,6 +60,8 @@ export async function mergeCuts(user: RadioUser, canonicalId: string, memberIds:
         updated_at = now()
     `;
   }
+  const { hideSameStationMergedCopies } = await import("@/lib/catalog-edits.server");
+  await hideSameStationMergedCopies(user, canonicalId, ids);
   return listCutGroups();
 }
 

@@ -240,6 +240,17 @@ export async function hideTrack(user: RadioUser, channelSlug: string, trackId: s
   return upsertEdit(user, { channelSlug, trackId, hidden: true, audioUrl: audioUrl ?? null });
 }
 
+export async function hideSameStationMergedCopies(user: RadioUser, canonicalId: string, memberIds: string[]) {
+  const catalog = await liveCatalog();
+  const { extrasToHideOnStation } = await import("@/lib/cuts");
+  for (const channel of catalog.channels) {
+    const extras = extrasToHideOnStation(channel.tracks, memberIds, canonicalId);
+    for (const extra of extras) {
+      await hideTrack(user, channel.slug, extra.id, extra.audioUrl);
+    }
+  }
+}
+
 export async function restoreTrack(user: RadioUser, channelSlug: string, trackId: string) {
   return upsertEdit(user, { channelSlug, trackId, hidden: false });
 }
@@ -327,6 +338,12 @@ export async function addTrack(
     r2Key?: string;
   },
 ) {
+  const catalog = await liveCatalog();
+  const channel = catalog.channels.find((item) => item.slug === input.channelSlug);
+  if (channel && input.audioUrl && !input.trackId) {
+    const exists = channel.tracks.some((item) => item.enabled !== false && item.audioUrl === input.audioUrl);
+    if (exists) throw new Error(`Already on ${channel.name}`);
+  }
   const trackId = input.trackId || `desk-${input.channelSlug}-${Date.now().toString(36)}`;
   return upsertEdit(user, {
     channelSlug: input.channelSlug,
@@ -513,7 +530,14 @@ export async function placeTrack(
   if (input.fromSlug === input.toSlug) throw new Error("Pick a different station");
   const track = from.tracks.find((item) => item.id === input.trackId);
   if (!track) throw new Error("Song not found");
-  const already = to.tracks.some((item) => item.enabled !== false && item.audioUrl && item.audioUrl === track.audioUrl);
+  const { listCutGroups } = await import("@/lib/cuts.server");
+  const { idsShareSong } = await import("@/lib/cuts");
+  const groups = await listCutGroups();
+  const already = to.tracks.some((item) => {
+    if (item.enabled === false) return false;
+    if (item.audioUrl && track.audioUrl && item.audioUrl === track.audioUrl) return true;
+    return idsShareSong(item.id, track.id, groups);
+  });
   if (already) throw new Error(`Already on ${to.name}`);
   await addTrack(user, {
     channelSlug: input.toSlug,
