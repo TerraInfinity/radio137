@@ -387,6 +387,22 @@ export const dissolveStationCut = createServerFn({ method: "POST" })
     return { groups };
   });
 
+export const listCutSkips = createServerFn({ method: "GET" })
+  .middleware([adminMiddleware])
+  .handler(async () => {
+    const { listCutSkips: list } = await import("@/lib/cuts.server");
+    return { keys: await list() };
+  });
+
+export const skipSimilarCuts = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) => z.object({ memberIds: z.array(z.string().min(1)).min(2) }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { skipCutPairs } = await import("@/lib/cuts.server");
+    const keys = await skipCutPairs(context.user, data.memberIds);
+    return { keys };
+  });
+
 export const pingServices = createServerFn({ method: "GET" })
   .middleware([adminMiddleware])
   .handler(async () => {

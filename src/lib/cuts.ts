@@ -17,8 +17,10 @@ export type CutCopy = {
 
 export type CutCluster = {
   key: string;
-  reason: "file" | "title" | "merged";
+  reason: "file" | "title" | "merged" | "similar";
   copies: CutCopy[];
+  why?: string[];
+  score?: number;
 };
 
 function fold(value: string): string {
