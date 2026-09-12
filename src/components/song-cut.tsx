@@ -33,15 +33,16 @@ export function SongCut({
   const trackNow = usePlayerStore((s) => s.track);
   const bumpView = usePlayerStore((s) => s.bumpView);
   const ready = usePlayerStore((s) => s.ready);
+  const catalogReady = usePlayerStore((s) => s.catalogReady);
   const { isAdmin } = useRadioUser();
 
   useEffect(() => {
-    if (!ready || locked) return;
+    if (!ready || !catalogReady || locked) return;
     const now = usePlayerStore.getState();
     if (now.track?.id === track.id && (now.status === "playing" || now.status === "loading")) return;
     bumpView(track.id);
     void cueTrack(channel.slug, track.id);
-  }, [ready, locked, track.id, channel.slug, bumpView, cueTrack]);
+  }, [ready, catalogReady, locked, track.id, channel.slug, bumpView, cueTrack]);
 
   if (locked) {
     return (

@@ -56,6 +56,17 @@ export function slotDuration(track: Track): number {
   return Math.max(1, track.durationSec || 1);
 }
 
+/**
+ * Join the clock with a duration we can trust.
+ * A 3-second probe on a 12-minute cut must not skip into the next song on refresh.
+ */
+export function joinDuration(track: Track): number {
+  const slot = slotDuration(track);
+  const actual = durationOf(track);
+  if (actual >= slot * 0.45 || slot <= 40) return actual;
+  return slot;
+}
+
 function hashSlug(slug: string): number {
   let n = 0;
   for (let i = 0; i < slug.length; i++) n = (n * 31 + slug.charCodeAt(i)) >>> 0;
@@ -110,7 +121,7 @@ export function realizePlayhead(
   let offset = Math.max(0, startOffset);
   for (let n = 0; n < tracks.length; n++) {
     const track = tracks[index];
-    const actual = durationOf(track);
+    const actual = joinDuration(track);
     const pad = endPad(actual);
     const banned = Boolean(avoidId && track.id === avoidId);
     if (!banned && actual > pad && offset < actual - pad) {

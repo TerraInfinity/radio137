@@ -3,7 +3,6 @@ import {
   getCatalog,
   getChannel,
   getPlayableTracks,
-  getSeedCatalog,
   isAdultTrack,
   isChannelNsfw,
   normalizeKind,
@@ -13,9 +12,8 @@ import {
   stationSkin,
   normalizeShuffle,
 } from "@/lib/catalog";
-import { applyCatalogEdits } from "@/lib/catalog-edits";
-import type { CutGroup } from "@/lib/cuts";
 import { durationOf, neighborTrack, nextForward, nextShuffled, rememberDuration, resolveLivePlayhead, walkFrom } from "@/lib/playback";
+import type { CutGroup } from "@/lib/cuts";
 import { endPad, radioEngine } from "@/lib/radio-engine";
 import { effectiveKind, listenModeFromLocation, type ListenMode } from "@/lib/listen-mode";
 import { bindMediaSession, flushMediaSession, ignoreHidePause, rebindMediaSession, syncMediaSession } from "@/lib/media-session";
@@ -37,6 +35,8 @@ type PlayerState = {
   muted: boolean;
   autoplay: boolean;
   lastSlug: string | null;
+  lastTrackId: string | null;
+  lastOffsetSec: number;
   visited: boolean;
   gateOpen: boolean;
   playerCollapsed: boolean;
@@ -55,6 +55,7 @@ type PlayerState = {
   listenModeSession: ListenMode | null;
   buffering: boolean;
   deckHint: string;
+  catalogReady: boolean;
   hydrate: () => void;
   enterGate: () => void;
   tuneIn: (slug: string, opts?: { forcePlay?: boolean }) => Promise<void>;
@@ -91,11 +92,21 @@ let userPaused = false;
 const viewed = new Set<string>();
 const recents: string[] = [];
 
+function pageCuesPlayback(pathname: string): boolean {
+  if (pathname.startsWith("/channel/")) return true;
+  if (pathname.startsWith("/player/") && pathname.length > "/player/".length) return true;
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length !== 1) return false;
+  return !["library", "experiences", "desk", "about", "login", "logout", "player", "songs"].includes(parts[0]);
+}
+
 function persist() {
   const s = usePlayerStore.getState();
   savePersisted({
     autoplay: s.autoplay,
     lastSlug: s.lastSlug,
+    lastTrackId: s.track?.id ?? s.lastTrackId,
+    lastOffsetSec: s.track ? s.currentTime : s.lastOffsetSec,
     visited: s.visited,
     playerCollapsed: s.playerCollapsed,
     volume: s.volume,
@@ -238,6 +249,10 @@ function bindEngine() {
       },
     },
   );
+  window.addEventListener("pagehide", persist);
+  window.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") persist();
+  });
   window.addEventListener("pageshow", () => {
     rebindMediaSession();
     bindEngine();
@@ -293,7 +308,16 @@ async function loadTrack(
       return;
     }
   }
-  set({ channelSlug: slug, track, status: "loading", currentTime: Math.max(0, offset), duration: durationOf(track) });
+  set({
+    channelSlug: slug,
+    track,
+    status: "loading",
+    currentTime: Math.max(0, offset),
+    duration: durationOf(track),
+    lastTrackId: track.id,
+    lastOffsetSec: Math.max(0, offset),
+    lastSlug: slug,
+  });
   const state = usePlayerStore.getState();
   const result = await radioEngine.load({
     url: track.audioUrl,
@@ -356,7 +380,11 @@ async function loadTrack(
     status: playing ? "playing" : "paused",
     currentTime: result.currentTime,
     duration: result.duration,
+    lastTrackId: track.id,
+    lastOffsetSec: result.currentTime,
+    lastSlug: slug,
   });
+  persist();
   if (playing) usePlayerStore.getState().bumpView(track.id);
   const channel = channelOf(slug);
   const playable = getPlayableTracks(channel);
@@ -381,6 +409,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   muted: false,
   autoplay: true,
   lastSlug: null,
+  lastTrackId: null,
+  lastOffsetSec: 0,
   visited: false,
   gateOpen: false,
   playerCollapsed: true,
@@ -399,6 +429,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   listenModeSession: null,
   buffering: false,
   deckHint: "",
+  catalogReady: false,
 
   hydrate: () => {
     bindEngine();
@@ -411,6 +442,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({
       autoplay: p.autoplay,
       lastSlug: p.lastSlug,
+      lastTrackId: p.lastTrackId,
+      lastOffsetSec: p.lastOffsetSec,
       visited,
       playerCollapsed: p.playerCollapsed,
       volume: p.volume,
@@ -427,14 +460,28 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     });
     radioEngine.setGain(p.volume, false);
     if (visited && !p.visited) persist();
-    void import("@/lib/desk-api")
-      .then(({ listCatalogEdits, listCutGroups }) => Promise.all([listCatalogEdits(), listCutGroups()]))
-      .then(([data, cuts]) => {
-        get().replaceCatalog(applyCatalogEdits(getSeedCatalog(), data.tracks, data.stations));
-        get().replaceCutGroups(cuts.groups);
+    void import("@/lib/live-catalog")
+      .then(({ ensureLiveCatalog }) => ensureLiveCatalog())
+      .then(async () => {
+        try {
+          const { listCutGroups } = await import("@/lib/desk-api");
+          const cuts = await listCutGroups();
+          get().replaceCutGroups(cuts.groups);
+        } catch {
+          /* groups are optional */
+        }
+        get().replaceCatalog(getCatalog());
       })
       .catch(() => {
         /* seed is enough */
+      })
+      .finally(() => {
+        set({ catalogReady: true });
+        const s = get();
+        if (typeof window === "undefined") return;
+        if (!s.visited || s.gateOpen || !s.lastSlug || s.track) return;
+        if (pageCuesPlayback(window.location.pathname)) return;
+        void get().tuneIn(s.lastSlug);
       });
     if (typeof window !== "undefined") {
       (window as unknown as { __radioDebug?: unknown }).__radioDebug = {
@@ -512,7 +559,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
     const alreadyHere =
-      get().channelSlug === slug && (get().status === "playing" || get().status === "loading") && get().track;
+      get().channelSlug === slug &&
+      Boolean(get().track) &&
+      get().status !== "idle" &&
+      get().status !== "off-air" &&
+      get().status !== "missing";
     if (alreadyHere) {
       set({ visited: true, gateOpen: false, lastSlug: slug });
       persist();
@@ -531,11 +582,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         const track = head?.track ?? playable[0];
         const offset = head?.offsetSec ?? 0;
         await loadTrack(slug, track, offset, play, set, 0, "join");
-      } else if (mixing) {
-        const track = nextShuffled(playable, null, recents) ?? playable[0];
-        await loadTrack(slug, track, 0, play, set, 0, "flow");
       } else {
-        await loadTrack(slug, playable[0], 0, play, set, 0, "flow");
+        const resumeId = get().lastTrackId;
+        const resume = resumeId ? playable.find((item) => item.id === resumeId) : undefined;
+        if (resume) {
+          const dur = durationOf(resume);
+          const raw = get().lastOffsetSec || 0;
+          const offset = dur > 3 && raw >= dur - 1.5 ? 0 : Math.min(Math.max(0, raw), Math.max(0, dur - 0.25));
+          await loadTrack(slug, resume, offset, play, set, 0, "flow");
+        } else if (mixing) {
+          const track = nextShuffled(playable, null, recents) ?? playable[0];
+          await loadTrack(slug, track, 0, play, set, 0, "flow");
+        } else {
+          await loadTrack(slug, playable[0], 0, play, set, 0, "flow");
+        }
       }
     };
     loadLock = Promise.resolve(loadLock).then(run, run);

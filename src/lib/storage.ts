@@ -7,6 +7,8 @@ const LEGACY = "radio.persist.v3";
 export type Persisted = {
   autoplay: boolean;
   lastSlug: string | null;
+  lastTrackId: string | null;
+  lastOffsetSec: number;
   visited: boolean;
   playerCollapsed: boolean;
   volume: number;
@@ -22,6 +24,8 @@ export type Persisted = {
 const defaults: Persisted = {
   autoplay: true,
   lastSlug: null,
+  lastTrackId: null,
+  lastOffsetSec: 0,
   visited: false,
   playerCollapsed: true,
   volume: 0.85,
@@ -49,6 +53,8 @@ export function loadPersisted(): Persisted {
         parsed.shuffleBySlug && typeof parsed.shuffleBySlug === "object" ? parsed.shuffleBySlug : {},
       points: Number.isFinite(parsed.points) ? Number(parsed.points) : 0,
       glaumules: Number.isFinite(parsed.glaumules) ? Number(parsed.glaumules) : 0,
+      lastTrackId: typeof parsed.lastTrackId === "string" && parsed.lastTrackId ? parsed.lastTrackId : null,
+      lastOffsetSec: Number.isFinite(parsed.lastOffsetSec) ? Math.max(0, Number(parsed.lastOffsetSec)) : 0,
       listenMode: parseListenMode(parsed.listenMode) ?? "ondemand",
     };
   } catch {

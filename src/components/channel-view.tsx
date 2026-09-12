@@ -22,8 +22,10 @@ import type { Channel } from "@/lib/types";
 export function ChannelView({ channel, sharePath }: { channel: Channel; sharePath?: string }) {
   const tuneIn = usePlayerStore((s) => s.tuneIn);
   const ready = usePlayerStore((s) => s.ready);
+  const catalogReady = usePlayerStore((s) => s.catalogReady);
   const slug = usePlayerStore((s) => s.channelSlug);
   const track = usePlayerStore((s) => s.track);
+  const lastTrackId = usePlayerStore((s) => s.lastTrackId);
   const status = usePlayerStore((s) => s.status);
   const glaumules = usePlayerStore((s) => s.glaumules);
   const listenMode = usePlayerStore((s) => s.listenModeSession ?? s.listenMode);
@@ -32,15 +34,22 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
   const kind = normalizeKind(channel.kind || channel.mode);
   const live = kind === "live";
   const here = slug === channel.slug;
-  const now = here ? track : live ? resolveLivePlayhead(playable, Date.now(), channel.slug)?.track ?? playable[0] : playable[0];
+  const resume = lastTrackId ? playable.find((item) => item.id === lastTrackId) : undefined;
+  const now = here && track
+    ? track
+    : resume
+      ? resume
+      : live && listenMode === "stream"
+        ? resolveLivePlayhead(playable, Date.now(), channel.slug)?.track ?? playable[0]
+        : playable[0];
   const skin = stationSkin(channel);
   const statusLabel = !channel.enabled ? "Off air" : playable.length === 0 ? "Empty desk" : here ? status : kindHint(kind);
   const tags = channel.tags ?? [];
 
   useEffect(() => {
-    if (!ready || !channel.enabled || playable.length === 0) return;
+    if (!ready || !catalogReady || !channel.enabled || playable.length === 0) return;
     void tuneIn(channel.slug, { forcePlay: true });
-  }, [ready, channel.slug, channel.enabled, playable.length, tuneIn]);
+  }, [ready, catalogReady, channel.slug, channel.enabled, playable.length, tuneIn]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 pb-52">
