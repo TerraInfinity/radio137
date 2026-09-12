@@ -680,6 +680,7 @@ body:has(.player-stage) .desk-chat {
   background: color-mix(in oklab, var(--color-bg) 82%, transparent);
 }
 .hero-art-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: min(100%, 26rem);
@@ -687,8 +688,33 @@ body:has(.player-stage) .desk-chat {
   overflow: hidden;
   border-radius: var(--radius-lg);
   background: var(--color-bg-elevated);
-  padding: 0.5rem 0.75rem 0.75rem;
+  padding: 0.75rem 0.75rem 0.75rem;
   box-shadow: var(--shadow-filigree);
+}
+.hero-art-kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  line-height: 2.75rem;
+  padding-right: 2.75rem;
+}
+.hero-art-x {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.15rem;
+  z-index: 2;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: grid;
+  place-items: center;
+  color: var(--color-fg);
+  background: transparent;
+}
+.hero-art-x:hover,
+.hero-art-x:focus-visible {
+  color: var(--color-gold);
 }
 .hero-art-preview {
   width: min(100%, 15rem, 36dvh);

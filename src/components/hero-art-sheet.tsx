@@ -106,17 +106,15 @@ export function HeroArtSheet({
       }}
     >
       <div className="hero-art-panel" onClick={(event) => event.stopPropagation()}>
-        <div className="flex shrink-0 items-center justify-between gap-2">
-          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Hero visual</p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid size-11 shrink-0 place-items-center text-gold"
-            aria-label="Close"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="hero-art-x"
+          aria-label="Close"
+        >
+          <X className="size-5" strokeWidth={2.25} />
+        </button>
+        <p className="hero-art-kicker">Hero visual</p>
         <div className="flex shrink-0 gap-1">
           {(["song", "station"] as const).map((id) => (
             <button
