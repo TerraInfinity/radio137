@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { CoverArt } from "@/components/cover-art";
 import { PhoneArtPicker } from "@/components/phone-art-picker";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
@@ -24,6 +25,25 @@ export function HeroArtSheet({
   const [tab, setTab] = useState<"song" | "station">("song");
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState("");
+
+  useEffect(() => {
+    if (!open) {
+      setHint("");
+      setBusy(false);
+      return;
+    }
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
 
   async function upload(file: File) {
@@ -69,12 +89,15 @@ export function HeroArtSheet({
   }
 
   const preview = tab === "song" ? visualSrc(track, channel) : visualSrc(null, channel);
+  const mb = Math.round(MEDIA_MAX_VIDEO / (1024 * 1024));
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-end bg-bg/80 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:place-items-center"
+      className="hero-art-overlay"
       role="dialog"
+      aria-modal="true"
       aria-label="Replace art"
+      onClick={onClose}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
@@ -82,9 +105,19 @@ export function HeroArtSheet({
         if (file) void upload(file);
       }}
     >
-      <div className="w-full max-w-md rounded-xl bg-bg-elevated p-4 shadow-[var(--shadow-filigree)]">
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">C · hero visual</p>
-        <div className="mt-3 flex gap-1">
+      <div className="hero-art-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between gap-2">
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Hero visual</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid size-11 shrink-0 place-items-center text-gold"
+            aria-label="Close"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+        <div className="flex shrink-0 gap-1">
           {(["song", "station"] as const).map((id) => (
             <button
               key={id}
@@ -99,17 +132,15 @@ export function HeroArtSheet({
             </button>
           ))}
         </div>
-        <CoverArt src={preview} alt="" className="mt-3 aspect-square w-full rounded-lg" motion="loop" />
-        <p className="mt-3 text-sm text-muted">
-          Phone photos (including HEIC) shrink automatically. Short looping mp4 or mov under {Math.round(MEDIA_MAX_VIDEO / (1024 * 1024))} MB. Audio keeps playing.
-        </p>
-        <div className="mt-4 space-y-2">
-          <PhoneArtPicker disabled={busy} onFile={(file) => void upload(file)} />
-          <button type="button" onClick={onClose} className="inline-flex h-11 items-center px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-            Close
-          </button>
+        <div className="hero-art-preview">
+          <CoverArt src={preview} alt="" className="size-full" motion="loop" />
         </div>
-        {hint ? <p className="mt-2 text-sm text-muted">{hint}</p> : null}
+        <p className="mt-2 shrink-0 text-xs leading-snug text-muted">
+          {hint || `Photos, HEIC, or a looping clip under ${mb} MB. Audio keeps playing.`}
+        </p>
+        <div className="mt-2 shrink-0">
+          <PhoneArtPicker disabled={busy} onFile={(file) => void upload(file)} label={busy ? "Working…" : "Choose file"} />
+        </div>
       </div>
     </div>
   );
