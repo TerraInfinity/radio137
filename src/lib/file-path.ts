@@ -65,3 +65,26 @@ export function desksHoldingKey(channels: Channel[], key: string): string[] {
   }
   return hits;
 }
+
+/** One pass over the catalog so R2 rows can look up desks in O(1). */
+export function buildDeskKeyIndex(channels: Channel[]): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const channel of channels) {
+    for (const track of channel.tracks) {
+      if (track.enabled === false) continue;
+      const key = normalizeR2Key(r2KeyFromAudioUrl(track.audioUrl) || "");
+      if (!key) continue;
+      const list = map.get(key);
+      if (list) {
+        if (!list.includes(channel.slug)) list.push(channel.slug);
+      } else {
+        map.set(key, [channel.slug]);
+      }
+    }
+  }
+  return map;
+}
+
+export function desksForKey(index: Map<string, string[]>, key: string): string[] {
+  return index.get(normalizeR2Key(key)) ?? [];
+}

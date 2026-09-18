@@ -159,6 +159,7 @@ export function StationChat({ slug }: { slug: string }) {
   }, [mounted, hasPlayer, hidden]);
 
   useEffect(() => {
+    if (!mounted || hidden || !open) return;
     let alive = true;
     const pull = () => {
       void listStationChat({ data: { slug } })
@@ -170,12 +171,12 @@ export function StationChat({ slug }: { slug: string }) {
         });
     };
     pull();
-    const timer = window.setInterval(pull, 5000);
+    const timer = window.setInterval(pull, 20_000);
     return () => {
       alive = false;
       window.clearInterval(timer);
     };
-  }, [slug]);
+  }, [slug, mounted, open, hidden]);
 
   useEffect(() => {
     const el = listRef.current;

@@ -75,6 +75,8 @@ type StationRow = {
   energy: string | null;
   category: string | null;
   cover: string | null;
+  animation_url?: string | null;
+  video_url?: string | null;
   kind: string | null;
   mode: string | null;
   featured: boolean | null;
@@ -98,6 +100,8 @@ function mapStation(row: StationRow): StationEdit {
     energy: row.energy,
     category: row.category,
     cover: row.cover,
+    animationUrl: row.animation_url ?? null,
+    videoUrl: row.video_url ?? null,
     kind: row.kind,
     mode: row.mode,
     featured: row.featured,
@@ -116,23 +120,31 @@ export async function listStationEdits(): Promise<StationEdit[]> {
   const sql = await getSql();
   try {
     const rows = await sql<StationRow>`
-      select slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable, public_slug, aliases
+      select slug, added, hidden, name, description, energy, category, cover, animation_url, video_url, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable, public_slug, aliases
       from radio_station_edits order by slug asc
     `;
     return rows.map(mapStation);
   } catch {
     try {
       const rows = await sql<StationRow>`
+        select slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable, public_slug, aliases
+        from radio_station_edits order by slug asc
+      `;
+      return rows.map((row) => mapStation({ ...row, animation_url: null, video_url: null }));
+    } catch {
+    try {
+      const rows = await sql<StationRow>`
         select slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable
         from radio_station_edits order by slug asc
       `;
-      return rows.map((row) => mapStation({ ...row, public_slug: null, aliases: null }));
+      return rows.map((row) => mapStation({ ...row, animation_url: null, video_url: null, public_slug: null, aliases: null }));
     } catch {
       const rows = await sql<StationRow>`
         select slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags
         from radio_station_edits order by slug asc
       `;
-      return rows.map((row) => mapStation({ ...row, shuffle: null, claimable: null, public_slug: null, aliases: null }));
+      return rows.map((row) => mapStation({ ...row, animation_url: null, video_url: null, shuffle: null, claimable: null, public_slug: null, aliases: null }));
+    }
     }
   }
 }
@@ -416,7 +428,7 @@ export async function upsertStation(
   const write = async () =>
     sql<StationRow>`
     insert into radio_station_edits (
-      slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable, public_slug, aliases, editor_id, editor_email, updated_at
+      slug, added, hidden, name, description, energy, category, cover, animation_url, video_url, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable, public_slug, aliases, editor_id, editor_email, updated_at
     ) values (
       ${patch.slug},
       ${patch.added ?? false},
@@ -426,6 +438,8 @@ export async function upsertStation(
       ${patch.energy ?? null},
       ${patch.category ?? null},
       ${patch.cover ?? null},
+      ${patch.animationUrl ?? null},
+      ${patch.videoUrl ?? patch.animationUrl ?? null},
       ${patch.kind ?? null},
       ${patch.mode ?? patch.kind ?? null},
       ${patch.featured ?? null},
@@ -449,6 +463,8 @@ export async function upsertStation(
       energy = coalesce(excluded.energy, radio_station_edits.energy),
       category = coalesce(excluded.category, radio_station_edits.category),
       cover = coalesce(excluded.cover, radio_station_edits.cover),
+      animation_url = coalesce(excluded.animation_url, radio_station_edits.animation_url),
+      video_url = coalesce(excluded.video_url, radio_station_edits.video_url),
       kind = coalesce(excluded.kind, radio_station_edits.kind),
       mode = coalesce(excluded.mode, radio_station_edits.mode),
       featured = case when ${featuredTouch} then excluded.featured else radio_station_edits.featured end,
@@ -463,7 +479,7 @@ export async function upsertStation(
       editor_id = excluded.editor_id,
       editor_email = excluded.editor_email,
       updated_at = now()
-    returning slug, added, hidden, name, description, energy, category, cover, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable, public_slug, aliases
+    returning slug, added, hidden, name, description, energy, category, cover, animation_url, video_url, kind, mode, featured, featured_rank, enabled, nsfw, tags, shuffle, claimable, public_slug, aliases
   `;
   try {
     const rows = await write();

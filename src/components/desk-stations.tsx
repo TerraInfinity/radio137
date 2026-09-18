@@ -217,7 +217,7 @@ function FeaturedRail({ channels }: { channels: Channel[] }) {
   }
 
   return (
-    <FoldSection title={`Featured rail · ${featured.length}`} hint="Edit" className="mt-0">
+    <FoldSection title={`Featured rail · ${featured.length}`} hint="Edit" className="mt-0" persist="featured">
       <p className="text-sm text-muted">This is the homepage rail. Move, remove, or add a station here — you do not need to open the station first.</p>
       {featured.length === 0 ? <p className="mt-3 text-sm text-subtle">Nothing on the rail yet.</p> : null}
       <ul className="mt-3 space-y-2">
@@ -295,7 +295,7 @@ function NewStationForm() {
   const [featured, setFeatured] = useState(false);
   const [busy, setBusy] = useState(false);
   return (
-    <FoldSection title="New station" hint="Create" className="mt-0">
+    <FoldSection title="New station" hint="Create" className="mt-0" persist="new-station">
     <form
       className="space-y-3"
       onSubmit={(event) => {
@@ -422,13 +422,30 @@ function StationWorkspace({
             {channel.enabled ? "Take off air" : "Restore to air"}
           </button>
       </div>
-      <FoldSection title="Station settings" hint="Edit" className="mt-4" titleClassName="text-gold">
+      <FoldSection title="Station settings" hint="Edit" className="mt-4" titleClassName="text-gold" persist={`settings:${channel.slug}`}>
         <StationSettingsForm key={`${channel.slug}:${channel.shuffle}:${channel.kind}`} channel={channel} compact />
       </FoldSection>
 
-      <AddSongsPanel channel={channel} channels={channels} r2Configured={r2Configured} />
+      <FoldSection
+        title="Add songs"
+        hint="Search R2"
+        className="mt-4"
+        titleClassName="text-gold"
+        defaultOpen
+        persist={`add:${channel.slug}`}
+      >
+        <AddSongsPanel channel={channel} channels={channels} r2Configured={r2Configured} />
+      </FoldSection>
 
-      <Playlist channel={channel} others={others} r2Configured={r2Configured} />
+      <FoldSection
+        title={`Playlist · ${channel.tracks.filter((track) => track.enabled !== false).length}`}
+        hint="Open"
+        className="mt-4"
+        titleClassName="text-gold"
+        persist={`plist:${channel.slug}`}
+      >
+        <Playlist channel={channel} others={others} r2Configured={r2Configured} />
+      </FoldSection>
     </div>
   );
 }
@@ -492,7 +509,7 @@ function Playlist({ channel, others, r2Configured }: { channel: Channel; others:
   }
 
   return (
-    <div className="mt-8 border-t border-line pt-6">
+    <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Playlist</p>

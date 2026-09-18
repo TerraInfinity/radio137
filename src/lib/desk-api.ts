@@ -35,8 +35,12 @@ export const getRadioSession = createServerFn({ method: "GET" })
   }));
 
 export const listCatalogEdits = createServerFn({ method: "GET" }).handler(async () => {
+  const now = Date.now();
+  if (catalogEditCache && now - catalogEditCache.at < 20_000) return catalogEditCache.payload;
   const { listEdits, listStationEdits } = await import("@/lib/catalog-edits.server");
-  return { tracks: await listEdits(), stations: await listStationEdits() };
+  const payload = { tracks: await listEdits(), stations: await listStationEdits() };
+  catalogEditCache = { at: now, payload };
+  return payload;
 });
 
 const trackRef = z.object({
@@ -45,7 +49,11 @@ const trackRef = z.object({
   audioUrl: z.string().optional(),
 });
 
+type CatalogSnapshot = Awaited<ReturnType<typeof snapshot>>;
+let catalogEditCache: { at: number; payload: CatalogSnapshot } | null = null;
+
 async function snapshot() {
+  catalogEditCache = null;
   const { listEdits, listStationEdits } = await import("@/lib/catalog-edits.server");
   return { tracks: await listEdits(), stations: await listStationEdits() };
 }
@@ -278,6 +286,8 @@ export const saveStation = createServerFn({ method: "POST" })
         energy: z.string().optional(),
         category: z.string().optional(),
         cover: z.string().optional(),
+        animationUrl: z.string().optional(),
+        videoUrl: z.string().optional(),
         kind: z.enum(["live", "ondemand", "fixed"]).optional(),
         featured: z.boolean().optional(),
         featuredRank: z.number().optional(),
@@ -493,4 +503,105 @@ export const pingServices = createServerFn({ method: "GET" })
       hub: { origin, status: hubStatus, ok: hubOk, note: hubNote },
       r2: { ok: r2Ok, note: r2Note, sample: r2Sample },
     };
+  });
+
+const AUDIO_NAME = /\.(mp3|wav|flac|m4a|ogg|aac)$/i;
+const ART_NAME = /\.(jpe?g|png|webp|gif|avif|mp4|webm|mov|m4v)$/i;
+const AUDIO_MAX = 80 * 1024 * 1024;
+
+export const mintDeskUpload = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z
+      .object({
+        kind: z.enum(["audio", "art"]),
+        slug: z.string().min(1),
+        filename: z.string().min(1),
+        contentType: z.string().optional(),
+        size: z.number().int().nonnegative().optional(),
+        trackId: z.string().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { defaultPrefixForSlug, presignR2Put, r2Configured, sanitizeUploadName } = await import("@/lib/r2.server");
+    const { MEDIA_MAX_IMAGE, MEDIA_MAX_VIDEO } = await import("@/lib/media");
+    if (!r2Configured()) throw new Error("R2 keys are not set");
+    const name = sanitizeUploadName(data.filename);
+    const type = (data.contentType || "").toLowerCase();
+    const size = data.size ?? 0;
+    if (data.kind === "audio") {
+      if (!AUDIO_NAME.test(name)) throw new Error("Audio only (mp3, wav, flac, m4a, ogg, aac)");
+      if (size > AUDIO_MAX) throw new Error("File is larger than 80 MB");
+    } else {
+      if (!ART_NAME.test(name) && !type.startsWith("image/") && !type.startsWith("video/")) {
+        throw new Error("Art only (photo or a short mp4 / webm / mov)");
+      }
+      const video = /\.(mp4|webm|mov|m4v)$/i.test(name) || type.startsWith("video/");
+      if (video && size > MEDIA_MAX_VIDEO) throw new Error(`Keep looping videos under ${Math.round(MEDIA_MAX_VIDEO / (1024 * 1024))} MB`);
+      if (!video && size > MEDIA_MAX_IMAGE) throw new Error("Keep stills under 2 MB — the picker shrinks them first");
+    }
+    const folder =
+      data.kind === "audio"
+        ? `${defaultPrefixForSlug(data.slug)}${data.trackId ? `${data.trackId}-` : ""}`
+        : data.trackId
+          ? `radio/art/${data.slug}/${data.trackId}`
+          : `radio/art/${data.slug}`;
+    const key = `${folder}${data.kind === "audio" ? name : `/${Date.now()}-${name}`}`.replace(/\/+/g, "/");
+    const contentType = type || (data.kind === "audio" ? "audio/mpeg" : "application/octet-stream");
+    const signed = await presignR2Put(key, contentType);
+    return { putUrl: signed.putUrl, key: signed.key, publicUrl: signed.url, contentType };
+  });
+
+export const completeDeskUpload = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z
+      .object({
+        kind: z.enum(["audio", "art"]),
+        slug: z.string().min(1),
+        key: z.string().min(1),
+        title: z.string().optional(),
+        coverUrl: z.string().optional(),
+        trackId: z.string().optional(),
+        contentType: z.string().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { publicUrlForKey } = await import("@/lib/r2.server");
+    const { addTrack, patchTrack, upsertStation } = await import("@/lib/catalog-edits.server");
+    const key = data.key.replace(/^\/+/, "");
+    const audioPrefix = `radio/${data.slug}/`;
+    const artPrefix = `radio/art/${data.slug}/`;
+    if (data.kind === "audio" && !key.startsWith(audioPrefix)) throw new Error("Key does not belong to this station");
+    if (data.kind === "art" && !key.startsWith(artPrefix)) throw new Error("Key does not belong to this station");
+    const url = publicUrlForKey(key);
+    const video = /\.(mp4|webm|mov|m4v)$/i.test(key) || (data.contentType || "").startsWith("video/");
+    if (data.kind === "audio") {
+      const title = (data.title || "").trim() || key.split("/").pop()?.replace(/\.[^.]+$/, "") || "Untitled";
+      const edit = data.trackId
+        ? await patchTrack(context.user, {
+            channelSlug: data.slug,
+            trackId: data.trackId,
+            audioUrl: url,
+            coverUrl: data.coverUrl,
+          })
+        : await addTrack(context.user, {
+            channelSlug: data.slug,
+            title,
+            audioUrl: url,
+            coverUrl: data.coverUrl,
+            r2Key: key,
+          });
+      return { ok: true as const, object: { key, url }, kind: "audio" as const, edit, ...(await snapshot()) };
+    }
+    if (data.trackId) {
+      await patchTrack(context.user, { channelSlug: data.slug, trackId: data.trackId, coverUrl: url });
+    } else if (video) {
+      await upsertStation(context.user, { slug: data.slug, animationUrl: url, videoUrl: url });
+    } else {
+      await upsertStation(context.user, { slug: data.slug, cover: url });
+    }
+    return { ok: true as const, object: { key, url }, kind: video ? ("video" as const) : ("image" as const), ...(await snapshot()) };
   });

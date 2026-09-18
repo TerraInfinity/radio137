@@ -1,11 +1,16 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
+
+function foldKey(id: string) {
+  return `radio.desk.fold.${id}`;
+}
 
 /** Advanced blocks start closed so the page stays a listen surface. */
 export function FoldSection({
   title,
   hint = "Open",
   defaultOpen = false,
+  persist,
   children,
   className,
   titleClassName,
@@ -13,16 +18,42 @@ export function FoldSection({
   title: string;
   hint?: string;
   defaultOpen?: boolean;
+  persist?: string;
   children: ReactNode;
   className?: string;
   titleClassName?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => {
+    if (!persist) return;
+    try {
+      const value = window.localStorage.getItem(foldKey(persist));
+      if (value === "1") setOpen(true);
+      if (value === "0") setOpen(false);
+    } catch {
+      /* ignore */
+    }
+  }, [persist]);
+
+  function toggle() {
+    setOpen((value) => {
+      const next = !value;
+      if (persist) {
+        try {
+          window.localStorage.setItem(foldKey(persist), next ? "1" : "0");
+        } catch {
+          /* ignore */
+        }
+      }
+      return next;
+    });
+  }
+
   return (
     <section className={cn("mt-6 overflow-hidden rounded-xl bg-bg-elevated shadow-[var(--shadow-border)]", className)}>
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={toggle}
         aria-expanded={open}
         className="flex h-12 w-full items-center justify-between gap-3 px-3 text-left"
       >
@@ -41,19 +72,46 @@ export function FoldDetails({
   title,
   hint = "Open",
   defaultOpen = false,
+  persist,
   children,
 }: {
   title: string;
   hint?: string;
   defaultOpen?: boolean;
+  persist?: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => {
+    if (!persist) return;
+    try {
+      const value = window.localStorage.getItem(foldKey(persist));
+      if (value === "1") setOpen(true);
+      if (value === "0") setOpen(false);
+    } catch {
+      /* ignore */
+    }
+  }, [persist]);
+
+  function toggle() {
+    setOpen((value) => {
+      const next = !value;
+      if (persist) {
+        try {
+          window.localStorage.setItem(foldKey(persist), next ? "1" : "0");
+        } catch {
+          /* ignore */
+        }
+      }
+      return next;
+    });
+  }
+
   return (
     <div className="mt-3">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={toggle}
         aria-expanded={open}
         className="flex h-11 w-full items-center justify-between gap-3 text-left"
       >

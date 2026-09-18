@@ -3,7 +3,7 @@ import { addStationTrack, deleteStationFile, hideStationTrack, patchStationTrack
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { audioPathParts, fileLocationLabel, r2KeyFromAudioUrl } from "@/lib/file-path";
 import { getSeedCatalog } from "@/lib/catalog";
-import { getBearerToken } from "@/lib/auth/client";
+import { directDeskUpload } from "@/lib/direct-upload";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 import { cn, slugify } from "@/lib/cn";
@@ -104,22 +104,15 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
     setBusy("file");
     setHint(`Uploading ${file.name}…`);
     try {
-      const body = new FormData();
-      body.set("slug", slug);
-      body.set("trackId", track.id);
-      body.set("file", file);
-      if (coverUrl.trim()) body.set("coverUrl", coverUrl.trim());
-      const token = getBearerToken();
-      const res = await fetch("/api/desk/upload", {
-        method: "POST",
-        body,
-        credentials: "include",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      const result = await directDeskUpload({
+        kind: "audio",
+        slug,
+        file,
+        trackId: track.id,
+        coverUrl: coverUrl.trim() || undefined,
       });
-      const json = (await res.json()) as { error?: string; tracks?: Parameters<typeof applyCatalogEdits>[1]; stations?: Parameters<typeof applyCatalogEdits>[2]; object?: { url: string } };
-      if (!res.ok) throw new Error(json.error || "Upload failed");
-      if (json.tracks) applySnapshot(json.tracks, json.stations ?? [], playingId, next);
-      if (json.object?.url) setAudioUrl(json.object.url);
+      if (result.tracks) applySnapshot(result.tracks, result.stations ?? [], playingId, next);
+      if (result.object?.url) setAudioUrl(result.object.url);
       setHint(`Replaced with ${file.name}`);
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Upload failed");

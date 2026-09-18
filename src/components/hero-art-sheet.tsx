@@ -3,10 +3,10 @@ import { X } from "lucide-react";
 import { CoverArt } from "@/components/cover-art";
 import { PhoneArtPicker } from "@/components/phone-art-picker";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
-import { getBearerToken } from "@/lib/auth/client";
 import { getSeedCatalog } from "@/lib/catalog";
 import { MEDIA_MAX_VIDEO, visualSrc } from "@/lib/media";
 import { prepareArtFile } from "@/lib/prepare-art";
+import { directDeskUpload } from "@/lib/direct-upload";
 import { cn } from "@/lib/cn";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel, Track } from "@/lib/types";
@@ -52,33 +52,16 @@ export function HeroArtSheet({
     try {
       const ready = await prepareArtFile(file);
       setHint(`Uploading ${ready.name}…`);
-      const body = new FormData();
-      body.set("slug", channel.slug);
-      if (tab === "song") body.set("trackId", track.id);
-      body.set("file", ready);
-      const token = getBearerToken();
-      const res = await fetch("/api/desk/upload-art", {
-        method: "POST",
-        body,
-        credentials: "include",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      const result = await directDeskUpload({
+        kind: "art",
+        slug: channel.slug,
+        file: ready,
+        trackId: tab === "song" ? track.id : undefined,
       });
-      const raw = await res.text();
-      let json: {
-        tracks?: Parameters<typeof applyCatalogEdits>[1];
-        stations?: Parameters<typeof applyCatalogEdits>[2];
-        error?: string;
-      } = {};
-      try {
-        json = raw ? (JSON.parse(raw) as typeof json) : {};
-      } catch {
-        throw new Error(res.status === 413 ? "That clip is too large. Try a shorter video." : "Upload failed");
+      if (result.tracks) {
+        usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), result.tracks, result.stations ?? []));
       }
-      if (!res.ok) throw new Error(json.error || "Upload failed");
-      if (json.tracks) {
-        usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), json.tracks, json.stations ?? []));
-      }
-      setHint(ready.type.startsWith("video/") ? "Looping video saved" : "Photo saved");
+      setHint(result.kind === "video" || ready.type.startsWith("video/") ? "Looping video saved" : "Photo saved");
       usePlayerStore.setState({ deckHint: "Art updated" });
       window.setTimeout(onClose, 600);
     } catch (error) {

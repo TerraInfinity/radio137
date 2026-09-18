@@ -14,7 +14,7 @@ import {
 import { applyCatalogEdits, type CatalogEdit, type StationEdit } from "@/lib/catalog-edits";
 import { getCatalog, getSeedCatalog } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
-import { desksHoldingKey, formatBytes, isAudioKey, titleFromR2Key } from "@/lib/file-path";
+import { desksForKey, buildDeskKeyIndex, formatBytes, isAudioKey, titleFromR2Key } from "@/lib/file-path";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 import { SignInChoices } from "@/components/sign-in-choices";
@@ -102,7 +102,7 @@ function DeskPage() {
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">C · God desk</p>
       <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight">Station desk</h1>
       <p className="mt-3 max-w-prose text-muted">
-        Featured rail, playlists, and a directory so copied folders list as one song. Files dropped on R2 stay off-air until you import them onto a station.
+        Pick a station, add songs, keep the rest folded. R2 scans in the background so the desk stays light.
       </p>
       <DeskOverview channels={channels} reviewOpen={reviewOpen} />
       <div className="mt-6 flex flex-wrap gap-1">
@@ -179,7 +179,7 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
 
   function refresh(nextPrefix = prefix) {
     setStatus("loading");
-    void listStationR2({ data: { prefix: nextPrefix, maxKeys: 2500 } })
+    void listStationR2({ data: { prefix: nextPrefix, maxKeys: 800 } })
       .then((result) => {
         setObjects(result.objects);
         setStatus(result.ok ? "ready" : "error");
@@ -191,11 +191,6 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
       });
   }
 
-  useEffect(() => {
-    if (r2Configured) refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [r2Configured]);
-
   function toggleAssign(slug: string) {
     setAssign((current) => (current.includes(slug) ? current.filter((item) => item !== slug) : [...current, slug]));
   }
@@ -204,13 +199,14 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
     setPicked((current) => (current.includes(key) ? current.filter((item) => item !== key) : [...current, key]));
   }
 
+  const keyIndex = useMemo(() => buildDeskKeyIndex(channels), [channels]);
   const rows = useMemo(() => {
     const needle = filter.trim().toLowerCase();
-    return objects
+    const mapped = objects
       .map((object) => ({
         ...object,
         audio: isAudioKey(object.key),
-        desks: desksHoldingKey(channels, object.key),
+        desks: desksForKey(keyIndex, object.key),
         title: titleFromR2Key(object.key),
       }))
       .filter((object) => {
@@ -219,7 +215,8 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
         if (needle && !`${object.title} ${object.key}`.toLowerCase().includes(needle)) return false;
         return true;
       });
-  }, [objects, channels, onlyNew, filter]);
+    return mapped.slice(0, 80);
+  }, [objects, keyIndex, onlyNew, filter]);
 
   async function importKeys(keys: string[]) {
     const items = objects
@@ -259,7 +256,7 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
   return (
     <div className="mt-8">
       <p className="max-w-prose text-sm text-muted">
-        Files dropped in the bucket stay silent until you import them onto a station. Scan a folder, tick songs, pick one or more desks, then import.
+        Pick a station folder to scan. The whole bucket is too large to list on open — this tab waits until you ask.
       </p>
       <div className="mt-3 flex flex-wrap gap-1">
         <button
@@ -366,7 +363,8 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
           Move
         </button>
       </form>
-      {status === "loading" ? <p className="mt-4 text-sm text-muted">Listing…</p> : null}
+      {status === "idle" ? <p className="mt-4 text-sm text-muted">Choose a station folder above, or type a prefix and list.</p> : null}
+      {status === "loading" ? <p className="mt-4 text-sm text-muted">Listing this folder… the rest of the desk stays usable.</p> : null}
       {status === "error" ? <p className="mt-4 text-sm text-ember">{error}</p> : null}
       <ul className="mt-4 max-h-[28rem] space-y-1 overflow-y-auto rounded-xl bg-bg-elevated p-3">
         {rows.map((object) => (

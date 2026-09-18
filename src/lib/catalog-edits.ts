@@ -30,6 +30,8 @@ export type StationEdit = {
   energy: string | null;
   category: string | null;
   cover: string | null;
+  animationUrl: string | null;
+  videoUrl: string | null;
   kind: string | null;
   mode: string | null;
   featured: boolean | null;
@@ -131,6 +133,8 @@ export function applyCatalogEdits(
       energy: station?.energy || channel.energy,
       category: station?.category || channel.category,
       cover: station?.cover || channel.cover,
+      animationUrl: station?.animationUrl || station?.videoUrl || channel.animationUrl,
+      videoUrl: station?.videoUrl || station?.animationUrl || channel.videoUrl,
       kind,
       mode: station?.mode ? normalizeKind(station.mode) : kind,
       featured: station?.featured ?? channel.featured,
@@ -174,6 +178,8 @@ export function applyCatalogEdits(
         mode: kind,
         kind,
         cover: station.cover || "/covers/ember-frequency.jpg",
+        animationUrl: station.animationUrl || station.videoUrl || undefined,
+        videoUrl: station.videoUrl || station.animationUrl || undefined,
         description: station.description || "",
         enabled: station.enabled ?? true,
         tags: station.tags ? station.tags.split(",").map((item) => item.trim()).filter(Boolean) : ["new"],

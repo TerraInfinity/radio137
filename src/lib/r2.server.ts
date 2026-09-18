@@ -2,9 +2,11 @@ import {
   CopyObjectCommand,
   DeleteObjectCommand,
   ListObjectsV2Command,
+  PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -47,7 +49,7 @@ function client(): S3Client {
 
 export type R2Object = { key: string; size: number; url: string };
 
-function publicUrlForKey(key: string): string {
+export function publicUrlForKey(key: string): string {
   return `${r2PublicBase()}/${key.split("/").map(encodeURIComponent).join("/")}`;
 }
 
@@ -68,7 +70,7 @@ export async function listR2Prefix(prefix: string, maxKeys = 2500): Promise<R2Ob
         Bucket: bucket(),
         Prefix: cleaned,
         ContinuationToken: token,
-        MaxKeys: Math.min(200, maxKeys - out.length),
+        MaxKeys: Math.min(1000, maxKeys - out.length),
       }),
     );
     for (const item of page.Contents ?? []) {
@@ -119,4 +121,45 @@ export async function putR2Object(key: string, body: Uint8Array, contentType: st
     }),
   );
   return { key: cleaned, size: body.byteLength, url: publicUrlForKey(cleaned) };
+}
+
+export async function presignR2Put(key: string, contentType: string, expiresIn = 600): Promise<R2Object & { putUrl: string }> {
+  const cleaned = cleanKey(key);
+  await ensureR2PutCors();
+  const putUrl = await getSignedUrl(
+    client(),
+    new PutObjectCommand({
+      Bucket: bucket(),
+      Key: cleaned,
+      ContentType: contentType || "application/octet-stream",
+    }),
+    { expiresIn },
+  );
+  return { key: cleaned, size: 0, url: publicUrlForKey(cleaned), putUrl };
+}
+
+let corsAttempted = false;
+async function ensureR2PutCors() {
+  if (corsAttempted) return;
+  corsAttempted = true;
+  try {
+    await client().send(
+      new PutBucketCorsCommand({
+        Bucket: bucket(),
+        CORSConfiguration: {
+          CORSRules: [
+            {
+              AllowedOrigins: ["*"],
+              AllowedMethods: ["GET", "PUT", "HEAD"],
+              AllowedHeaders: ["*"],
+              ExposeHeaders: ["ETag", "Location"],
+              MaxAgeSeconds: 86400,
+            },
+          ],
+        },
+      }),
+    );
+  } catch {
+    /* Bucket CORS may already be set, or the token cannot change it. Presigned PUT still works when CORS allows the app origin. */
+  }
 }

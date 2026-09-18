@@ -2,19 +2,12 @@ import { useState } from "react";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { CoverArt } from "@/components/cover-art";
 import { PhoneArtPicker } from "@/components/phone-art-picker";
-import { getBearerToken } from "@/lib/auth/client";
 import { getSeedCatalog } from "@/lib/catalog";
-import { MEDIA_MAX_VIDEO } from "@/lib/media";
+import { directDeskUpload } from "@/lib/direct-upload";
+import { MEDIA_MAX_VIDEO, isLoopingVisual } from "@/lib/media";
 import { prepareArtFile } from "@/lib/prepare-art";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
-
-type Snapshot = {
-  tracks?: Parameters<typeof applyCatalogEdits>[1];
-  stations?: Parameters<typeof applyCatalogEdits>[2];
-  object?: { url: string };
-  error?: string;
-};
 
 export function ArtUpload({
   slug,
@@ -25,7 +18,7 @@ export function ArtUpload({
   slug: string;
   trackId?: string;
   current?: string;
-  onUrl?: (url: string) => void;
+  onUrl?: (url: string, kind: "image" | "video") => void;
 }) {
   const { r2Configured, isAdmin, isPending } = useRadioUser();
   const [busy, setBusy] = useState(false);
@@ -38,30 +31,18 @@ export function ArtUpload({
     try {
       const ready = await prepareArtFile(file);
       setHint(`Uploading ${ready.name}…`);
-      const body = new FormData();
-      body.set("slug", slug);
-      if (trackId) body.set("trackId", trackId);
-      body.set("file", ready);
-      const token = getBearerToken();
-      const res = await fetch("/api/desk/upload-art", {
-        method: "POST",
-        body,
-        credentials: "include",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      const result = await directDeskUpload({
+        kind: "art",
+        slug,
+        file: ready,
+        trackId,
       });
-      const raw = await res.text();
-      let json: Snapshot = {};
-      try {
-        json = raw ? (JSON.parse(raw) as Snapshot) : {};
-      } catch {
-        throw new Error(res.status === 413 ? "That clip is too large. Try a shorter video." : "Upload failed");
+      if (result.tracks) {
+        usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), result.tracks, result.stations ?? []));
       }
-      if (!res.ok) throw new Error(json.error || "Upload failed");
-      if (json.tracks) {
-        usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), json.tracks, json.stations ?? []));
-      }
-      if (json.object?.url) onUrl?.(json.object.url);
-      setHint(ready.type.startsWith("video/") ? "Looping video saved" : "Photo saved");
+      const kind = result.kind === "video" || isLoopingVisual(result.object.url) ? "video" : "image";
+      onUrl?.(result.object.url, kind);
+      setHint(kind === "video" ? "Looping video saved" : "Photo saved");
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Upload failed");
       setHint("");
@@ -79,7 +60,7 @@ export function ArtUpload({
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Upload art</span>
         <p className="mt-1 text-sm text-muted">
           {r2Configured
-            ? `Photos, HEIC, or a looping clip under ${mb} MB. Cards stay still; the open page loops it.`
+            ? `Photos, HEIC, or a looping clip under ${mb} MB. Cards and the station page both play motion.`
             : "R2 keys are dark — paste a URL instead."}
         </p>
         {r2Configured ? (

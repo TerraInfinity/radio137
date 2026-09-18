@@ -1,7 +1,7 @@
 import { CoverArt } from "@/components/cover-art";
 import { stationSkin } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
-import { visualSrc } from "@/lib/media";
+import { isLoopingVisual, stationVisualSrc } from "@/lib/media";
 import type { Channel } from "@/lib/types";
 
 export function StationVisual({
@@ -14,9 +14,11 @@ export function StationVisual({
   size?: "thumb" | "card" | "hero";
 }) {
   const skin = stationSkin(channel);
+  const src = stationVisualSrc(channel);
+  const poster = channel.cover && !isLoopingVisual(channel.cover) && src !== channel.cover ? channel.cover : undefined;
   return (
     <div className={cn("relative overflow-hidden", className)}>
-      <CoverArt src={visualSrc(null, channel)} alt="" className="size-full" motion={size === "hero" ? "loop" : "still"} />
+      <CoverArt src={src} poster={poster} alt="" className="size-full" motion="loop" />
       <div
         className={cn(
           "station-motion pointer-events-none absolute inset-0",

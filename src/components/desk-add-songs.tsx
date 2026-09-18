@@ -1,20 +1,21 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link2, Plus, Search, Upload } from "lucide-react";
-import { getBearerToken } from "@/lib/auth/client";
-import { applyCatalogEdits, type CatalogEdit, type StationEdit } from "@/lib/catalog-edits";
+import { FoldDetails } from "@/components/fold-section";
+import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getSeedCatalog } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
-import { desksHoldingKey, formatBytes, isAudioKey, titleFromR2Key } from "@/lib/file-path";
+import { buildDeskKeyIndex, desksForKey, formatBytes, isAudioKey, titleFromR2Key } from "@/lib/file-path";
 import { addStationTrack, importR2Tracks, listStationR2, placeStationTrack } from "@/lib/desk-api";
+import { directDeskUpload } from "@/lib/direct-upload";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel, Track } from "@/lib/types";
 
 type R2Hit = { key: string; size: number; url: string };
 
 const r2Cache = new Map<string, { at: number; objects: R2Hit[] }>();
-const R2_TTL = 90_000;
+const R2_TTL = 120_000;
 
-function applySnapshot(tracks: CatalogEdit[], stations: StationEdit[]) {
+function applySnapshot(tracks: Parameters<typeof applyCatalogEdits>[1], stations: Parameters<typeof applyCatalogEdits>[2]) {
   usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), tracks, stations));
 }
 
@@ -22,12 +23,14 @@ function fail(error: unknown) {
   window.alert(error instanceof Error ? error.message : "Desk save failed");
 }
 
-async function loadR2Prefix(prefix: string): Promise<R2Hit[]> {
-  const hit = r2Cache.get(prefix);
+async function loadR2Prefix(prefix: string, maxKeys = 800): Promise<R2Hit[]> {
+  const cacheKey = `${prefix}#${maxKeys}`;
+  const hit = r2Cache.get(cacheKey) ?? r2Cache.get(prefix);
   if (hit && Date.now() - hit.at < R2_TTL) return hit.objects;
-  const result = await listStationR2({ data: { prefix, maxKeys: 2500 } });
+  const result = await listStationR2({ data: { prefix, maxKeys } });
   if (!result.ok) throw new Error(result.error || "Could not list R2");
   const objects = result.objects.filter((item) => isAudioKey(item.key));
+  r2Cache.set(cacheKey, { at: Date.now(), objects });
   r2Cache.set(prefix, { at: Date.now(), objects });
   return objects;
 }
@@ -52,8 +55,9 @@ export function AddSongsPanel({
 }) {
   const [query, setQuery] = useState("");
   const [r2Objects, setR2Objects] = useState<R2Hit[]>([]);
-  const [r2Status, setR2Status] = useState<"idle" | "loading" | "ready" | "error">(r2Configured ? "loading" : "idle");
+  const [r2Status, setR2Status] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [r2Error, setR2Error] = useState("");
+  const [wideStatus, setWideStatus] = useState<"idle" | "loading" | "ready">("idle");
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [hint, setHint] = useState("");
   const [title, setTitle] = useState("");
@@ -64,42 +68,72 @@ export function AddSongsPanel({
   const fileRef = useRef<HTMLInputElement>(null);
   const stationPrefix = `radio/${channel.slug}/`;
   const others = useMemo(() => channels.filter((item) => item.slug !== channel.slug), [channels, channel.slug]);
+  const keyIndex = useMemo(() => buildDeskKeyIndex(channels), [channels]);
 
   useEffect(() => {
     if (!r2Configured) return;
     let live = true;
+    const cached = r2Cache.get(stationPrefix);
+    if (cached && Date.now() - cached.at < R2_TTL) {
+      setR2Objects(cached.objects);
+      setR2Status("ready");
+      return;
+    }
     setR2Status("loading");
     setR2Error("");
-    void loadR2Prefix(stationPrefix)
-      .then(async (stationFiles) => {
-        if (!live) return;
-        setR2Objects(stationFiles);
-        setR2Status("ready");
-        try {
-          const all = await loadR2Prefix("radio/");
+    const timer = window.setTimeout(() => {
+      void loadR2Prefix(stationPrefix, 800)
+        .then((stationFiles) => {
           if (!live) return;
-          const byKey = new Map(stationFiles.map((item) => [item.key, item]));
-          for (const item of all) if (!byKey.has(item.key)) byKey.set(item.key, item);
-          setR2Objects([...byKey.values()]);
-        } catch {
-          /* station folder is enough */
-        }
-      })
-      .catch((error: unknown) => {
-        if (!live) return;
-        setR2Status("error");
-        setR2Error(error instanceof Error ? error.message : "Could not list R2");
-      });
+          startTransition(() => {
+            setR2Objects(stationFiles);
+            setR2Status("ready");
+          });
+        })
+        .catch((error: unknown) => {
+          if (!live) return;
+          setR2Status("error");
+          setR2Error(error instanceof Error ? error.message : "Could not list R2");
+        });
+    }, 40);
     return () => {
       live = false;
+      window.clearTimeout(timer);
     };
   }, [r2Configured, stationPrefix]);
 
   const needle = query.trim().toLowerCase();
+  const searching = needle.length >= 2;
+
+  useEffect(() => {
+    if (!r2Configured || !searching || wideStatus === "ready" || wideStatus === "loading") return;
+    let live = true;
+    setWideStatus("loading");
+    void loadR2Prefix("radio/", 1000)
+      .then((all) => {
+        if (!live) return;
+        startTransition(() => {
+          setR2Objects((current) => {
+            const byKey = new Map(current.map((item) => [item.key, item]));
+            for (const item of all) if (!byKey.has(item.key)) byKey.set(item.key, item);
+            return [...byKey.values()];
+          });
+          setWideStatus("ready");
+        });
+      })
+      .catch(() => {
+        if (!live) return;
+        setWideStatus("idle");
+      });
+    return () => {
+      live = false;
+    };
+  }, [r2Configured, searching, wideStatus]);
+
   const r2Hits = useMemo(() => {
     const rows = r2Objects.map((object) => {
       const name = titleFromR2Key(object.key);
-      const desks = desksHoldingKey(channels, object.key);
+      const desks = desksForKey(keyIndex, object.key);
       const here = desks.includes(channel.slug);
       const inFolder = object.key.startsWith(stationPrefix);
       const q = needle;
@@ -114,8 +148,8 @@ export function AddSongsPanel({
       ? rows.filter((item) => item.points > 0)
       : rows.filter((item) => item.inFolder && !item.here);
     filtered.sort((a, b) => b.points - a.points || Number(a.here) - Number(b.here) || a.name.localeCompare(b.name));
-    return filtered.slice(0, 40);
-  }, [r2Objects, channels, channel.slug, stationPrefix, needle]);
+    return filtered.slice(0, 24);
+  }, [r2Objects, keyIndex, channel.slug, stationPrefix, needle]);
 
   const libraryHits = useMemo(() => {
     if (needle.length < 2) return [];
@@ -132,11 +166,11 @@ export function AddSongsPanel({
         const already = channel.tracks.some((item) => item.enabled !== false && item.audioUrl === track.audioUrl);
         if (already) continue;
         rows.push({ station, track, points });
-        if (rows.length >= 80) break;
+        if (rows.length >= 40) break;
       }
     }
     rows.sort((a, b) => b.points - a.points || a.track.title.localeCompare(b.track.title));
-    return rows.slice(0, 20);
+    return rows.slice(0, 12);
   }, [needle, others, channel.tracks]);
 
   async function addR2(hit: R2Hit, name: string) {
@@ -147,8 +181,7 @@ export function AddSongsPanel({
         data: { channelSlugs: [channel.slug], items: [{ key: hit.key, url: hit.url, title: name }] },
       });
       applySnapshot(result.tracks, result.stations);
-      r2Cache.delete(stationPrefix);
-      r2Cache.delete("radio/");
+      r2Cache.clear();
       setHint(result.added ? `Added ${name}` : "Already on this station");
     } catch (error) {
       fail(error);
@@ -210,28 +243,15 @@ export function AddSongsPanel({
       const file = audio[i];
       setHint(`Uploading ${file.name}…`);
       try {
-        const body = new FormData();
-        body.set("slug", channel.slug);
-        body.set("coverUrl", channel.cover);
-        body.set("file", file);
-        const token = getBearerToken();
-        const res = await fetch("/api/desk/upload", {
-          method: "POST",
-          body,
-          credentials: "include",
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        const result = await directDeskUpload({
+          kind: "audio",
+          slug: channel.slug,
+          file,
+          title: titleFromR2Key(file.name),
+          coverUrl: channel.cover,
         });
-        const raw = await res.text();
-        let json: { error?: string; tracks?: CatalogEdit[]; stations?: StationEdit[] } = {};
-        try {
-          json = raw ? (JSON.parse(raw) as typeof json) : {};
-        } catch {
-          throw new Error(res.status === 413 ? "File is too large (80 MB max)." : res.status === 401 ? "Sign in again to upload." : "Upload failed");
-        }
-        if (!res.ok) throw new Error(json.error || "Upload failed");
-        if (json.tracks) applySnapshot(json.tracks, json.stations ?? []);
-        r2Cache.delete(stationPrefix);
-        r2Cache.delete("radio/");
+        if (result.tracks) applySnapshot(result.tracks, result.stations ?? []);
+        r2Cache.clear();
         setUploads((current) => current.map((item, index) => (index === i ? { ...item, state: "ok" } : item)));
       } catch (error) {
         const detail = error instanceof Error ? error.message : "Upload failed";
@@ -242,16 +262,13 @@ export function AddSongsPanel({
     setHint((current) => (current.startsWith("Uploading") ? "Upload finished" : current));
   }
 
-  const searching = needle.length >= 2;
   const showR2 = r2Configured && (searching || r2Hits.length > 0);
-  const emptySearch = searching && r2Hits.length === 0 && libraryHits.length === 0 && r2Status !== "loading";
+  const emptySearch = searching && r2Hits.length === 0 && libraryHits.length === 0 && r2Status !== "loading" && wideStatus !== "loading";
 
   return (
-    <section className="mt-8 border-t border-line pt-6">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Add songs</p>
-      <h3 className="mt-1 font-display text-2xl font-semibold tracking-tight">Put a cut on {channel.name}</h3>
-      <p className="mt-2 max-w-prose text-sm text-muted">
-        Search the bucket or another desk, drop a file from this device, or paste a URL. Files already sitting on R2 stay off-air until you add them here.
+    <div>
+      <p className="max-w-prose text-sm text-muted">
+        Search this folder first. Type two letters to look across R2 and other desks. Upload and URLs stay folded until you need them.
       </p>
 
       <label className="relative mt-4 block">
@@ -267,20 +284,22 @@ export function AddSongsPanel({
       </label>
       <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
         {r2Status === "loading"
-          ? "Reading R2…"
+          ? "Scanning this folder in the background…"
           : r2Status === "error"
             ? r2Error
             : !r2Configured
               ? "R2 keys are dark — search other desks or paste a URL."
-              : searching
-                ? `${r2Hits.length + libraryHits.length} matches`
-                : r2Hits.length
-                  ? `${r2Hits.length} new in this folder — type to search the rest`
-                  : "No new audio in this folder. Search all of R2, or upload."}
+              : wideStatus === "loading"
+                ? "Still reading the rest of the bucket…"
+                : searching
+                  ? `${r2Hits.length + libraryHits.length} matches`
+                  : r2Hits.length
+                    ? `${r2Hits.length} new in this folder — type to search farther`
+                    : "No new audio in this folder. Search, upload, or paste a URL."}
       </p>
 
       {showR2 || libraryHits.length > 0 ? (
-        <ul className="mt-3 max-h-80 space-y-1 overflow-y-auto rounded-lg bg-bg p-2">
+        <ul className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-lg bg-bg p-2">
           {r2Hits.map((hit) => {
             const desks = hit.desks.map((slug) => channels.find((item) => item.slug === slug)?.name || slug);
             return (
@@ -330,74 +349,77 @@ export function AddSongsPanel({
           })}
         </ul>
       ) : null}
-      {emptySearch ? <p className="mt-3 text-sm text-muted">No matches. Try another spelling, or upload / paste a URL below.</p> : null}
+      {emptySearch ? <p className="mt-3 text-sm text-muted">No matches yet. Keep typing, or upload / paste a URL below.</p> : null}
 
-      {r2Configured ? (
-        <div
-          className={cn("desk-add-drop mt-5", hot && "desk-add-drop-hot")}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setHot(true);
-          }}
-          onDragLeave={() => setHot(false)}
-          onDrop={(event) => {
-            event.preventDefault();
-            setHot(false);
-            const files = [...event.dataTransfer.files];
-            if (files.length) void sendFiles(files);
-          }}
-        >
-          <Upload className="size-4 text-gold" />
-          <div className="min-w-0 flex-1">
-            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">From this device</p>
-            <p className="mt-1 text-sm text-muted">Drop mp3 / wav / flac / m4a here, or choose files. They land in this station’s folder and on the playlist.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="inline-flex h-11 shrink-0 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg"
-          >
-            Choose files
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            accept="audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/ogg,audio/aac,.mp3,.wav,.flac,.m4a,.ogg,.aac"
-            className="sr-only"
-            onChange={(event) => {
-              const files = [...(event.target.files ?? [])];
-              event.target.value = "";
+      <FoldDetails title="Upload from this device" hint="Open" persist={`upload:${channel.slug}`}>
+        {r2Configured ? (
+          <div
+            className={cn("desk-add-drop", hot && "desk-add-drop-hot")}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setHot(true);
+            }}
+            onDragLeave={() => setHot(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setHot(false);
+              const files = [...event.dataTransfer.files];
               if (files.length) void sendFiles(files);
             }}
-          />
-        </div>
-      ) : (
-        <p className="mt-5 text-sm text-muted">Uploads need R2 keys — use the Services tab.</p>
-      )}
-      {uploads.length > 0 ? (
-        <ul className="mt-2 space-y-1 font-mono text-[11px] uppercase tracking-[0.12em]">
-          {uploads.map((item) => (
-            <li key={item.name} className={item.state === "err" ? "text-ember" : item.state === "ok" ? "text-gold" : "text-subtle"}>
-              {item.state === "up" ? "Uploading" : item.state === "ok" ? "Added" : "Failed"} · {item.name}
-              {item.detail ? ` — ${item.detail}` : ""}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+          >
+            <Upload className="size-4 text-gold" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-muted">Drop mp3 / wav / flac / m4a, or choose files. They land in this folder and on the playlist.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="inline-flex h-11 shrink-0 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg"
+            >
+              Choose files
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              accept="audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/ogg,audio/aac,.mp3,.wav,.flac,.m4a,.ogg,.aac"
+              className="sr-only"
+              onChange={(event) => {
+                const files = [...(event.target.files ?? [])];
+                event.target.value = "";
+                if (files.length) void sendFiles(files);
+              }}
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-muted">Uploads need R2 keys — use the Services tab.</p>
+        )}
+        {uploads.length > 0 ? (
+          <ul className="space-y-1 font-mono text-[11px] uppercase tracking-[0.12em]">
+            {uploads.map((item) => (
+              <li key={item.name} className={item.state === "err" ? "text-ember" : item.state === "ok" ? "text-gold" : "text-subtle"}>
+                {item.state === "up" ? "Uploading" : item.state === "ok" ? "Added" : "Failed"} · {item.name}
+                {item.detail ? ` — ${item.detail}` : ""}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </FoldDetails>
 
-      <form className="mt-5 grid gap-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto]" onSubmit={(event) => void addUrl(event)}>
-        <p className="sm:col-span-3 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-gold">
-          <Link2 className="size-3.5" />
-          From a URL
-        </p>
-        <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title (optional)" autoComplete="off" />
-        <input className="input" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="https://…" autoComplete="off" spellCheck={false} />
-        <button type="submit" disabled={urlBusy || !audioUrl.trim()} className="inline-flex h-11 items-center justify-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
-          {urlBusy ? "Adding…" : "Add URL"}
-        </button>
-      </form>
+      <FoldDetails title="Paste a URL" hint="Open" persist={`url:${channel.slug}`}>
+        <form className="grid gap-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto]" onSubmit={(event) => void addUrl(event)}>
+          <p className="sm:col-span-3 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-gold">
+            <Link2 className="size-3.5" />
+            From a URL
+          </p>
+          <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title (optional)" autoComplete="off" />
+          <input className="input" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="https://…" autoComplete="off" spellCheck={false} />
+          <button type="submit" disabled={urlBusy || !audioUrl.trim()} className="inline-flex h-11 items-center justify-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
+            {urlBusy ? "Adding…" : "Add URL"}
+          </button>
+        </form>
+      </FoldDetails>
       {hint ? <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.12em] text-gold">{hint}</p> : null}
-    </section>
+    </div>
   );
 }

@@ -21,6 +21,7 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
   const [energy, setEnergy] = useState(channel.energy ?? "");
   const [tags, setTags] = useState(channel.tags.join(", "));
   const [cover, setCover] = useState(channel.cover ?? "");
+  const [motion, setMotion] = useState(channel.videoUrl || channel.animationUrl || "");
   const [publicSlug, setPublicSlug] = useState(channel.publicSlug ?? "");
   const [aliases, setAliases] = useState((channel.aliases ?? []).join(", "));
   const [nsfw, setNsfw] = useState(Boolean(channel.nsfw));
@@ -45,6 +46,8 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
             energy: energy.trim() || undefined,
             tags: tags.trim() || undefined,
             cover: cover.trim() || undefined,
+            animationUrl: motion.trim() || undefined,
+            videoUrl: motion.trim() || undefined,
             publicSlug,
             aliases,
             nsfw,
@@ -123,11 +126,23 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
         <input className="input mt-1" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="comma separated" />
       </label>
       <label className="block">
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Art URL</span>
-        <input className="input mt-1" value={cover} onChange={(event) => setCover(event.target.value)} placeholder="https://… jpg or mp4" />
-        <span className="mt-1 block text-sm text-muted">Still under 2 MB, or a looping mp4 under 10 MB. Cards stay still so the free plan does not stream every loop.</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Cover URL</span>
+        <input className="input mt-1" value={cover} onChange={(event) => setCover(event.target.value)} placeholder="https://… jpg / png / webp" />
+        <span className="mt-1 block text-sm text-muted">Still poster for the card. Used if motion is empty, and as the video poster when both are set.</span>
       </label>
-      <ArtUpload slug={channel.slug} current={cover} onUrl={setCover} />
+      <label className="block">
+        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Animation / video URL</span>
+        <input className="input mt-1" value={motion} onChange={(event) => setMotion(event.target.value)} placeholder="https://… mp4 / webm" />
+        <span className="mt-1 block text-sm text-muted">Muted looping clip on the home card and station hero. Overlays stay on top.</span>
+      </label>
+      <ArtUpload
+        slug={channel.slug}
+        current={motion || cover}
+        onUrl={(url, kind) => {
+          if (kind === "video") setMotion(url);
+          else setCover(url);
+        }}
+      />
       <div className="flex flex-wrap gap-4">
         <label className="inline-flex h-11 items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
           <input type="checkbox" checked={featured} onChange={(event) => setFeatured(event.target.checked)} />

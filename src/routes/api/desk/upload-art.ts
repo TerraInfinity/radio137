@@ -74,6 +74,8 @@ export const Route = createFileRoute("/api/desk/upload-art")({
           const object = await putR2Object(key, bytes, meta.type);
           if (trackId) {
             await patchTrack(user, { channelSlug: slug, trackId, coverUrl: object.url });
+          } else if (meta.video) {
+            await upsertStation(user, { slug, animationUrl: object.url, videoUrl: object.url });
           } else {
             await upsertStation(user, { slug, cover: object.url });
           }

@@ -2,7 +2,7 @@
 export const DEFAULT_MEDIA_BASE = "https://r2.terrainfinity.ca";
 export const MEDIA_MAX_IMAGE = 2 * 1024 * 1024;
 export const MEDIA_MAX_IMAGE_PICK = 24 * 1024 * 1024;
-export const MEDIA_MAX_VIDEO = 32 * 1024 * 1024;
+export const MEDIA_MAX_VIDEO = 24 * 1024 * 1024;
 export const ART_ACCEPT =
   "image/*,video/*,image/heic,image/heif,image/heic-sequence,video/quicktime,video/mp4,video/webm,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif,.avif,.mp4,.webm,.mov,.m4v";
 
@@ -79,7 +79,19 @@ export function downloadPath(trackId: string): string {
   return `/api/media/download?id=${encodeURIComponent(trackId)}`;
 }
 
+function firstUrl(...urls: Array<string | null | undefined>): string {
+  for (const url of urls) {
+    if (url && url.trim()) return url.trim();
+  }
+  return "";
+}
+
+/** Station card / hero base layer: motion first, still as fallback. */
+export function stationVisualSrc(channel?: { cover?: string; animationUrl?: string; videoUrl?: string } | null): string {
+  return firstUrl(channel?.videoUrl, channel?.animationUrl, channel?.cover);
+}
+
 /** Still or looping visual for a song, falling back through station motion fields. */
 export function visualSrc(track?: { coverUrl?: string | null } | null, channel?: { cover?: string; animationUrl?: string; videoUrl?: string } | null): string {
-  return track?.coverUrl || channel?.animationUrl || channel?.videoUrl || channel?.cover || "";
+  return firstUrl(track?.coverUrl, stationVisualSrc(channel));
 }
