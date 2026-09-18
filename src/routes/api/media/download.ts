@@ -3,13 +3,7 @@ import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { listEdits, listStationEdits } from "@/lib/catalog-edits.server";
 import { getSeedCatalog, isAdultTrack, isChannelNsfw } from "@/lib/catalog";
 import { mediaUrl } from "@/lib/media";
-import { downloadName } from "@/lib/search";
 import { resolveRadioUser } from "@/lib/sso.server";
-
-function disposition(name: string): string {
-  const ascii = name.replace(/[^\w.\- ()[\]]+/g, "_").slice(0, 180) || "track.mp3";
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
-}
 
 export const Route = createFileRoute("/api/media/download")({
   server: {
@@ -39,18 +33,7 @@ export const Route = createFileRoute("/api/media/download")({
         }
         const src = mediaUrl(hit.track.audioUrl);
         if (!src) return Response.json({ error: "No file" }, { status: 404 });
-        const upstream = await fetch(src);
-        if (!upstream.ok || !upstream.body) {
-          return Response.json({ error: "File is not reachable" }, { status: 502 });
-        }
-        const type = upstream.headers.get("content-type") || "audio/mpeg";
-        return new Response(upstream.body, {
-          headers: {
-            "Content-Type": type,
-            "Content-Disposition": disposition(downloadName(hit.track)),
-            "Cache-Control": "private, max-age=120",
-          },
-        });
+        return Response.redirect(src, 302);
       },
     },
   },

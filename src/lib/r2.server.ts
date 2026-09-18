@@ -118,6 +118,7 @@ export async function putR2Object(key: string, body: Uint8Array, contentType: st
       Key: cleaned,
       Body: body,
       ContentType: contentType || "audio/mpeg",
+      CacheControl: "public, max-age=86400, stale-while-revalidate=604800",
     }),
   );
   return { key: cleaned, size: body.byteLength, url: publicUrlForKey(cleaned) };
@@ -132,6 +133,7 @@ export async function presignR2Put(key: string, contentType: string, expiresIn =
       Bucket: bucket(),
       Key: cleaned,
       ContentType: contentType || "application/octet-stream",
+      CacheControl: "public, max-age=86400, stale-while-revalidate=604800",
     }),
     { expiresIn },
   );
@@ -151,8 +153,8 @@ async function ensureR2PutCors() {
             {
               AllowedOrigins: ["*"],
               AllowedMethods: ["GET", "PUT", "HEAD"],
-              AllowedHeaders: ["*"],
-              ExposeHeaders: ["ETag", "Location"],
+              AllowedHeaders: ["*", "Range", "Content-Type"],
+              ExposeHeaders: ["ETag", "Location", "Accept-Ranges", "Content-Range", "Content-Length"],
               MaxAgeSeconds: 86400,
             },
           ],

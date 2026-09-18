@@ -17,6 +17,8 @@ import type { CutGroup } from "@/lib/cuts";
 import { endPad, radioEngine } from "@/lib/radio-engine";
 import { effectiveKind, listenModeFromLocation, type ListenMode } from "@/lib/listen-mode";
 import { bindMediaSession, flushMediaSession, ignoreHidePause, rebindMediaSession, syncMediaSession } from "@/lib/media-session";
+import { forgetCachedAudio, hasCachedAudio, playableSrc, rememberAudio, shouldHoldAutoAdvance, dataSaverOn, warmTrackSrc } from "@/lib/audio-cache";
+import { mediaUrl } from "@/lib/media";
 import { loadPersisted, savePersisted } from "@/lib/storage";
 import { isLandingLocation } from "@/lib/landing";
 import type { Catalog, Channel, ClaimRecord, Identity, Track } from "@/lib/types";
@@ -323,13 +325,24 @@ async function loadTrack(
     lastSlug: slug,
   });
   const state = usePlayerStore.getState();
-  const result = await radioEngine.load({
-    url: track.audioUrl,
+  const src = await playableSrc(track);
+  let result = await radioEngine.load({
+    url: src,
     offsetSec: offset,
     play,
     volume: state.volume,
     muted: state.muted,
   });
+  if (result.kind === "error" && src.startsWith("blob:")) {
+    await forgetCachedAudio(track.id);
+    result = await radioEngine.load({
+      url: mediaUrl(track.audioUrl),
+      offsetSec: offset,
+      play,
+      volume: state.volume,
+      muted: state.muted,
+    });
+  }
   if (result.kind === "stale") return;
   if (result.kind === "error") {
     await usePlayerStore.getState().next("error");
@@ -390,6 +403,7 @@ async function loadTrack(
   });
   persist();
   if (playing) usePlayerStore.getState().bumpView(track.id);
+  rememberAudio(track);
   const channel = channelOf(slug);
   const playable = getPlayableTracks(channel);
   const kind = effectiveKind(channel, listenOf());
@@ -397,7 +411,11 @@ async function loadTrack(
     kind === "live"
       ? playable[(Math.max(0, playable.findIndex((item) => item.id === track.id)) + 1) % Math.max(playable.length, 1)]
       : pickNext(channel, playable, track.id);
-  if (nxt?.audioUrl && nxt.id !== track.id) radioEngine.warm(nxt.audioUrl);
+  if (nxt?.audioUrl && nxt.id !== track.id) {
+    void warmTrackSrc(nxt).then((warm) => {
+      if (warm) radioEngine.warm(warm);
+    });
+  }
   flushMediaSession();
 }
 
@@ -681,13 +699,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           return;
         }
         const play = true;
+        const hold = async (nxt: Track | null | undefined) => {
+          if (!nxt) return false;
+          if (!shouldHoldAutoAdvance(dataSaverOn(), await hasCachedAudio(nxt.id))) return false;
+          radioEngine.pause();
+          set({ status: "paused" });
+          flushMediaSession();
+          return true;
+        };
         if (kind === "live") {
           const nxt = pickNext(channel, playable, current?.id);
+          if (await hold(nxt)) return;
           if (nxt) await loadTrack(slug, nxt, 0, play, set, 0, "flow");
           return;
         }
         if (!mixing && kind === "fixed") {
           const nxt = current ? neighborTrack(playable, current.id, 1, false) : playable[0];
+          if (await hold(nxt)) return;
           if (nxt) await loadTrack(slug, nxt, 0, true, set, 0, "flow");
           else {
             radioEngine.pause();
@@ -696,6 +724,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           return;
         }
         const nxt = pickNext(channel, playable, current?.id);
+        if (await hold(nxt)) return;
         if (nxt) await loadTrack(slug, nxt, 0, play, set, 0, "flow");
         return;
       }
@@ -923,7 +952,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   toggleFavorite: (trackId) => {
     const favorites = new Set(get().favorites);
     if (favorites.has(trackId)) favorites.delete(trackId);
-    else favorites.add(trackId);
+    else {
+      favorites.add(trackId);
+      const track =
+        get().track?.id === trackId
+          ? get().track
+          : get().catalog.channels.flatMap((channel) => channel.tracks).find((item) => item.id === trackId);
+      if (track) rememberAudio(track, { force: true });
+    }
     set({ favorites: [...favorites] });
     persist();
     void import("@/lib/social-api")
