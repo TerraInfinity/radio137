@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { AuthSlot } from "@/components/auth-slot";
 import { ListenModeLamp } from "@/components/listen-mode-lamp";
+import { TiNetworkMark } from "@/components/ti-network-mark";
 import { getChannel, stationSkin } from "@/lib/catalog";
 import { heldClaim } from "@/lib/claim";
 import { cn } from "@/lib/cn";
@@ -84,11 +85,14 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-sm">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-3 sm:px-4">
-        <Link to="/" className="min-w-0 shrink-0" onClick={() => setOpen(false)}>
-          <p className={cn("mark-radio font-display text-base font-semibold leading-none tracking-[0.28em] sm:text-lg", gold)}>
-            Radio
-          </p>
-        </Link>
+        <div className="flex min-w-0 shrink-0 items-center gap-2">
+          <TiNetworkMark />
+          <Link to="/" className="min-w-0" onClick={() => setOpen(false)}>
+            <p className={cn("mark-radio font-display text-base font-semibold leading-none tracking-[0.28em] sm:text-lg", gold)}>
+              Radio
+            </p>
+          </Link>
+        </div>
         <nav className="ml-2 hidden min-w-0 items-center md:flex">
           <NavLinks />
         </nav>
