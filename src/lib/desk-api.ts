@@ -67,6 +67,24 @@ export const hideStationTrack = createServerFn({ method: "POST" })
     return { edit, ...(await snapshot()) };
   });
 
+export const hideStationTracks = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z
+      .object({
+        channelSlug: z.string().min(1),
+        tracks: z.array(trackRef.extend({ audioUrl: z.string().optional() })).min(1).max(80),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { hideTrack } = await import("@/lib/catalog-edits.server");
+    for (const item of data.tracks) {
+      await hideTrack(context.user, data.channelSlug, item.trackId, item.audioUrl);
+    }
+    return snapshot();
+  });
+
 export const unallocateStationTrack = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
   .validator((input: unknown) =>

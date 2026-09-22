@@ -17,7 +17,8 @@ describe("ritePrimary", () => {
     assert.equal(ritePrimary({ here: true, playing: false, started: true }), "resume");
   });
 
-  it("holds the control while audio is opening", () => {
-    assert.equal(ritePrimary({ here: true, playing: false, started: false, loading: true }), "opening");
+  it("stays a pause control while the rite is opening, so it can be stopped", () => {
+    assert.equal(ritePrimary({ here: true, playing: false, started: false, loading: true }), "pause");
+    assert.equal(ritePrimary({ here: true, playing: false, started: true, loading: true }), "pause");
   });
 });

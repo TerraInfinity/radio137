@@ -110,7 +110,7 @@ export const EXPERIENCES: RadioExperience[] = [
     summary:
       "A fixed-order rite. Sailor-crystal neo-elf tech awakens into a Gallifreyan time war. The blue box holds the stage while the opera watches.",
     cover: "/covers/rose.jpg",
-    loop: "/experiences/rose/tardis-loop.mp4",
+    loop: "/experiences/rose/vortex-storm.mp4",
     bpm: 120,
     phenomenon: "vortex",
     captions: [

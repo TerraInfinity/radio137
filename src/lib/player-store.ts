@@ -66,8 +66,9 @@ type PlayerState = {
   hydrate: () => void;
   enterGate: () => void;
   tuneIn: (slug: string, opts?: { forcePlay?: boolean; fromStart?: boolean; play?: boolean }) => Promise<void>;
-  cueTrack: (slug: string, trackId: string, opts?: { play?: boolean }) => Promise<void>;
+  cueTrack: (slug: string, trackId: string, opts?: { play?: boolean; hold?: boolean }) => Promise<void>;
   togglePlay: () => Promise<void>;
+  halt: () => void;
   next: (reason?: "user" | "ended" | "error") => Promise<void>;
   prev: () => Promise<void>;
   seek: (seconds: number) => void;
@@ -97,6 +98,7 @@ let loadLock: Promise<void> | null = null;
 let engineBound = false;
 let justEndedId: string | null = null;
 let userPaused = false;
+let holdAtEnd = false;
 const viewed = new Set<string>();
 const recents: string[] = [];
 
@@ -348,13 +350,15 @@ async function loadTrack(
   set: (partial: Partial<PlayerState>) => void,
   hops = 0,
   mode: "join" | "flow" = "flow",
+  restart = false,
 ) {
   bindEngine();
   if (!play) {
     radioEngine.pause();
     playbackLock.release();
   }
-  if (justEndedId && track.id === justEndedId && hops === 0 && mode !== "join") {
+  if (restart) justEndedId = null;
+  if (!restart && justEndedId && track.id === justEndedId && hops === 0 && mode !== "join") {
     const channel = channelOf(slug);
     const playable = getPlayableTracks(channel);
     const nxt = pickNext(channel, playable, track.id);
@@ -403,6 +407,7 @@ async function loadTrack(
     play,
     volume: state.volume,
     muted: state.muted,
+    allowPlay: () => !userPaused,
   });
   if (result.kind === "error" && src.startsWith("blob:")) {
     await forgetCachedAudio(track.id);
@@ -412,6 +417,7 @@ async function loadTrack(
       play,
       volume: state.volume,
       muted: state.muted,
+      allowPlay: () => !userPaused,
     });
   }
   if (result.kind === "stale") return;
@@ -646,6 +652,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   tuneIn: async (slug, opts) => {
+    holdAtEnd = false;
     const channel = channelOf(slug);
     if (!channel) {
       set({ status: "idle" });
@@ -718,7 +725,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           const track = nextShuffled(playable, null, recents) ?? playable[0];
           await loadTrack(slug, track, 0, play, set, 0, "flow");
         } else {
-          await loadTrack(slug, playable[0], 0, play, set, 0, "flow");
+          await loadTrack(slug, playable[0], 0, play, set, 0, "flow", Boolean(opts?.fromStart));
         }
       }
     };
@@ -737,11 +744,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
     const play = opts?.play ?? true;
+    holdAtEnd = Boolean(opts?.hold);
     if (play) userPaused = false;
     else userPaused = true;
     await loadTrack(slug, track, 0, play, set, 0, "flow");
     set({ lastSlug: slug, visited: true, gateOpen: false });
     persist();
+  },
+
+  halt: () => {
+    userPaused = true;
+    radioEngine.pause();
+    playbackLock.release();
+    set({ status: "paused", elsewhere: null, buffering: false });
+    flushMediaSession();
   },
 
   togglePlay: async () => {
@@ -757,6 +773,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     userPaused = false;
     takeSpeaker();
     if (state.track && state.channelSlug) {
+      if (holdAtEnd && state.duration > 1 && state.currentTime >= state.duration - 1.25) {
+        userPaused = false;
+        await loadTrack(state.channelSlug, state.track, 0, true, set, 0, "flow");
+        return;
+      }
       if (!radioEngine.snapshot().src) {
         await loadTrack(state.channelSlug, state.track, state.currentTime, true, set, 0, "flow");
         return;
@@ -790,6 +811,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       }
       const mixing = shuffleActive(channel, Boolean(get().shuffleBySlug[slug]));
       if (reason === "ended") {
+        if (holdAtEnd) {
+          userPaused = true;
+          radioEngine.pause();
+          playbackLock.release();
+          set({ status: "paused" });
+          flushMediaSession();
+          return;
+        }
         if (!get().autoplay || userPaused) {
           radioEngine.pause();
           playbackLock.release();
@@ -831,6 +860,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (reason === "user") {
         leaveLiveClock();
         userPaused = false;
+        holdAtEnd = false;
       }
       const nxt = pickNext(channel, playable, current?.id);
       if (nxt) await loadTrack(slug, nxt, 0, true, set, 0, "flow");
@@ -842,6 +872,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   prev: async () => {
     leaveLiveClock();
+    holdAtEnd = false;
     const slug = get().channelSlug;
     if (!slug) return;
     const channel = channelOf(slug);

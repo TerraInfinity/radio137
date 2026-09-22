@@ -1,4 +1,5 @@
 import { getSql } from "@/lib/db";
+import { wholeSeconds } from "@/lib/duration-policy";
 import { r2KeyFromAudioUrl, normalizeR2Key } from "@/lib/file-path";
 import type { CatalogEdit, StationEdit } from "@/lib/catalog-edits";
 import type { RadioUser } from "@/lib/sso.server";
@@ -155,6 +156,7 @@ async function upsertEdit(
 ): Promise<CatalogEdit> {
   const sql = await getSql();
   const r2Key = patch.r2Key ?? (patch.audioUrl ? r2KeyFromAudioUrl(patch.audioUrl) : null);
+  const durationSec = wholeSeconds(patch.durationSec);
   const hiddenTouch = typeof patch.hidden === "boolean";
   const tagsTouch = patch.tags !== undefined;
   const slugTouch = patch.slug !== undefined;
@@ -172,7 +174,7 @@ async function upsertEdit(
       ${patch.sortOrder ?? null},
       ${patch.title ?? null},
       ${patch.artist ?? null},
-      ${patch.durationSec ?? null},
+      ${durationSec},
       ${patch.audioUrl ?? null},
       ${patch.coverUrl ?? null},
       ${r2Key},
@@ -218,7 +220,7 @@ async function upsertEdit(
         ${patch.sortOrder ?? null},
         ${patch.title ?? null},
         ${patch.artist ?? null},
-        ${patch.durationSec ?? null},
+        ${durationSec},
         ${patch.audioUrl ?? null},
         ${patch.coverUrl ?? null},
         ${r2Key},

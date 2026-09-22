@@ -156,7 +156,8 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
           void hide();
         }}
         title="Remove this song from this station"
-        className="inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+        aria-label={`Remove ${track.title} from this station`}
+        className="playlist-remove"
       >
         {busy === "hide" ? "…" : "Remove"}
       </button>

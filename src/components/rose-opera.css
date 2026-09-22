@@ -12,10 +12,33 @@
   color: var(--rose-petal);
 }
 .rose-opera-full {
-  min-height: calc(100dvh - 3.5rem - 6.5rem);
+  min-height: calc(100dvh - 3.5rem);
 }
-.rose-opera.is-cinema.rose-opera-full {
-  min-height: 100dvh;
+.rose-opera.is-arrival .rose-opera-stage,
+.rose-opera.is-arrival .rose-opera-caption,
+.rose-opera.is-arrival .rose-opera-exit {
+  animation: rose-arrival-in 2.6s ease both;
+}
+.rose-opera.is-arrival .rose-opera-caption {
+  animation-delay: 1.15s;
+}
+.rose-opera.is-arrival .rose-opera-exit {
+  animation-delay: 0.7s;
+}
+.rose-opera.is-arrival .rose-look-cycle {
+  opacity: 0;
+  pointer-events: none;
+}
+@keyframes rose-arrival-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rose-opera.is-arrival .rose-opera-stage,
+  .rose-opera.is-arrival .rose-opera-caption,
+  .rose-opera.is-arrival .rose-opera-exit {
+    animation: none;
+  }
 }
 .rose-opera:not(.rose-opera-full) {
   min-height: 22rem;
@@ -35,16 +58,34 @@
   transition: opacity 400ms var(--ease-out-smooth), transform 400ms var(--ease-out-smooth);
 }
 .rose-opera-full .rose-opera-copy {
-  min-height: calc(100dvh - 3.5rem - 6.5rem);
-  padding-bottom: 1.5rem;
+  min-height: calc(100dvh - 3.5rem);
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
 }
 .rose-opera.is-cinema .rose-opera-copy {
   min-height: 100dvh;
+  padding-bottom: 2.25rem;
+}
+.rose-opera.is-drifting .rose-opera-copy {
+  opacity: 0.14;
+  transform: translateY(10px);
+  transition: opacity 2.2s ease, transform 2.2s ease;
 }
 .rose-opera-copy.is-hidden {
   opacity: 0;
   pointer-events: none;
   transform: translateY(12px);
+}
+body:has(.rose-opera-full) header.sticky {
+  transition: transform 700ms var(--ease-out-smooth), opacity 700ms var(--ease-out-smooth);
+}
+body.rose-drift-on header.sticky {
+  transform: translateY(-22%);
+  opacity: 0.35;
+  transition: transform 2.2s ease, opacity 2.2s ease;
+}
+body.rose-drift-on .player-dock {
+  opacity: 0.28;
+  transition: opacity 2.2s ease;
 }
 .rose-opera-stage {
   position: absolute;
@@ -57,14 +98,27 @@
   height: 100%;
   z-index: 2;
   pointer-events: none;
+  background: transparent;
 }
-.rose-opera[data-phenomenon="vortex"] .rose-opera-canvas,
-.rose-opera[data-phenomenon="petals"] .rose-opera-canvas {
-  background: #06020a;
+.rose-storm-bed {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.34;
+  mix-blend-mode: screen;
+}
+.rose-opera[data-phenomenon="vortex"] .rose-storm-bed,
+.rose-opera.is-stage .rose-storm-bed {
+  opacity: 1;
+  mix-blend-mode: normal;
 }
 .rose-opera-stills {
   position: absolute;
   inset: 0;
+  z-index: 0;
   opacity: var(--rose-stills, 0.72);
 }
 .rose-opera-still,
@@ -342,9 +396,7 @@
 .rose-opera[data-phenomenon="obay"] .rose-opera-caption,
 .rose-opera[data-phenomenon="copter"] .rose-opera-caption,
 .rose-opera[data-phenomenon="stillhot"] .rose-opera-caption {
-  font-style: italic;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  display: none;
 }
 .rose-opera[data-phenomenon="prom"] .rose-opera-air {
   opacity: 0.45;
@@ -354,12 +406,7 @@
 }
 .rose-opera-vortex,
 .rose-opera-vortex span {
-  pointer-events: none;
-  position: absolute;
-  z-index: 1;
-  border-radius: 999px;
-  border: 1px solid color-mix(in oklab, var(--color-gold) 35%, transparent);
-  box-shadow: 0 0 40px #c9a36a22, inset 0 0 24px #6ec8d41f;
+  display: none;
 }
 .rose-opera-vortex {
   width: min(78vw, 42rem);
@@ -451,17 +498,31 @@
 }
 .rose-opera-caption {
   position: absolute;
-  right: 1.25rem;
-  top: 1.25rem;
+  left: 1rem;
+  right: auto;
+  top: auto;
+  bottom: 1.5rem;
   z-index: 3;
+  max-width: min(16rem, 34vw);
   font-family: var(--font-glaum);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-style: italic;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+  text-align: left;
   color: color-mix(in oklab, var(--rose-petal) 78%, transparent);
   -webkit-text-stroke: 0.22px color-mix(in oklab, var(--rose-vein) 55%, transparent);
   paint-order: stroke fill;
+  pointer-events: none;
+  text-shadow: 0 1px 10px #07030ad9, 0 0 18px #07030acc;
+}
+.rose-opera-full .rose-opera-caption {
+  bottom: calc(6.75rem + env(safe-area-inset-bottom, 0px));
+}
+.rose-opera.is-cinema .rose-opera-caption {
+  bottom: 1.35rem;
+  left: 1rem;
+  max-width: min(16rem, 32vw);
 }
 .rose-opera-actions {
   display: flex;
@@ -530,6 +591,78 @@
   background: #07030a73;
   border-radius: 999px;
 }
+.rose-look-cycle {
+  position: absolute;
+  top: 1.25rem;
+  right: 1rem;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.75rem;
+  padding: 0.2rem 0.65rem 0.2rem 0.2rem;
+  border-radius: 999px;
+  color: var(--rose-petal);
+  background: color-mix(in oklab, #12060c 84%, var(--rose-petal));
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--rose-petal) 34%, transparent),
+    0 12px 28px #000000b8;
+  backdrop-filter: blur(14px);
+}
+.rose-look-cycle img {
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: none;
+  border-radius: 999px;
+  object-fit: cover;
+  outline: 1px solid color-mix(in oklab, var(--rose-petal) 55%, var(--rose-vein));
+  outline-offset: -1px;
+}
+.rose-look-cycle span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+  text-align: left;
+}
+.rose-look-cycle em {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-style: normal;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--rose-petal) 62%, var(--rose-blush));
+}
+.rose-look-cycle b {
+  font-family: var(--font-glaum);
+  font-weight: 500;
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+  color: var(--rose-petal);
+  -webkit-text-stroke: 0.22px color-mix(in oklab, var(--rose-vein) 65%, transparent);
+  paint-order: stroke fill;
+}
+.rose-look-cycle[aria-pressed="true"] {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--rose-blush) 55%, transparent), var(--shadow-filigree);
+}
+.rose-opera.is-atelier .rose-look-cycle,
+.rose-opera:not(.rose-opera-full) .rose-look-cycle span {
+  display: none;
+}
+.rose-opera:not(.rose-opera-full) .rose-look-cycle {
+  top: 0.5rem;
+  right: 0.5rem;
+  padding-right: 0.45rem;
+}
+@media (max-width: 520px) {
+  .rose-look-cycle span {
+    display: none;
+  }
+  .rose-look-cycle {
+    padding-right: 0.45rem;
+  }
+}
 .rose-desk {
   position: absolute;
   left: 0.75rem;
@@ -543,6 +676,12 @@
   background: color-mix(in oklab, var(--color-bg) 88%, transparent);
   box-shadow: var(--shadow-filigree);
   backdrop-filter: blur(16px);
+}
+.rose-opera-full .rose-desk {
+  bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+}
+.rose-opera.is-cinema .rose-desk {
+  bottom: 1.15rem;
 }
 .rose-desk-bar {
   display: flex;
@@ -655,6 +794,12 @@
   box-shadow: var(--shadow-filigree);
   backdrop-filter: blur(16px);
 }
+.rose-opera-full .rose-grok {
+  bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+}
+.rose-opera.is-cinema .rose-grok {
+  bottom: 1.15rem;
+}
 .rose-grok-log {
   display: flex;
   flex-direction: column;
@@ -729,16 +874,80 @@
 .rose-opera.is-hush .rose-glitter {
   animation-play-state: paused;
 }
+body.rose-cinema-on {
+  overflow: hidden;
+}
 body.rose-cinema-on header.sticky {
   transform: translateY(-100%);
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
   transition: transform 320ms var(--ease-out-smooth), opacity 320ms var(--ease-out-smooth);
 }
-body.rose-cinema-on .player-dock:not(.player-sliver) {
-  opacity: 0.55;
+body.rose-cinema-on .player-stage {
+  inset: 0;
 }
+body.rose-cinema-on .player-sliver-rail {
+  left: 12%;
+  right: 12%;
+  bottom: 0.7rem;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: color-mix(in oklab, #07030a 58%, var(--color-prom));
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-prom) 30%, transparent),
+    0 0 14px color-mix(in oklab, var(--color-shrimp) 32%, transparent);
+}
+body.rose-cinema-on .player-sliver-fill {
+  opacity: 1;
+  background: linear-gradient(90deg, var(--rose-vein, #c45c6a), var(--color-shrimp), var(--color-prom));
+  box-shadow: 0 0 10px color-mix(in oklab, var(--color-shrimp) 55%, transparent);
+}
+body.rose-cinema-on .player-shell-rose .player-sliver-fill {
+  background: linear-gradient(90deg, var(--rose-vein, #c45c6a), var(--color-shrimp), var(--color-prom));
+}
+body.rose-cinema-on .player-sliver-mark {
+  opacity: 0.38;
+  margin-bottom: 1.15rem;
+}
+body.rose-cinema-on .player-sliver:hover .player-sliver-rail,
+body.rose-cinema-on .player-sliver:focus-visible .player-sliver-rail {
+  height: 5px;
+}
+body.rose-cinema-on .player-sliver:hover .player-sliver-mark,
+body.rose-cinema-on .player-sliver:focus-visible .player-sliver-mark {
+  opacity: 0.95;
+}
+
+/* Compact deck overlays the stage instead of leaving a site-background shelf. */
+body:has(.rose-opera-full) .player-dock.player-shell-rose:not(.player-sliver) {
+  background:
+    linear-gradient(180deg, transparent 0%, #1a120ee6 18%, #16100cf2 56%, #120c0af7 100%);
+  border-top-color: transparent;
+  box-shadow: 0 -28px 48px #07030a66;
+}
+body:has(.player-sliver) .rose-opera-full:not(.is-cinema) .rose-opera-copy {
+  padding-bottom: 3.25rem;
+}
+body:has(.player-sliver) .rose-opera-full:not(.is-cinema) .rose-opera-caption {
+  bottom: 2.15rem;
+}
+body:has(.player-sliver) .rose-opera-full:not(.is-cinema) .rose-desk,
+body:has(.player-sliver) .rose-opera-full:not(.is-cinema) .rose-grok {
+  bottom: 1.15rem;
+}
+@media (min-width: 960px) {
+  body:has(.player-sliver) .rose-opera-full:not(.is-cinema) .rose-grok {
+    top: 0.75rem;
+    bottom: auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rose-opera-still,
   .rose-opera-vortex,
@@ -794,10 +1003,21 @@ body.rose-cinema-on .player-dock:not(.player-sliver) {
   visibility: hidden;
 }
 .rose-opera[data-phenomenon="vortex"] .rose-opera-loop {
-  opacity: calc(var(--rose-loop, 0.55) * 0.12);
+  opacity: 1;
+  z-index: 1;
+  mix-blend-mode: normal;
+  transform: none;
+  filter: saturate(1.2) contrast(1.12) brightness(1.28);
+}
+.rose-opera[data-phenomenon="vortex"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 46%, transparent 42%, #07030a40 88%),
+    linear-gradient(180deg, #07030a08, #07030a66);
 }
 .rose-opera[data-phenomenon="vortex"] .rose-opera-vortex,
-.rose-opera[data-phenomenon="vortex"] .rose-opera-lantern {
+.rose-opera[data-phenomenon="vortex"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="vortex"] .rose-opera-fields,
+.rose-opera[data-phenomenon="vortex"] .rose-opera-air {
   opacity: 0;
   visibility: hidden;
 }
@@ -902,9 +1122,7 @@ body.rose-cinema-on .player-dock:not(.player-sliver) {
 .rose-opera[data-phenomenon="obay"] .rose-opera-caption,
 .rose-opera[data-phenomenon="copter"] .rose-opera-caption,
 .rose-opera[data-phenomenon="stillhot"] .rose-opera-caption {
-  font-style: italic;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  display: none;
 }
 .rose-atelier-presets button[aria-pressed="true"] {
   color: var(--color-bg);

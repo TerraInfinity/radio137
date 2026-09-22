@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import { FoldSection } from "@/components/fold-section";
+import { GhostCleaner } from "@/components/ghost-cleaner";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getPlayableTracks, getSeedCatalog } from "@/lib/catalog";
 import { cn, formatClock, slugify } from "@/lib/cn";
-import { patchStationTrack, reorderStationTracks, saveStation } from "@/lib/desk-api";
+import { hideStationTrack, patchStationTrack, reorderStationTracks, saveStation } from "@/lib/desk-api";
 import {
   experienceFromChannel,
   listExperiences,
@@ -13,6 +15,7 @@ import {
   type ExperienceDraft,
 } from "@/lib/experiences";
 import { lookForTrack, mergeSceneTags, PHENOMENA, parsePhenomenon, phenomenonAt, sceneFromTags, type PhenomenonId } from "@/lib/phenomena";
+import { ghostDropIds } from "@/lib/playlist-ghosts";
 import { lookFromStation } from "@/lib/rose-look";
 import { durationOf } from "@/lib/playback";
 import { usePlayerStore } from "@/lib/player-store";
@@ -52,8 +55,8 @@ export function DeskExperiences({ channels }: { channels: Channel[] }) {
   return (
     <div className="mt-8 space-y-8">
       <p className="max-w-prose text-sm text-muted">
-        An experience is a fixed-order rite: first song first, no live clock, shuffle off. Each cut can carry its own
-        phenomenon so the stage changes with the music. Pin scenes here, then keep directing in Atelier.
+        An experience is a fixed-order rite: first song first, no live clock, shuffle off. If animation work added a
+        second row for a song that was already here, a ghost banner appears — keep the original file, drop the stub.
       </p>
       <NewExperienceForm channels={candidates} />
       {experiences.length === 0 ? <p className="text-sm text-muted">No rites yet. Make one from a station.</p> : null}
@@ -185,92 +188,87 @@ function ExperienceEditor({ channel, onOpen }: { channel: Channel; onOpen: () =>
   }
 
   return (
-    <div className="space-y-5" onFocus={onOpen}>
-      <div className="flex flex-wrap gap-2">
+    <div className="xp-board" onFocus={onOpen}>
+      <div className="xp-board-actions">
         {xp ? (
-          <Link
-            to="/experiences/$slug"
-            params={{ slug: xp.slug }}
-            className="inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
-          >
+          <Link to="/experiences/$slug" params={{ slug: xp.slug }} className="xp-link">
             Open rite
           </Link>
         ) : null}
-        <Link
-          to="/channel/$slug"
-          params={{ slug: channel.slug }}
-          className="inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
-        >
+        <Link to="/channel/$slug" params={{ slug: channel.slug }} className="xp-link">
           Station
         </Link>
       </div>
-      <form
-        className="space-y-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setBusy(true);
-          void saveStation({
-            data: {
-              slug: channel.slug,
-              kind: "fixed",
-              shuffle: "off",
-              name: draft.title.trim() || channel.name,
-              energy: draft.line.trim() || channel.energy,
-              description: draft.summary.trim() || channel.description,
-              category: "Experience",
-              tags: mergeXpTags(channel.tags, draft),
-            },
-          })
-            .then((result) => applySnapshot(result.tracks, result.stations))
-            .catch(fail)
-            .finally(() => setBusy(false));
-        }}
-      >
-        <input className="input" value={draft.title} onChange={(event) => patch({ title: event.target.value })} placeholder="Title" />
-        <input className="input" value={draft.kicker} onChange={(event) => patch({ kicker: event.target.value })} placeholder="Kicker" />
-        <input className="input" value={draft.line} onChange={(event) => patch({ line: event.target.value })} placeholder="Line" />
-        <input className="input" value={draft.whisper} onChange={(event) => patch({ whisper: event.target.value })} placeholder="Whisper" />
-        <textarea className="input" rows={3} value={draft.summary} onChange={(event) => patch({ summary: event.target.value })} placeholder="Summary" />
-        <label className="block">
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Default BPM</span>
-          <input
-            className="input mt-1"
-            type="number"
-            min={0}
-            max={200}
-            value={draft.bpm}
-            onChange={(event) => patch({ bpm: Number(event.target.value) })}
-          />
-        </label>
-        <textarea
-          className="input"
-          rows={3}
-          value={draft.captions.join("\n")}
-          onChange={(event) => patch({ captions: event.target.value.split("\n") })}
-          placeholder="Captions · one per line"
-        />
-        <div className="flex flex-wrap gap-1">
-          {PHENOMENA.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-pressed={draft.phenomenon === item.id}
-              title={item.hint}
-              onClick={() => patch({ phenomenon: item.id })}
-              className={cn(
-                "inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em]",
-                draft.phenomenon === item.id ? "bg-fg text-bg" : "text-gold",
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <button type="submit" disabled={busy} className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
-          {busy ? "Saving…" : "Save rite"}
-        </button>
-      </form>
+      <GhostCleaner channel={channel} />
       <TrackScenes channel={channel} tracks={playable} stationPhenomenon={draft.phenomenon} />
+      <FoldSection title="Rite identity" hint="Edit" persist={`xp-id-${channel.slug}`} defaultOpen={false}>
+        <form
+          className="space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setBusy(true);
+            void saveStation({
+              data: {
+                slug: channel.slug,
+                kind: "fixed",
+                shuffle: "off",
+                name: draft.title.trim() || channel.name,
+                energy: draft.line.trim() || channel.energy,
+                description: draft.summary.trim() || channel.description,
+                category: "Experience",
+                tags: mergeXpTags(channel.tags, draft),
+              },
+            })
+              .then((result) => applySnapshot(result.tracks, result.stations))
+              .catch(fail)
+              .finally(() => setBusy(false));
+          }}
+        >
+          <input className="input" value={draft.title} onChange={(event) => patch({ title: event.target.value })} placeholder="Title" />
+          <input className="input" value={draft.kicker} onChange={(event) => patch({ kicker: event.target.value })} placeholder="Kicker" />
+          <input className="input" value={draft.line} onChange={(event) => patch({ line: event.target.value })} placeholder="Line" />
+          <input className="input" value={draft.whisper} onChange={(event) => patch({ whisper: event.target.value })} placeholder="Whisper" />
+          <textarea className="input" rows={3} value={draft.summary} onChange={(event) => patch({ summary: event.target.value })} placeholder="Summary" />
+          <label className="block">
+            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Default BPM</span>
+            <input
+              className="input mt-1"
+              type="number"
+              min={0}
+              max={200}
+              value={draft.bpm}
+              onChange={(event) => patch({ bpm: Number(event.target.value) })}
+            />
+          </label>
+          <textarea
+            className="input"
+            rows={3}
+            value={draft.captions.join("\n")}
+            onChange={(event) => patch({ captions: event.target.value.split("\n") })}
+            placeholder="Captions · one per line"
+          />
+          <div className="flex flex-wrap gap-1">
+            {PHENOMENA.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={draft.phenomenon === item.id}
+                title={item.hint}
+                onClick={() => patch({ phenomenon: item.id })}
+                className={cn(
+                  "inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em]",
+                  draft.phenomenon === item.id ? "bg-fg text-bg" : "text-gold",
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <button type="submit" disabled={busy} className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
+            {busy ? "Saving…" : "Save rite"}
+          </button>
+        </form>
+      </FoldSection>
     </div>
   );
 }
@@ -339,26 +337,49 @@ function TrackScenes({
     }
   }
 
+  async function remove(track: Track) {
+    if (!window.confirm(`Remove “${track.title}” from this rite? Other desks keep their copy. The file stays on R2.`)) return;
+    setBusy(true);
+    try {
+      const result = await hideStationTrack({ data: { channelSlug: channel.slug, trackId: track.id, audioUrl: track.audioUrl } });
+      applySnapshot(result.tracks, result.stations);
+    } catch (error) {
+      fail(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const ghosts = ghostDropIds(channel.tracks);
+
   return (
-    <div>
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold">Score · {tracks.length} songs</p>
-      <p className="mt-1 text-sm text-muted">Order is the rite. Each song gets its own phenomenon. Unpinned cuts cycle from the station default.</p>
-      <ol className="mt-3 divide-y divide-line">
+    <div className="xp-card">
+      <p className="xp-kicker">Score · {tracks.length} songs</p>
+      <p className="mt-1 text-sm text-muted">
+        This is the rite in order. Remove drops a row from this playlist only — it does not delete the R2 file. Ghost
+        copies are extra rows added when a scene was painted; keep the real cut.
+      </p>
+      {tracks.length === 0 ? <p className="mt-3 text-sm text-muted">Empty score. Add songs from the Stations tab.</p> : null}
+      <ol className="xp-score">
         {tracks.map((track, index) => {
           const scene = sceneFromTags(track.tags);
           const phenomenon = scene?.phenomenon || phenomenonAt(index, stationPhenomenon);
+          const ghost = ghosts.has(track.id);
           return (
-            <li key={track.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center">
+            <li key={track.id} className={cn("xp-score-row", ghost && "is-ghost")}>
+              <span className="xp-score-index">{String(index + 1).padStart(2, "0")}</span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{index + 1}. {track.title}</p>
+                <p className="truncate font-medium">{track.title}</p>
                 <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
                   {formatClock(durationOf(track))} · {scene ? "pinned" : "cycles"}
+                  {ghost ? " · ghost copy" : ""}
                 </p>
               </div>
               <select
-                className="input sm:max-w-48"
+                className="input xp-score-scene"
                 value={phenomenon}
                 disabled={busy}
+                aria-label={`Phenomenon for ${track.title}`}
                 onChange={(event) => void pin(track, index, parsePhenomenon(event.target.value, stationPhenomenon))}
               >
                 {PHENOMENA.map((item) => (
@@ -367,12 +388,15 @@ function TrackScenes({
                   </option>
                 ))}
               </select>
-              <div className="flex gap-1">
-                <button type="button" disabled={busy || index === 0} className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold disabled:opacity-40" onClick={() => void move(index, -1)}>
-                  Up
+              <div className="xp-score-tools">
+                <button type="button" disabled={busy || index === 0} className="xp-icon" aria-label="Move up" onClick={() => void move(index, -1)}>
+                  <ArrowUp className="size-3.5" />
                 </button>
-                <button type="button" disabled={busy || index === tracks.length - 1} className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold disabled:opacity-40" onClick={() => void move(index, 1)}>
-                  Down
+                <button type="button" disabled={busy || index === tracks.length - 1} className="xp-icon" aria-label="Move down" onClick={() => void move(index, 1)}>
+                  <ArrowDown className="size-3.5" />
+                </button>
+                <button type="button" disabled={busy} className="xp-icon is-danger" aria-label={`Remove ${track.title}`} onClick={() => void remove(track)}>
+                  <Trash2 className="size-3.5" />
                 </button>
               </div>
             </li>
@@ -382,3 +406,4 @@ function TrackScenes({
     </div>
   );
 }
+

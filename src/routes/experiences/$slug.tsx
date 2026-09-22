@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { RoseOpera } from "@/components/rose-opera";
 import { getExperience } from "@/lib/experiences";
-import { getCatalog } from "@/lib/catalog";
+import { getCatalog, getPlayableTracks } from "@/lib/catalog";
 import { ensureLiveCatalog } from "@/lib/live-catalog";
+import { previewTrackOf } from "@/lib/phenomena";
 import { usePlayerStore } from "@/lib/player-store";
 
 export const Route = createFileRoute("/experiences/$slug")({
@@ -26,15 +27,30 @@ function ExperiencePage() {
   const catalog = usePlayerStore((s) => s.catalog);
   const experience = getExperience(slug, catalog.channels.length ? catalog : undefined);
   const tuneIn = usePlayerStore((s) => s.tuneIn);
+  const cueTrack = usePlayerStore((s) => s.cueTrack);
   const ready = usePlayerStore((s) => s.ready);
   const catalogReady = usePlayerStore((s) => s.catalogReady);
-  const here = usePlayerStore((s) => Boolean(experience) && s.channelSlug === experience?.stationSlug);
   const stationSlug = experience?.stationSlug;
+  const arrived = useRef(false);
 
   useEffect(() => {
-    if (!ready || !catalogReady || !stationSlug || here) return;
+    if (!ready || !catalogReady || !stationSlug || !experience || arrived.current) return;
+    arrived.current = true;
+    const state = usePlayerStore.getState();
+    if (experience.slug === "rose") {
+      const channel = catalog.channels.find((item) => item.slug === stationSlug);
+      const preview = previewTrackOf(getPlayableTracks(channel));
+      const play = state.autoplay;
+      if (preview) {
+        void cueTrack(stationSlug, preview.id, { play, hold: true });
+        return;
+      }
+      void tuneIn(stationSlug, { fromStart: true, play });
+      return;
+    }
+    if (state.channelSlug === stationSlug) return;
     void tuneIn(stationSlug, { fromStart: true, play: false });
-  }, [ready, catalogReady, stationSlug, here, tuneIn]);
+  }, [catalog.channels, catalogReady, cueTrack, experience, ready, stationSlug, tuneIn]);
 
   if (!experience) {
     return (

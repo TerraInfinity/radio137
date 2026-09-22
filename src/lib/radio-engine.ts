@@ -7,6 +7,8 @@ export type EngineLoad = {
   play: boolean;
   volume: number;
   muted: boolean;
+  /** Called after awaits. Return false if the listener changed their mind. */
+  allowPlay?: () => boolean;
 };
 
 export type EngineResult =
@@ -87,6 +89,14 @@ export class RadioEngine {
       src: el?.currentSrc || el?.src || "",
       readyState: el?.readyState ?? 0,
     };
+  }
+
+  /** Call from a click, before any await, so the browser accepts playback. */
+  prime() {
+    const el = this.ensure();
+    if (!el) return;
+    const pending = el.play();
+    if (pending) void pending.catch(() => undefined);
   }
 
   pause() {
@@ -181,6 +191,11 @@ export class RadioEngine {
     el.src = mediaUrl(opts.url);
     el.load();
     this.setGain(opts.volume, opts.muted);
+    const wantsPlay = () => opts.play && (!opts.allowPlay || opts.allowPlay());
+    if (wantsPlay()) {
+      const pending = el.play();
+      if (pending) void pending.catch(() => undefined);
+    }
     const ready = await waitFor(el, "loadedmetadata", gen, 10_000, () => this.gen);
     if (gen !== this.gen) return { kind: "stale" };
     if (ready === "error") {
@@ -209,16 +224,28 @@ export class RadioEngine {
         return parked;
       }
     } else {
-      // Never assign currentTime = 0 — a seek-to-zero on a short MP3 drops the first frames.
+      // Never assign currentTime = 0 on a short sting — that seek drops the attack.
       const primed = duration > 0 && duration < 8 ? "canplaythrough" : "canplay";
       await waitFor(el, primed, gen, 3500, () => this.gen);
       if (gen !== this.gen) return { kind: "stale" };
+      if (duration >= 12 && (el.currentTime || 0) > 0.45) {
+        try {
+          el.currentTime = 0;
+        } catch {
+          /* the new src is already at the start */
+        }
+      }
     }
     this.highWater = el.currentTime || 0;
     this.lastAdvanceAt = performance.now();
     this.handlers?.onTime(el.currentTime || 0, duration || el.duration || 0);
     this.loading = false;
-    if (!opts.play) {
+    if (!wantsPlay()) {
+      try {
+        el.pause();
+      } catch {
+        /* ignore */
+      }
       return { kind: "ready", duration: duration || opts.offsetSec, currentTime: el.currentTime || 0 };
     }
     try {

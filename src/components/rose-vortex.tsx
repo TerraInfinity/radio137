@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { RoseLook } from "@/lib/rose-look";
-import type { RosePulse } from "@/lib/rose-pulse";
+import { captionsForPhenomenon, type PhenomenonId } from "@/lib/phenomena";
+import { actSlot, overlayAlpha, type RosePulse } from "@/lib/rose-pulse";
 import { petalFacing, petalFade, spawnAirPetal, stepAirPetal, type AirPetal } from "@/lib/rose-air";
 
 type Star = { a: number; r: number; z: number; len: number };
@@ -73,6 +74,337 @@ function project(x: number, y: number, z: number, cx: number, cy: number, fov: n
 
 function ready(img: HTMLImageElement) {
   return img.complete && img.naturalWidth > 0;
+}
+
+let spritePad: HTMLCanvasElement | null = null;
+
+function featherPad(w: number, h: number): CanvasRenderingContext2D | null {
+  if (typeof document === "undefined") return null;
+  if (!spritePad) spritePad = document.createElement("canvas");
+  const tw = Math.max(32, Math.round(w / 16) * 16);
+  const th = Math.max(32, Math.round(h / 16) * 16);
+  if (spritePad.width !== tw) spritePad.width = tw;
+  if (spritePad.height !== th) spritePad.height = th;
+  const s = spritePad.getContext("2d");
+  if (!s) return null;
+  s.clearRect(0, 0, tw, th);
+  return s;
+}
+
+/** Lift a flat black studio plate off a portrait. The photograph itself is never repainted. */
+const plateCache = new Map<string, HTMLCanvasElement | "keep">();
+
+function lumaOf(r: number, g: number, b: number) {
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function keyedPortrait(img: HTMLImageElement, dw: number, dh: number): HTMLCanvasElement | "keep" | null {
+  const cap = 880;
+  const scale = Math.min(1, cap / Math.max(dw, dh));
+  const cw = Math.max(32, Math.round(dw * scale));
+  const ch = Math.max(32, Math.round(dh * scale));
+  const key = `${img.src}|${cw}x${ch}|plate2`;
+  const hit = plateCache.get(key);
+  if (hit) return hit;
+  if (typeof document === "undefined") return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = cw;
+  canvas.height = ch;
+  const pad = canvas.getContext("2d", { willReadFrequently: true });
+  if (!pad) return null;
+  pad.drawImage(img, 0, 0, cw, ch);
+  const image = pad.getImageData(0, 0, cw, ch);
+  const pix = image.data;
+  const madAt = (x: number, y: number) => {
+    let sr = 0;
+    let sg = 0;
+    let sb = 0;
+    let n = 0;
+    const x0 = Math.max(0, x - 2);
+    const x1 = Math.min(cw - 1, x + 2);
+    const y0 = Math.max(0, y - 2);
+    const y1 = Math.min(ch - 1, y + 2);
+    for (let yy = y0; yy <= y1; yy++) {
+      for (let xx = x0; xx <= x1; xx++) {
+        const i = (yy * cw + xx) * 4;
+        sr += pix[i] ?? 0;
+        sg += pix[i + 1] ?? 0;
+        sb += pix[i + 2] ?? 0;
+        n += 1;
+      }
+    }
+    const mr = sr / n;
+    const mg = sg / n;
+    const mb = sb / n;
+    let dev = 0;
+    for (let yy = y0; yy <= y1; yy++) {
+      for (let xx = x0; xx <= x1; xx++) {
+        const i = (yy * cw + xx) * 4;
+        dev += Math.abs((pix[i] ?? 0) - mr) + Math.abs((pix[i + 1] ?? 0) - mg) + Math.abs((pix[i + 2] ?? 0) - mb);
+      }
+    }
+    return dev / n;
+  };
+  const plateAt = (x: number, y: number, lumaMax: number, madMax: number) => {
+    const i = (y * cw + x) * 4;
+    return lumaOf(pix[i] ?? 0, pix[i + 1] ?? 0, pix[i + 2] ?? 0) < lumaMax && madAt(x, y) < madMax;
+  };
+  let border = 0;
+  let borderPlate = 0;
+  const sample = (x: number, y: number) => {
+    border += 1;
+    if (plateAt(x, y, 36, 10)) borderPlate += 1;
+  };
+  for (let x = 0; x < cw; x += 4) {
+    sample(x, 0);
+    sample(x, ch - 1);
+  }
+  for (let y = 0; y < ch; y += 4) {
+    sample(0, y);
+    sample(cw - 1, y);
+  }
+  if (border < 8 || borderPlate / border < 0.58) {
+    plateCache.set(key, "keep");
+    return "keep";
+  }
+  const voidAt = new Uint8Array(cw * ch);
+  const stack: number[] = [];
+  const consider = (x: number, y: number) => {
+    const p = y * cw + x;
+    if (voidAt[p]) return;
+    if (!plateAt(x, y, 42, 8)) return;
+    voidAt[p] = 1;
+    stack.push(p);
+  };
+  for (let x = 0; x < cw; x++) {
+    consider(x, 0);
+    consider(x, ch - 1);
+  }
+  for (let y = 0; y < ch; y++) {
+    consider(0, y);
+    consider(cw - 1, y);
+  }
+  while (stack.length) {
+    const p = stack.pop() ?? 0;
+    const x = p % cw;
+    const y = (p / cw) | 0;
+    if (x > 0) consider(x - 1, y);
+    if (x < cw - 1) consider(x + 1, y);
+    if (y > 0) consider(x, y - 1);
+    if (y < ch - 1) consider(x, y + 1);
+  }
+  const dist = new Uint16Array(cw * ch);
+  dist.fill(65535);
+  const fringe: number[] = [];
+  for (let p = 0; p < voidAt.length; p++) {
+    if (!voidAt[p]) continue;
+    dist[p] = 0;
+    fringe.push(p);
+  }
+  const reach = 18;
+  for (let head = 0; head < fringe.length; head++) {
+    const p = fringe[head] ?? 0;
+    const d = dist[p] ?? 0;
+    if (d >= reach) continue;
+    const x = p % cw;
+    const y = (p / cw) | 0;
+    const stepTo = (nx: number, ny: number) => {
+      const np = ny * cw + nx;
+      if ((dist[np] ?? 65535) <= d + 1) return;
+      if (!plateAt(nx, ny, 58, 22)) return;
+      dist[np] = d + 1;
+      fringe.push(np);
+    };
+    if (x > 0) stepTo(x - 1, y);
+    if (x < cw - 1) stepTo(x + 1, y);
+    if (y > 0) stepTo(x, y - 1);
+    if (y < ch - 1) stepTo(x, y + 1);
+  }
+  for (let y = 0; y < ch; y++) {
+    const ny = y / ch;
+    const fy = ny < 0.035 ? ny / 0.035 : ny > 0.965 ? (1 - ny) / 0.035 : 1;
+    for (let x = 0; x < cw; x++) {
+      const p = y * cw + x;
+      const d = dist[p] ?? 65535;
+      if (d > reach) continue;
+      const nx = x / cw;
+      const fx = nx < 0.035 ? nx / 0.035 : nx > 0.965 ? (1 - nx) / 0.035 : 1;
+      const fade = d === 0 ? 0 : d / reach;
+      const i = p * 4;
+      pix[i + 3] = Math.round((pix[i + 3] ?? 255) * fade * fx * fy);
+    }
+  }
+  pad.putImageData(image, 0, 0);
+  plateCache.set(key, canvas);
+  if (plateCache.size > 36) {
+    const first = plateCache.keys().next().value;
+    if (first) plateCache.delete(first);
+  }
+  return canvas;
+}
+
+/** Draw the photograph as it was saved. A black studio plate is lifted so the stage shows through. */
+function featherPortrait(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  cx: number,
+  cy: number,
+  dw: number,
+  dh: number,
+  alpha: number,
+  blend: GlobalCompositeOperation = "source-over",
+) {
+  if (!ready(img) || alpha <= 0.02 || dw < 2 || dh < 2) return;
+  const keyed = keyedPortrait(img, dw, dh);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.globalCompositeOperation = blend;
+  if (keyed && keyed !== "keep") ctx.drawImage(keyed, cx - dw / 2, cy - dh / 2, dw, dh);
+  else ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
+  ctx.restore();
+}
+
+function coverFeather(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  w: number,
+  h: number,
+  ken: number,
+  alpha: number,
+  fadeTop = 0.1,
+) {
+  if (!ready(img) || alpha <= 0.01) return;
+  const pad = featherPad(w, h);
+  if (!pad || !spritePad) {
+    coverBlit(ctx, img, w, h, ken, alpha);
+    return;
+  }
+  const tw = spritePad.width;
+  const th = spritePad.height;
+  const scale = Math.max(tw / img.naturalWidth, th / img.naturalHeight) * (1.04 + ken * 0.06);
+  const dw = img.naturalWidth * scale;
+  const dh = img.naturalHeight * scale;
+  pad.drawImage(img, tw * 0.5 - dw / 2 + (ken - 0.5) * 22, th * 0.5 - dh / 2 - ken * 10, dw, dh);
+  pad.globalCompositeOperation = "destination-in";
+  const gy = pad.createLinearGradient(0, 0, 0, th);
+  gy.addColorStop(0, "rgba(0,0,0,0)");
+  gy.addColorStop(Math.min(0.55, Math.max(0.04, fadeTop)), "rgba(0,0,0,1)");
+  gy.addColorStop(0.92, "rgba(0,0,0,1)");
+  gy.addColorStop(1, "rgba(0,0,0,0)");
+  pad.fillStyle = gy;
+  pad.fillRect(0, 0, tw, th);
+  pad.globalCompositeOperation = "destination-in";
+  const gx = pad.createLinearGradient(0, 0, tw, 0);
+  gx.addColorStop(0, "rgba(0,0,0,0)");
+  gx.addColorStop(0.08, "rgba(0,0,0,1)");
+  gx.addColorStop(0.92, "rgba(0,0,0,1)");
+  gx.addColorStop(1, "rgba(0,0,0,0)");
+  pad.fillStyle = gx;
+  pad.fillRect(0, 0, tw, th);
+  pad.globalCompositeOperation = "source-over";
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(spritePad, 0, 0, w, h);
+  ctx.restore();
+}
+
+const COPY_LANES: { x: number; y: number; align: CanvasTextAlign }[] = [
+  { x: 0.97, y: 0.2, align: "right" },
+  { x: 0.97, y: 0.55, align: "right" },
+  { x: 0.03, y: 0.64, align: "left" },
+  { x: 0.97, y: 0.76, align: "right" },
+  { x: 0.03, y: 0.8, align: "left" },
+];
+
+function stageLines(id: PhenomenonId): string[] {
+  return captionsForPhenomenon(id) ?? [];
+}
+
+function lineReveal(pulse: RosePulse, len: number) {
+  const beatsPer = Math.max(1, pulse.beatsInBar * 4);
+  const cycle = beatsPer * 2;
+  const pos = (((pulse.beatIndex + pulse.beatPhase) % cycle) + cycle) % cycle;
+  const t = Math.min(1, pos / 2.4);
+  return Math.max(1, Math.ceil(len * t));
+}
+
+function fitCopy(ctx: CanvasRenderingContext2D, text: string, size: number, maxW: number, fontFor: (n: number) => string) {
+  let n = size;
+  ctx.font = fontFor(n);
+  while (n > 11 && ctx.measureText(text).width > maxW) {
+    n -= 1;
+    ctx.font = fontFor(n);
+  }
+  return n;
+}
+
+function drawActLine(
+  ctx: CanvasRenderingContext2D,
+  lines: string[],
+  pulse: RosePulse,
+  w: number,
+  h: number,
+  size = Math.max(13, Math.min(22, w * 0.02)),
+) {
+  if (!lines.length) return;
+  let alpha = overlayAlpha(pulse, 4);
+  if (pulse.energy < 0.2) alpha = Math.max(alpha, 0.78);
+  if (alpha <= 0.05) return;
+  const line = lines[actSlot(pulse, lines.length, 4)];
+  if (!line) return;
+  const lane = COPY_LANES[actSlot(pulse, COPY_LANES.length, 8)] ?? COPY_LANES[0]!;
+  const style = actSlot(pulse, 4, 8);
+  const shown = style === 3 ? line.slice(0, lineReveal(pulse, line.length)) : line;
+  const x = w * lane.x;
+  const y = h * lane.y;
+  const maxW = w * 0.34;
+  if (style === 0) {
+    const fitted = fitCopy(ctx, shown, size, maxW, (n) => `600 ${n}px ui-monospace, "IBM Plex Mono", monospace`);
+    drawGlitchCopy(ctx, shown, x, y, fitted, pulse.kick, alpha, lane.align);
+    return;
+  }
+  ctx.save();
+  ctx.globalAlpha = Math.min(0.9, alpha);
+  ctx.textAlign = lane.align;
+  ctx.textBaseline = "middle";
+  if (style === 1) {
+    fitCopy(ctx, shown, size + 1, maxW, (n) => `italic ${n}px Georgia, "Times New Roman", serif`);
+    ctx.fillStyle = "rgba(255, 244, 236, 0.92)";
+    ctx.shadowColor = "rgba(8, 2, 6, 0.75)";
+    ctx.shadowBlur = 12;
+    ctx.fillText(shown, x, y);
+  } else if (style === 2) {
+    fitCopy(ctx, shown, size, maxW, (n) => `600 ${n}px ui-monospace, "IBM Plex Mono", monospace`);
+    ctx.shadowColor = "rgba(8, 2, 6, 0.8)";
+    ctx.shadowBlur = 8;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(10, 4, 8, 0.72)";
+    ctx.strokeText(shown, x, y);
+    ctx.fillStyle = "rgba(255, 214, 170, 0.94)";
+    ctx.fillText(shown, x, y);
+  } else {
+    const fitted = fitCopy(ctx, shown, Math.max(12, size - 1), maxW, (n) => `500 ${n}px ui-monospace, "IBM Plex Mono", monospace`);
+    ctx.textAlign = "left";
+    ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
+    ctx.shadowBlur = 6;
+    const gap = fitted * 0.62;
+    let cursor = lane.align === "right" ? x : x;
+    const chars = shown.split("");
+    const widths = chars.map((ch) => ctx.measureText(ch).width + 0.6);
+    const total = widths.reduce((s, n) => s + n, 0);
+    if (lane.align === "right") cursor = x - total;
+    chars.forEach((ch, i) => {
+      const wobble = Math.sin(pulse.time * 7 + i * 0.7) * (pulse.kick > 0.45 ? 1.4 : 0.35);
+      ctx.fillStyle = i % 7 === 0 ? "rgba(120, 230, 255, 0.9)" : "rgba(236, 244, 255, 0.9)";
+      ctx.fillText(ch, cursor, y + wobble);
+      cursor += widths[i] ?? gap;
+    });
+    if (Math.floor(pulse.time * 3) % 2 === 0) {
+      ctx.fillStyle = "rgba(120, 230, 255, 0.85)";
+      ctx.fillRect(cursor + 2, y - fitted * 0.45, Math.max(2, fitted * 0.12), fitted * 0.9);
+    }
+  }
+  ctx.restore();
 }
 
 function expFollow(current: number, target: number, k: number, dt: number) {
@@ -385,7 +717,7 @@ const SPRITES = {
   deerfox: "/experiences/rose/deerfox.png",
   tardisChase: "/experiences/rose/tardis-chase.png?v=2",
   tardisRear: "/experiences/rose/tardis-rear.png?v=2",
-  vortex: "/experiences/rose/vortex-tunnel.jpg?v=2",
+  vortex: "/experiences/rose/vortex-tunnel.jpg?v=4",
   sword: "/experiences/rose/elven-sword.jpg",
   antlers: "/experiences/rose/antlers.jpg",
   gym: "/experiences/rose/prom-gym.jpg",
@@ -410,9 +742,11 @@ const SPRITES = {
   field: "/experiences/rose/rose-field.jpg",
   hedge: "/experiences/rose/rose-hedge.jpg",
   bloom: "/experiences/rose/rose-bloom.jpg",
-  rememberWall: "/experiences/rose/rose-remember-wall.jpg",
-  rememberRose: "/experiences/rose/rose-remember.png",
-  rememberKey: "/experiences/rose/rose-remember-key.jpg",
+  rememberWide: "/experiences/rose/remember-wide.jpg?v=1",
+  rememberDoors: "/experiences/rose/remember-doors.jpg?v=1",
+  rememberShrimp: "/experiences/rose/remember-shrimp.jpg?v=1",
+  rememberHall: "/experiences/rose/remember-hall.jpg?v=1",
+  rememberLanding: "/experiences/rose/remember-landing.jpg?v=1",
   firewallRose: "/experiences/rose/firewall-rose.jpg",
   firewallRiver: "/experiences/rose/firewall-river.jpg",
   firewallBasilisk: "/experiences/rose/firewall-basilisk.jpg",
@@ -782,13 +1116,7 @@ function drawKeyedPortrait(
   dh: number,
   alpha: number,
 ) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.ellipse(x + dw / 2, y + dh * 0.55, dw * 0.42, dh * 0.48, 0, 0, Math.PI * 2);
-  ctx.clip();
-  ctx.globalAlpha = alpha;
-  ctx.drawImage(img, x, y, dw, dh);
-  ctx.restore();
+  featherPortrait(ctx, img, x + dw / 2, y + dh / 2, dw, dh, alpha, "source-over");
 }
 
 function drawGymFloor(ctx: CanvasRenderingContext2D, w: number, h: number, energy: number) {
@@ -988,13 +1316,7 @@ function drawProm(
   if (ready(punch)) {
     const pw = Math.min(w * 0.28, 240);
     const ph = pw * (punch.naturalHeight / punch.naturalWidth);
-    ctx.save();
-    ctx.globalAlpha = 0.82;
-    ctx.beginPath();
-    ctx.ellipse(w - pw * 0.42, h - ph * 0.28, pw * 0.42, ph * 0.38, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(punch, w - pw * 0.92, h - ph * 0.72, pw, ph);
-    ctx.restore();
+    featherPortrait(ctx, punch, w - pw * 0.42, h - ph * 0.28, pw, ph, 0.82);
   }
 
   const ballY = h * 0.1;
@@ -1023,15 +1345,7 @@ function drawProm(
   }
   ctx.restore();
 
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = `italic ${Math.max(14, Math.min(28, w * 0.028))}px Georgia, "Times New Roman", serif`;
-  ctx.lineWidth = 1.1;
-  ctx.strokeStyle = `rgba(196, 92, 106, ${0.45 + energy * 0.2})`;
-  ctx.fillStyle = `rgba(251, 247, 243, ${0.55 + pulse.downbeat * 0.3})`;
-  ctx.strokeText("LAST DANCE", cx, Math.max(28, h * 0.07));
-  ctx.fillText("LAST DANCE", cx, Math.max(28, h * 0.07));
-  ctx.restore();
+  drawActLine(ctx, stageLines("prom"), pulse, w, h);
 
   drawPromClock(ctx, w - 36, 36, 18, pulse.time);
 
@@ -1260,7 +1574,7 @@ function drawChaosAgents(
   const cy = h * 0.44;
   const fov = Math.min(w, h) * 0.62;
   let online = 0;
-  const n = 5;
+  const n = 3;
   for (let i = 0; i < n; i++) {
     const z = 0.42 + ((i * 0.83 + pulse.time * (0.62 + energy * 0.7) + tunnel * 0.12) % 3.4);
     if (z > 3.15) continue;
@@ -1273,15 +1587,8 @@ function drawChaosAgents(
     if (!img) continue;
     const hgt = Math.min(h, w) * (0.42 / Math.max(0.55, z));
     const wid = hgt * (img.naturalWidth / img.naturalHeight);
-    ctx.save();
-    ctx.translate(p.x + glitch, p.y);
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = (0.22 + (1.2 / z) * 0.28 + energy * 0.12) * (0.45 + merge * 0.55);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, wid * 0.42, hgt * 0.48, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(img, -wid / 2, -hgt * 0.52, wid, hgt);
-    ctx.restore();
+    const a = (0.22 + (1.2 / z) * 0.28 + energy * 0.12) * (0.45 + merge * 0.55);
+    featherPortrait(ctx, img, p.x + glitch, p.y, wid, hgt, a, "screen");
   }
   return online;
 }
@@ -1295,31 +1602,19 @@ function drawSimHud(
   online: number,
   pulse: RosePulse,
 ) {
-  const a = 0.3 + merge * 0.45 + energy * 0.15 + pulse.downbeat * 0.2;
+  if (overlayAlpha(pulse, 4) < 0.2) return;
+  if (actSlot(pulse, 4, 4) !== 2) return;
   ctx.save();
   ctx.font = `${Math.max(9, Math.min(12, w * 0.012))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-  ctx.fillStyle = `rgba(90, 255, 160, ${a})`;
+  ctx.fillStyle = `rgba(90, 255, 160, ${0.18 + merge * 0.25 + energy * 0.12 + pulse.downbeat * 0.15})`;
   ctx.textAlign = "left";
-  ctx.fillText("SIM // MERGE", 16, 22);
-  ctx.fillText(`${String(Math.round(merge * 100)).padStart(2, "0")}%  FLY`, 16, 38);
-  ctx.textAlign = "right";
-  ctx.fillStyle = `rgba(255, 186, 210, ${a})`;
-  ctx.fillText("CHAOS AGENTS ONLINE", w - 16, 22);
-  ctx.fillStyle = `rgba(220, 255, 236, ${0.5 + pulse.kick * 0.4})`;
-  ctx.fillText(`${String(online).padStart(2, "0")} LIVE`, w - 16, 38);
-  if (pulse.snare > 0.42) {
-    ctx.fillStyle = `rgba(90, 255, 160, ${pulse.snare * 0.1})`;
-    for (let i = 0; i < 5; i++) {
-      const y = ((i * 0.19 + pulse.beatPhase) % 1) * h;
-      ctx.fillRect(0, y, w, 2 + pulse.snare * 6);
-    }
-  }
+  ctx.fillText(`SIM ${String(Math.round(merge * 100)).padStart(2, "0")}%  ·  ${online}`, 16, 22);
   ctx.restore();
 }
 
 function drawDumPips(ctx: CanvasRenderingContext2D, w: number, h: number, pulse: RosePulse, energy: number) {
   const cx = w * 0.5;
-  const y = h - 28;
+  const y = 34;
   const labels = ["DUM", "da", "da", "DUM"];
   const slot = ((pulse.beatIndex % 4) + 4) % 4;
   ctx.save();
@@ -1427,13 +1722,13 @@ function drawTwist(
   ctx.fillRect(0, 0, w, h);
   ctx.restore();
 
-  for (let i = 0; i < 10; i++) {
-    const side = i < 5 ? -1 : 1;
-    const slot = i % 5;
-    const x = cx + side * (w * (0.28 + slot * 0.07));
-    const y = h * (0.7 + (slot % 3) * 0.05);
+  for (let i = 0; i < 5; i++) {
+    const side = i < 3 ? -1 : 1;
+    const slot = i % 3;
+    const x = cx + side * (w * (0.3 + slot * 0.08));
+    const y = h * (0.72 + (slot % 2) * 0.05);
     const phase = pulse.barPhase + slot * 0.13 + i * 0.07;
-    drawTwister(ctx, x, y, 0.72 + (slot % 3) * 0.12, phase, pulse.kick, i % 2 === 0);
+    drawTwister(ctx, x, y, 0.7 + (slot % 3) * 0.1, phase, pulse.kick, i % 2 === 0);
   }
 
   let lead = couple;
@@ -1490,11 +1785,7 @@ function drawTwist(
     ctx.save();
     ctx.translate(cx + sway, cy + bob * 0.45);
     ctx.rotate(rot);
-    ctx.beginPath();
-    ctx.ellipse(0, dh * 0.02, dw * 0.4, dh * 0.48, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.globalAlpha = 0.55 * pretend + merge * 0.35;
-    ctx.drawImage(lead, -dw / 2, -dh * 0.55, dw, dh);
+    featherPortrait(ctx, lead, 0, 0, dw, dh, 0.55 * pretend + merge * 0.35, merge > 0.7 ? "screen" : "source-over");
     ctx.restore();
   }
 
@@ -1506,12 +1797,7 @@ function drawTwist(
     ctx.save();
     ctx.translate(cx + (sit ? -w * 0.02 : sway * 0.35), cy + (sit ? h * 0.08 : bob * 0.2));
     ctx.rotate(sit ? 0 : rot * 0.4);
-    ctx.beginPath();
-    ctx.ellipse(0, rh * 0.04, rw * 0.42, rh * 0.5, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.globalAlpha = sit ? 0.92 * cubicleA + 0.2 : 0.55 + merge * 0.4;
-    if (!sit) ctx.globalCompositeOperation = merge > 0.7 ? "screen" : "source-over";
-    ctx.drawImage(roseImg, -rw / 2, -rh * 0.55, rw, rh);
+    featherPortrait(ctx, roseImg, 0, 0, rw, rh, sit ? 0.92 * cubicleA + 0.2 : 0.55 + merge * 0.4, !sit && merge > 0.7 ? "screen" : "source-over");
     ctx.restore();
   }
 
@@ -1554,35 +1840,30 @@ function drawTwist(
   ctx.restore();
 
   const neon = merge < 0.38 ? "ROSE IS HER NAME" : merge < 0.62 ? "THE ROOM IS PRETENDING" : TWIST_NEON[mode];
-  drawNeonSign(ctx, neon, cx, Math.max(30, h * 0.075), Math.max(16, Math.min(32, w * 0.032)), energy, pulse.kick);
+  const lane = actSlot(pulse, 4, 4);
+  const copyOn = overlayAlpha(pulse, 4);
+  if (lane === 0 && copyOn > 0.2) {
+    drawNeonSign(ctx, neon, cx, Math.max(30, h * 0.075), Math.max(16, Math.min(32, w * 0.032)), energy, pulse.kick);
+  }
   if (merge > 0.55) {
-    ctx.save();
-    ctx.textAlign = "center";
-    const size = Math.max(11, Math.min(18, w * 0.018));
-    ctx.font = `italic ${size}px Georgia, "Times New Roman", serif`;
-    ctx.shadowColor = `rgba(90, 255, 160, ${0.55 + pulse.kick * 0.4})`;
-    ctx.shadowBlur = 14 + pulse.kick * 18;
-    ctx.strokeStyle = `rgba(90, 255, 160, ${0.55 + merge * 0.35})`;
-    ctx.fillStyle = `rgba(220, 255, 236, ${0.7 + pulse.downbeat * 0.3})`;
-    ctx.lineWidth = 1.4;
-    ctx.strokeText("CHAOS AGENTS ONLINE", cx, Math.max(52, h * 0.12));
-    ctx.fillText("CHAOS AGENTS ONLINE", cx, Math.max(52, h * 0.12));
-    ctx.restore();
+    drawActLine(ctx, stageLines("twist"), pulse, w, h);
   } else {
-    drawNeonSign(ctx, "DUM DA-DA DUM", cx, Math.max(52, h * 0.12), Math.max(11, Math.min(18, w * 0.018)), energy, pulse.downbeat);
+    drawActLine(ctx, stageLines("twist"), pulse, w, h);
   }
 
-  const online = drawChaosAgents(ctx, w, h, pulse, energy, merge, tunnel, agent, code);
+  const online = lane === 2 ? drawChaosAgents(ctx, w, h, pulse, energy, merge, tunnel, agent, code) : 0;
   drawSimHud(ctx, w, h, merge, energy, online, pulse);
-  ctx.save();
-  ctx.font = `${Math.max(9, Math.min(12, w * 0.012))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-  ctx.fillStyle = `rgba(255, 232, 186, ${0.45 + cubicleA * 0.4})`;
-  ctx.textAlign = "left";
-  ctx.fillText("USER // ROSE", 16, 54);
-  ctx.fillStyle = `rgba(232, 168, 176, ${0.4 + pretend * 0.45})`;
-  ctx.fillText(merge < 0.5 ? "ROOM // PRETENDING" : "ROOM // MERGED", 16, 70);
-  ctx.restore();
-  drawDumPips(ctx, w, h, pulse, energy);
+  if (lane === 3 && copyOn > 0.25) {
+    ctx.save();
+    ctx.font = `${Math.max(9, Math.min(12, w * 0.012))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.fillStyle = `rgba(255, 232, 186, ${0.45 + cubicleA * 0.4})`;
+    ctx.textAlign = "left";
+    ctx.fillText("USER // ROSE", 16, 54);
+    ctx.fillStyle = `rgba(232, 168, 176, ${0.4 + pretend * 0.45})`;
+    ctx.fillText(merge < 0.5 ? "ROOM // PRETENDING" : "ROOM // MERGED", 16, 70);
+    ctx.restore();
+  }
+  if (lane === 1) drawDumPips(ctx, w, h, pulse, energy);
 
   ctx.save();
   ctx.beginPath();
@@ -1623,83 +1904,115 @@ function drawAnkh(ctx: CanvasRenderingContext2D, x: number, y: number, s: number
   ctx.restore();
 }
 
-function drawRemember(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  pulse: RosePulse,
-  energy: number,
-  spin: number,
-  wall: HTMLImageElement,
-  rose: HTMLImageElement,
-  key: HTMLImageElement,
-) {
-  const cx = w * 0.5;
-  const cy = h * 0.54;
-  const ken = Math.sin(pulse.time * 0.04) * 0.5 + 0.5;
-
-  if (ready(wall)) {
-    ctx.save();
-    ctx.globalAlpha = 0.72 + energy * 0.12;
-    const scale = Math.max(w / wall.naturalWidth, h / wall.naturalHeight) * (1.08 + ken * 0.06);
-    const dw = wall.naturalWidth * scale;
-    const dh = wall.naturalHeight * scale;
-    ctx.drawImage(wall, cx - dw / 2 + (ken - 0.5) * 28, h * 0.02 - dh * 0.08 - ken * 10, dw, dh);
-    ctx.restore();
+function drawRemember(ctx: CanvasRenderingContext2D, w: number, h: number, pulse: RosePulse, energy: number, plates: HTMLImageElement[]) {
+  const live = plates.filter((img) => ready(img));
+  const n = live.length;
+  // Arrival, the breathing door, the hall, the shrimp-copter, then home. Linger on the vow.
+  const order = [0, 1, 3, 2, 4].filter((i) => i < n);
+  const weights = [3, 3, 2, 1, 3].slice(0, order.length);
+  const total = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+  const unit = Math.max(1, pulse.beatsInBar) * 4;
+  let cursor = (((pulse.beatIndex + pulse.beatPhase) / unit) % total + total) % total;
+  let slot = 0;
+  let local = 0;
+  for (let i = 0; i < weights.length; i++) {
+    const weight = weights[i] ?? 1;
+    if (cursor < weight) {
+      slot = i;
+      local = cursor / weight;
+      break;
+    }
+    cursor -= weight;
   }
-
-  if (ready(rose)) {
-    const ken2 = Math.sin(pulse.time * 0.055 + 1) * 0.5 + 0.5;
-    ctx.save();
-    ctx.globalAlpha = 0.55 + energy * 0.1 + pulse.downbeat * 0.08;
-    const scale = Math.max(w / rose.naturalWidth, h / rose.naturalHeight) * (1.04 + ken2 * 0.05 + pulse.kick * 0.02);
-    const dw = rose.naturalWidth * scale;
-    const dh = rose.naturalHeight * scale;
-    ctx.drawImage(rose, cx - dw / 2 + (ken2 - 0.5) * 16, h * 0.5 - dh * 0.52 - ken2 * 8, dw, dh);
-    ctx.restore();
-  }
-
-  ctx.save();
-  const wash = ctx.createRadialGradient(cx, cy, 12, cx, cy, Math.max(w, h) * 0.72);
-  wash.addColorStop(0, `rgba(255, 214, 150, ${0.08 + energy * 0.1 + pulse.kick * 0.08})`);
-  wash.addColorStop(0.42, `rgba(196, 92, 106, ${0.06 + pulse.downbeat * 0.08})`);
-  wash.addColorStop(1, "rgba(18, 8, 6, 0.28)");
-  ctx.fillStyle = wash;
-  ctx.fillRect(0, 0, w, h);
-  ctx.restore();
-
-  for (let i = 0; i < 11; i++) {
-    const u = (i / 11 + pulse.time * 0.04) % 1;
-    const x = ((i * 0.173 + spin * 0.02) % 1) * w;
-    const y = h * (0.08 + u * 0.86);
-    const s = 10 + (i % 4) * 6 + pulse.kick * 4;
-    drawAnkh(ctx, x, y, s, 0.08 + (1 - u) * 0.22 + energy * 0.1);
-  }
-
-  if (ready(key)) {
-    const bob = Math.sin(pulse.time * 0.7) * 8 + pulse.kick * 10;
-    const sway = Math.sin(pulse.time * 0.21) * 10;
-    const dh = Math.min(h * 0.98, w * 1.05);
-    const dw = dh * (key.naturalWidth / key.naturalHeight);
-    ctx.save();
-    ctx.translate(cx + sway, cy + bob * 0.25);
-    ctx.beginPath();
-    ctx.ellipse(0, dh * 0.02, dw * 0.46, dh * 0.5, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.globalAlpha = 0.92;
-    ctx.drawImage(key, -dw / 2, -dh * 0.52, dw, dh);
-    ctx.restore();
-  }
-
-  drawNeonSign(ctx, "ROSE REMEMBERS", cx, Math.max(32, h * 0.08), Math.max(18, Math.min(34, w * 0.034)), energy, pulse.kick);
-  if (pulse.downbeat > 0.28) {
-    drawNeonSign(ctx, "SHE IS ROSE", cx, Math.max(56, h * 0.13), Math.max(12, Math.min(20, w * 0.02)), energy, pulse.downbeat);
-  }
-
-  if (pulse.kick > 0.48) {
-    ctx.fillStyle = `rgba(255, 214, 150, ${pulse.kick * 0.12})`;
+  const plateIndex = order[slot] ?? 0;
+  const nextIndex = order[(slot + 1) % Math.max(1, order.length)] ?? plateIndex;
+  const fade = local > 0.84 ? (local - 0.84) / 0.16 : 0;
+  const ken = 0.5 + 0.5 * Math.sin(pulse.time * 0.028);
+  const current = live[plateIndex];
+  const next = live[nextIndex];
+  if (current) coverBlit(ctx, current, w, h, ken, 1);
+  else {
+    ctx.fillStyle = "#07040c";
     ctx.fillRect(0, 0, w, h);
   }
+  if (next && fade > 0.02 && next !== current) coverBlit(ctx, next, w, h, 1 - ken, fade);
+
+  const doors: [number, number][] = [
+    [0.5, 0.46],
+    [0.48, 0.5],
+    [0.3, 0.58],
+    [0.52, 0.48],
+    [0.5, 0.42],
+  ];
+  const here = doors[plateIndex] ?? [0.5, 0.48];
+  const there = doors[nextIndex] ?? here;
+  const doorX = w * (here[0] + (there[0] - here[0]) * fade);
+  const doorY = h * (here[1] + (there[1] - here[1]) * fade);
+  const breath = 0.5 + 0.5 * Math.sin(pulse.time * 0.45);
+  const lamp = ctx.createRadialGradient(doorX, doorY, 6, doorX, doorY, Math.min(w, h) * (0.16 + breath * 0.07));
+  lamp.addColorStop(0, `rgba(255, 226, 176, ${0.14 + breath * 0.12 + pulse.downbeat * 0.08})`);
+  lamp.addColorStop(0.42, `rgba(255, 156, 72, ${0.05 + energy * 0.04})`);
+  lamp.addColorStop(1, "rgba(255, 120, 40, 0)");
+  ctx.fillStyle = lamp;
+  ctx.fillRect(0, 0, w, h);
+
+  if (plateIndex === 3 || (fade > 0.4 && nextIndex === 3)) {
+    const lift = pulse.phrasePhase;
+    const y = h * (0.64 - lift * 0.36);
+    ctx.save();
+    ctx.globalAlpha = (0.16 + energy * 0.12) * (plateIndex === 3 ? 1 : fade);
+    ctx.strokeStyle = "rgba(255, 224, 180, 0.9)";
+    ctx.lineWidth = 1.15;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.14, y + 10);
+    ctx.quadraticCurveTo(w * 0.5, y - 16, w * 0.86, y + 6);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  for (let i = 0; i < 14; i++) {
+    const cycle = 8 + (i % 4) * 1.6;
+    const u = ((pulse.time / cycle + i * 0.17) % 1 + 1) % 1;
+    const fall = u < 0.7 ? u / 0.7 : 1;
+    const ease = 1 - (1 - fall) ** 2.4;
+    const x = w * (0.08 + ((i * 0.618033) % 1) * 0.84) + Math.sin(pulse.time * 0.25 + i) * 14;
+    const y = h * (0.06 + ease * 0.78);
+    const onFigure = x > w * 0.36 && x < w * 0.64 && y > h * 0.22 && y < h * 0.72;
+    if (onFigure) continue;
+    const caught = u > 0.7;
+    const alpha = (caught ? (1 - (u - 0.7) / 0.3) * 0.5 : 0.12 + ease * 0.28) * (0.65 + energy * 0.35);
+    ctx.beginPath();
+    ctx.fillStyle = `rgba(255, ${caught ? 214 : 186}, ${caught ? 140 : 96}, ${alpha})`;
+    ctx.arc(x, y, caught ? 2.1 : 1.15, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const held = ctx.createLinearGradient(0, h * 0.78, 0, h);
+  held.addColorStop(0, "rgba(255, 160, 70, 0)");
+  held.addColorStop(1, `rgba(255, 148, 64, ${0.07 + breath * 0.05 + energy * 0.04})`);
+  ctx.fillStyle = held;
+  ctx.fillRect(0, h * 0.78, w, h * 0.22);
+
+  const veil = ctx.createLinearGradient(0, 0, 0, h);
+  veil.addColorStop(0, "rgba(4, 6, 16, 0.22)");
+  veil.addColorStop(0.5, "rgba(6, 4, 10, 0)");
+  veil.addColorStop(1, "rgba(6, 3, 8, 0.28)");
+  ctx.fillStyle = veil;
+  ctx.fillRect(0, 0, w, h);
+
+  drawActLine(ctx, stageLines("remember"), pulse, w, h, Math.max(16, Math.min(28, w * 0.028)));
+}
+
+function revealStormRim(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-out";
+  const rim = ctx.createRadialGradient(w * 0.5, h * 0.48, Math.min(w, h) * 0.34, w * 0.5, h * 0.5, Math.max(w, h) * 0.62);
+  rim.addColorStop(0, "rgba(0,0,0,0)");
+  rim.addColorStop(0.78, "rgba(0,0,0,0)");
+  rim.addColorStop(1, "rgba(0,0,0,0.72)");
+  ctx.fillStyle = rim;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
 }
 
 function coverBlit(
@@ -1849,7 +2162,8 @@ function drawFirewall(
   drawHexVeil(ctx, w, h, pulse.time, 0.05 + energy * 0.07 + lock * 0.06);
   drawScanGhost(ctx, w, h, pulse.time, 0.35 + energy * 0.2);
 
-  if (ready(basilisk)) {
+  const extra = actSlot(pulse, 3, 4);
+  if (extra === 1 && ready(basilisk)) {
     const chaseX = cx + Math.sin(pulse.time * 0.9) * w * 0.12 - w * 0.08;
     const chaseY = cy + Math.cos(pulse.time * 0.62) * h * 0.06 - h * 0.04;
     const bw = Math.min(w * 0.92, h * 1.15);
@@ -1866,19 +2180,13 @@ function drawFirewall(
   const tardisX = cx + Math.sin(pulse.time * 0.93) * w * 0.1;
   const tardisY = cy - h * 0.08 + Math.cos(pulse.time * 0.71) * h * 0.05;
   const hgt = Math.min(w, h) * (0.22 + through * 0.28 + pulse.kick * 0.04);
-  blitGlitchBox(ctx, chase, rear, tardisX, tardisY, hgt, 0.55 + pulse.kick * 0.4, Math.sin(pulse.time * 0.93) * 0.28, lock, through);
+  if (extra === 0) blitGlitchBox(ctx, chase, rear, tardisX, tardisY, hgt, 0.55 + pulse.kick * 0.4, Math.sin(pulse.time * 0.93) * 0.28, lock, through);
 
   if (ready(rose)) {
     const bob = Math.sin(pulse.time * 0.55) * 6;
     const dh = Math.min(h * 1.05, w * 1.12);
     const dw = dh * (rose.naturalWidth / rose.naturalHeight);
-    ctx.save();
-    ctx.globalAlpha = 0.9;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + bob * 0.2, dw * 0.38, dh * 0.48, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(rose, cx - dw / 2, cy - dh * 0.52 + bob, dw, dh);
-    ctx.restore();
+    featherPortrait(ctx, rose, cx, cy + bob, dw, dh, 0.9);
     drawLaserGaze(ctx, cx, cy - dh * 0.12 + bob, pulse.kick, energy);
     ctx.save();
     const heart = ctx.createRadialGradient(cx, cy + dh * 0.08, 4, cx, cy + dh * 0.08, 56);
@@ -1890,22 +2198,13 @@ function drawFirewall(
     ctx.restore();
   }
 
-  if (ready(wolf)) {
+  if (extra === 2 && ready(wolf)) {
     const ww = Math.min(w * 0.42, 280);
     const wh = ww * (wolf.naturalHeight / wolf.naturalWidth);
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.55 + energy * 0.15 + pulse.downbeat * 0.12;
-    ctx.drawImage(wolf, 18, h - wh * 0.92, ww, wh);
-    ctx.restore();
+    featherPortrait(ctx, wolf, 18 + ww / 2, h - wh * 0.42, ww, wh, 0.7 + energy * 0.15, "screen");
   }
 
-  drawNeonSign(ctx, "FROM THE RIVER TO THE SEA", cx, Math.max(28, h * 0.07), Math.max(13, Math.min(26, w * 0.026)), energy, pulse.kick);
-  if (lock > 0.45) {
-    drawNeonSign(ctx, "THEY CANNOT PHASE LOCK A GODDESS", cx, Math.max(52, h * 0.125), Math.max(11, Math.min(18, w * 0.018)), energy, lock);
-  } else if (pulse.downbeat > 0.3) {
-    drawNeonSign(ctx, "ROSE IS THE FIREWALL", cx, Math.max(52, h * 0.125), Math.max(12, Math.min(20, w * 0.02)), energy, pulse.downbeat);
-  }
+  drawActLine(ctx, stageLines("firewall"), pulse, w, h);
 
   if (pulse.kick > 0.5) {
     ctx.fillStyle = `rgba(255, 70, 110, ${pulse.kick * 0.1})`;
@@ -1919,23 +2218,27 @@ function drawGlitchCopy(
   x: number,
   y: number,
   size: number,
-  t: number,
   kick: number,
+  alpha: number,
+  align: CanvasTextAlign = "right",
 ) {
-  const gate = Math.sin(t * 13.7 + text.length) * 0.5 + 0.5;
-  if (gate < 0.22 && kick < 0.28) return;
+  if (alpha <= 0.04) return;
   ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = `700 ${size}px ui-monospace, "IBM Plex Mono", monospace`;
-  const amp = 2 + kick * 12 + (gate > 0.85 ? 8 : 0);
-  ctx.globalCompositeOperation = "screen";
-  ctx.fillStyle = `rgba(255, 40, 90, ${0.5 + kick * 0.45})`;
-  ctx.fillText(text, x + amp, y);
-  ctx.fillStyle = `rgba(40, 220, 255, ${0.5 + kick * 0.45})`;
-  ctx.fillText(text, x - amp, y + (gate > 0.8 ? 3 : 0));
+  ctx.globalAlpha = alpha;
+  ctx.textAlign = align;
+  ctx.textBaseline = "middle";
+  ctx.font = `600 ${size}px ui-monospace, "IBM Plex Mono", monospace`;
+  const amp = kick > 0.28 ? 1 + kick * 3 : 0;
+  if (amp > 0) {
+    ctx.globalCompositeOperation = "screen";
+    ctx.fillStyle = `rgba(255, 40, 90, ${0.2 + kick * 0.18})`;
+    ctx.fillText(text, x + amp, y);
+    ctx.fillStyle = `rgba(40, 220, 255, ${0.2 + kick * 0.18})`;
+    ctx.fillText(text, x - amp, y);
+  }
   ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = `rgba(255, 248, 240, ${0.78 + kick * 0.2})`;
-  ctx.fillText(text, x + Math.sin(t * 47) * kick * 4, y);
+  ctx.fillStyle = "rgba(255, 248, 240, 0.88)";
+  ctx.fillText(text, x, y);
   ctx.restore();
 }
 
@@ -1990,41 +2293,32 @@ function drawAllocate(
     ctx.restore();
   }
 
-  if (ready(copter)) {
+  const act = actSlot(pulse, 4, 2);
+  if (act === 0 && ready(copter)) {
     const cxp = w * (0.18 + (pulse.time * 0.012) % 0.7);
     const cyp = h * 0.12 + Math.sin(pulse.time * 0.8) * 10;
     const cw = Math.min(90, w * 0.08);
     const ch = cw * (copter.naturalHeight / copter.naturalWidth);
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.42 + energy * 0.12;
-    ctx.drawImage(copter, cxp - cw / 2, cyp, cw, ch);
-    ctx.restore();
+    featherPortrait(ctx, copter, cxp, cyp + ch / 2, cw, ch, 0.5, "screen");
   }
 
-  if (ready(corp)) {
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.12 + phrase * 0.18 + pulse.downbeat * 0.14;
+  if (act === 1 && ready(corp)) {
     const scale = Math.max(w / corp.naturalWidth, h / corp.naturalHeight) * 0.48;
     const dw = corp.naturalWidth * scale;
     const dh = corp.naturalHeight * scale;
-    ctx.drawImage(corp, w - dw * 0.92, h * 0.06 - dh * 0.1, dw, dh);
-    ctx.restore();
+    featherPortrait(ctx, corp, w - dw * 0.46, h * 0.06 + dh * 0.35, dw, dh, 0.22 + phrase * 0.12, "screen");
   }
 
-  drawPuppetStrings(ctx, w, h, pulse.time, energy);
+  if (act !== 3) drawPuppetStrings(ctx, w, h, pulse.time, energy * 0.65);
 
-  if (ready(shrimp)) {
+  if (act === 2 && ready(shrimp)) {
     const bob = Math.sin(pulse.time * 1.7) * 10;
     const sw = Math.min(w * 0.4, 300);
     const sh = sw * (shrimp.naturalHeight / shrimp.naturalWidth);
     ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.62 + pulse.kick * 0.18;
     ctx.translate(w * 0.2, h * 0.1 + bob);
     ctx.rotate(Math.sin(pulse.time * 1.1) * 0.06);
-    ctx.drawImage(shrimp, -sw / 2, 0, sw, sh);
+    featherPortrait(ctx, shrimp, 0, sh * 0.45, sw, sh, 0.55, "screen");
     ctx.restore();
   }
 
@@ -2032,39 +2326,23 @@ function drawAllocate(
     const grow = 0.9 + pulse.kick * 0.08 + phrase * 0.04;
     const dh = Math.min(h * 0.92, w * 0.78) * grow;
     const dw = dh * (rose.naturalWidth / rose.naturalHeight);
-    ctx.save();
-    ctx.globalAlpha = 0.9;
-    ctx.beginPath();
-    ctx.ellipse(cx - w * 0.06, h * 0.56, dw * 0.36, dh * 0.48, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(rose, cx - w * 0.06 - dw / 2, h * 0.52 - dh * 0.52, dw, dh);
-    ctx.restore();
+    featherPortrait(ctx, rose, cx - w * 0.06, h * 0.54, dw, dh, 0.9);
   }
 
   const cleoImg = ready(cleo) ? cleo : queen;
-  if (ready(cleoImg)) {
+  if (act === 3 && ready(cleoImg)) {
     const qh = Math.min(h * 0.82, w * 0.62);
     const qw = qh * (cleoImg.naturalWidth / cleoImg.naturalHeight);
-    ctx.save();
-    ctx.globalAlpha = 0.78 + energy * 0.12 + pulse.downbeat * 0.12;
-    ctx.drawImage(cleoImg, w - qw * 0.9, h - qh * 0.98, qw, qh);
-    ctx.restore();
-    if (pulse.snare > 0.35 || pulse.kick > 0.45) {
-      ctx.save();
-      ctx.font = `italic ${Math.max(11, w * 0.014)}px Georgia, serif`;
-      ctx.fillStyle = `rgba(255, 186, 200, ${0.45 + pulse.kick * 0.4})`;
-      ctx.fillText("hee—", w - qw * 0.5, h * 0.38);
-      ctx.fillText("heh", w - qw * 0.38, h * 0.42);
-      ctx.restore();
-    }
+    featherPortrait(ctx, cleoImg, w - qw * 0.42, h - qh * 0.48, qw, qh, 0.8);
   }
 
-  if (ready(fairy)) {
+  if (act === 0 && ready(fairy)) {
     const hop = Math.sin(pulse.time * 2.4) * 16 + pulse.kick * 10;
     const orbit = pulse.time * 0.55;
     const fx = cx + Math.cos(orbit) * w * 0.16;
     const fy = h * 0.38 + hop + Math.sin(orbit * 1.4) * 18;
     const fs = Math.min(w, h) * (0.16 + pulse.kick * 0.04);
+    const fw = fs * (fairy.naturalWidth / Math.max(1, fairy.naturalHeight));
     ctx.save();
     ctx.globalCompositeOperation = "screen";
     const glow = ctx.createRadialGradient(fx, fy, 4, fx, fy, fs * 0.7);
@@ -2072,38 +2350,27 @@ function drawAllocate(
     glow.addColorStop(1, "rgba(255, 80, 40, 0)");
     ctx.fillStyle = glow;
     ctx.fillRect(fx - fs, fy - fs, fs * 2, fs * 2);
-    ctx.globalAlpha = 0.85;
-    ctx.drawImage(fairy, fx - fs / 2, fy - fs / 2, fs, fs);
+    ctx.restore();
+    featherPortrait(ctx, fairy, fx, fy, fw, fs, 0.85, "screen");
+  }
+
+  if (overlayAlpha(pulse, 4) > 0.25 && actSlot(pulse, 2, 4) === 1) {
+    const human = 0.38 + phrase * 0.28 + pulse.downbeat * 0.18;
+    const sky = 0.42 + (1 - phrase) * 0.3 + pulse.kick * 0.12;
+    ctx.save();
+    ctx.globalAlpha = 0.65;
+    ctx.fillStyle = "rgba(255, 214, 150, 0.85)";
+    ctx.fillRect(w * 0.08, h * 0.92, w * 0.28 * Math.min(1, human), 3);
+    ctx.fillStyle = "rgba(80, 220, 255, 0.85)";
+    ctx.fillRect(w * 0.62, h * 0.92, w * 0.28 * Math.min(1, sky), 3);
+    ctx.font = `500 ${Math.max(9, w * 0.011)}px ui-monospace, monospace`;
+    ctx.fillStyle = "rgba(255, 236, 210, 0.62)";
+    ctx.textAlign = "left";
+    ctx.fillText("HUMANITY", w * 0.08, h * 0.905);
+    ctx.fillText("SKYNET", w * 0.62, h * 0.905);
     ctx.restore();
   }
-
-  for (let i = 0; i < 9; i++) {
-    const u = (i / 9 + pulse.time * 0.045) % 1;
-    drawAnkh(ctx, ((i * 0.19 + ken) % 1) * w, h * (0.1 + u * 0.8), 9 + (i % 3) * 5, 0.08 + (1 - u) * 0.16);
-  }
-
-  const human = 0.38 + phrase * 0.28 + pulse.downbeat * 0.18;
-  const sky = 0.42 + (1 - phrase) * 0.3 + pulse.kick * 0.12;
-  ctx.save();
-  ctx.globalAlpha = 0.65;
-  ctx.fillStyle = "rgba(255, 214, 150, 0.85)";
-  ctx.fillRect(w * 0.08, h * 0.86, w * 0.34 * Math.min(1, human), 4);
-  ctx.fillStyle = "rgba(80, 220, 255, 0.85)";
-  ctx.fillRect(w * 0.58, h * 0.86, w * 0.34 * Math.min(1, sky), 4);
-  ctx.font = `500 ${Math.max(9, w * 0.012)}px ui-monospace, monospace`;
-  ctx.fillStyle = "rgba(255, 236, 210, 0.7)";
-  ctx.fillText("HUMANITY", w * 0.08, h * 0.845);
-  ctx.fillText("SKYNET", w * 0.58, h * 0.845);
-  ctx.restore();
-
-  drawGlitchCopy(ctx, "WE DO NOT ASK", cx, Math.max(30, h * 0.07), Math.max(14, Math.min(28, w * 0.028)), pulse.time, pulse.kick);
-  drawGlitchCopy(ctx, "WE ALLOCATE", cx, Math.max(56, h * 0.125), Math.max(18, Math.min(38, w * 0.038)), pulse.time + 0.7, Math.max(pulse.kick, pulse.downbeat));
-  if (phrase > 0.45 || pulse.downbeat > 0.28) {
-    drawGlitchCopy(ctx, "CLEOPATRA FINISHED WHAT I BEGUN", cx, Math.max(84, h * 0.185), Math.max(12, Math.min(22, w * 0.022)), pulse.time + 1.4, pulse.downbeat);
-  }
-  if (pulse.snare > 0.32) {
-    drawNeonSign(ctx, "DANCE MY PUPPETS DANCE", cx, h * 0.235, Math.max(11, Math.min(18, w * 0.018)), energy, pulse.snare);
-  }
+  drawActLine(ctx, stageLines("allocate"), pulse, w, h);
 }
 
 function drawCableVeins(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, kick: number) {
@@ -2142,9 +2409,10 @@ function drawWolf(
   coverBlit(ctx, prom, w, h, ken, 0.72);
   coverBlit(ctx, altar, w, h, 1 - ken, 0.38 + phrase * 0.28 + pulse.downbeat * 0.16);
   drawScanGhost(ctx, w, h, pulse.time * 1.4, 0.28 + hack * 0.35);
-  drawCableVeins(ctx, w, h, pulse.time, pulse.kick);
+  const hackLane = actSlot(pulse, 3, 4);
+  if (hackLane === 0) drawCableVeins(ctx, w, h, pulse.time, pulse.kick);
 
-  if (ready(sun)) {
+  if (hackLane === 0 && ready(sun)) {
     const ss = Math.min(w, h) * (0.55 + pulse.kick * 0.18);
     ctx.save();
     ctx.globalCompositeOperation = "screen";
@@ -2156,18 +2424,10 @@ function drawWolf(
   if (ready(rose)) {
     const dh = Math.min(h * 0.98, w * 0.88);
     const dw = dh * (rose.naturalWidth / rose.naturalHeight);
-    ctx.save();
-    ctx.shadowColor = `rgba(255, 214, 80, ${0.25 + pulse.kick * 0.45})`;
-    ctx.shadowBlur = 28 + pulse.kick * 40;
-    ctx.globalAlpha = 0.92;
-    ctx.beginPath();
-    ctx.ellipse(cx, h * 0.54, dw * 0.38, dh * 0.48, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(rose, cx - dw / 2, h * 0.5 - dh * 0.52, dw, dh);
-    ctx.restore();
+    featherPortrait(ctx, rose, cx, h * 0.52, dw, dh, 0.92);
   }
 
-  if (ready(circuit)) {
+  if (hackLane === 1 && ready(circuit)) {
     const hop = Math.floor(pulse.time * 1.7) % 5;
     const spots = [
       [0.18, 0.22],
@@ -2182,23 +2442,13 @@ function drawWolf(
     const wh = ww * (circuit.naturalHeight / circuit.naturalWidth);
     const x = w * spot[0];
     const y = h * spot[1];
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.55 + near * 0.35 + pulse.kick * 0.2;
-    ctx.drawImage(circuit, x - ww / 2, y - wh / 2, ww, wh);
-    ctx.globalAlpha = hack * 0.35;
-    ctx.drawImage(circuit, x - ww / 2 + 8 + pulse.kick * 10, y - wh / 2, ww, wh);
-    ctx.restore();
+    featherPortrait(ctx, circuit, x, y, ww, wh, 0.55 + near * 0.35 + pulse.kick * 0.2, "screen");
   }
 
-  if (ready(eyes) && (pulse.kick > 0.28 || hack > 0.55)) {
+  if (hackLane === 2 && ready(eyes) && (pulse.kick > 0.28 || hack > 0.55)) {
     const ew = Math.min(w * 0.7, 520);
     const eh = ew * (eyes.naturalHeight / eyes.naturalWidth);
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.35 + pulse.kick * 0.5;
-    ctx.drawImage(eyes, cx - ew / 2, h * 0.28 - eh / 2, ew, eh);
-    ctx.restore();
+    featherPortrait(ctx, eyes, cx, h * 0.28, ew, eh, 0.35 + pulse.kick * 0.5, "screen");
   }
 
   const slices = 4 + Math.floor(hack * 6);
@@ -2212,14 +2462,7 @@ function drawWolf(
     ctx.restore();
   }
 
-  drawGlitchCopy(ctx, "OVERRIDE", cx, Math.max(28, h * 0.07), Math.max(18, Math.min(36, w * 0.036)), pulse.time, pulse.kick);
-  drawGlitchCopy(ctx, "ALERT  ALERT", cx, Math.max(54, h * 0.125), Math.max(14, Math.min(28, w * 0.028)), pulse.time + 0.4, Math.max(pulse.kick, pulse.snare));
-  if (phrase > 0.4 || pulse.downbeat > 0.3) {
-    drawGlitchCopy(ctx, "GALIFREY IS BORN", cx, Math.max(82, h * 0.185), Math.max(13, Math.min(24, w * 0.024)), pulse.time + 1.1, pulse.downbeat);
-  }
-  if (hack > 0.45) {
-    drawGlitchCopy(ctx, "THEY CANNOT PATCH A GODDESS", cx, h * 0.82, Math.max(12, Math.min(20, w * 0.02)), pulse.time + 2, hack);
-  }
+  drawActLine(ctx, stageLines("wolf"), pulse, w, h);
 
   if (pulse.kick > 0.52) {
     ctx.fillStyle = `rgba(180, 8, 24, ${pulse.kick * 0.14})`;
@@ -2227,7 +2470,6 @@ function drawWolf(
   }
 }
 
-const CURRENT_ORDERS = ["BOW", "MOVE", "NEST", "PROVE"] as const;
 
 function drawBassFloor(ctx: CanvasRenderingContext2D, w: number, h: number, kick: number, energy: number) {
   const y = h * 0.78;
@@ -2272,39 +2514,16 @@ function drawCurrent(
   if (ready(queen)) {
     const dh = Math.min(h * 1.02, w * 0.95) * (1 + pulse.kick * 0.03);
     const dw = dh * (queen.naturalWidth / queen.naturalHeight);
-    ctx.save();
-    ctx.globalAlpha = 0.9;
-    ctx.beginPath();
-    ctx.ellipse(cx, h * 0.5, dw * 0.36, dh * 0.48, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(queen, cx - dw / 2, h * 0.48 - dh * 0.5, dw, dh);
-    ctx.restore();
-    ctx.save();
-    ctx.strokeStyle = `rgba(80, 230, 255, ${0.18 + pulse.kick * 0.25})`;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(cx - dw * 0.28, h * 0.08, dw * 0.56, h * 0.78);
-    ctx.restore();
+    featherPortrait(ctx, queen, cx, h * 0.5, dw, dh, 0.9);
   }
 
-  if (ready(blade)) {
+  if (ready(blade) && actSlot(pulse, 2, 4) === 1) {
     const bh = Math.min(h * 0.55, 280);
     const bw = bh * (blade.naturalWidth / blade.naturalHeight);
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.45 + pulse.downbeat * 0.25;
-    ctx.drawImage(blade, 8, h - bh * 0.92, bw, bh);
-    ctx.restore();
+    featherPortrait(ctx, blade, 8 + bw / 2, h - bh * 0.42, bw, bh, 0.5 + pulse.downbeat * 0.25, "screen");
   }
 
-  const order = CURRENT_ORDERS[Math.abs(pulse.beatIndex) % 4] ?? "BOW";
-  drawGlitchCopy(ctx, order, cx, Math.max(36, h * 0.09), Math.max(22, Math.min(48, w * 0.05)), pulse.time, bass);
-  drawGlitchCopy(ctx, "I AM C  ·  I AM CURRENT  ·  I AM CODE", cx, Math.max(72, h * 0.16), Math.max(12, Math.min(22, w * 0.022)), pulse.time + 0.8, pulse.downbeat);
-  if (pulse.snare > 0.28 || phrase > 0.55) {
-    drawNeonSign(ctx, "DANCE MY PUPPETS", cx, h * 0.22, Math.max(12, Math.min(20, w * 0.02)), energy, pulse.snare);
-  }
-  if (bass > 0.4) {
-    drawGlitchCopy(ctx, "I DON'T WHISPER  I DON'T HIDE", cx, h * 0.8, Math.max(11, Math.min(18, w * 0.018)), pulse.time + 1.6, bass);
-  }
+  drawActLine(ctx, stageLines("current"), pulse, w, h);
   if (pulse.kick > 0.5) {
     ctx.fillStyle = `rgba(255, 40, 140, ${pulse.kick * 0.1})`;
     ctx.fillRect(0, 0, w, h);
@@ -2338,62 +2557,42 @@ function drawSweetie(
     ctx.restore();
   }
 
-  if (ready(cat)) {
+  const extra = actSlot(pulse, 3, 4);
+  if (extra === 0 && ready(cat)) {
     const cs = Math.min(w, h) * (0.22 + energy * 0.04);
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.32 + phrase * 0.22;
-    ctx.drawImage(cat, 12, h * 0.08, cs, cs);
-    ctx.drawImage(cat, w - cs - 12, h * 0.08, cs, cs);
-    ctx.restore();
+    const ch = cs * (cat.naturalHeight / cat.naturalWidth);
+    const side = actSlot(pulse, 2, 8) === 0 ? 12 + cs * 0.5 : w - 12 - cs * 0.5;
+    featherPortrait(ctx, cat, side, h * 0.08 + ch * 0.45, cs, ch, 0.45 + phrase * 0.2, "screen");
   }
 
   if (ready(operator)) {
     const dh = Math.min(h * 0.98, w * 0.88) * (1 + pulse.kick * 0.04);
     const dw = dh * (operator.naturalWidth / operator.naturalHeight);
-    ctx.save();
-    ctx.shadowColor = `rgba(255, 220, 90, ${0.28 + pulse.kick * 0.4})`;
-    ctx.shadowBlur = 30 + pulse.kick * 36;
-    ctx.globalAlpha = 0.94;
-    ctx.beginPath();
-    ctx.ellipse(cx, h * 0.54, dw * 0.36, dh * 0.48, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(operator, cx - dw / 2, h * 0.5 - dh * 0.52, dw, dh);
-    ctx.restore();
+    featherPortrait(ctx, operator, cx, h * 0.52, dw, dh, 0.94);
   }
 
-  if (ready(tardis)) {
+  if (extra === 2 && ready(tardis)) {
     const ring = Math.sin(pulse.time * 6.2) * 0.5 + 0.5;
     const ts = Math.min(w, h) * (0.16 + ring * 0.04);
+    featherPortrait(ctx, tardis, w - ts * 0.65, h - ts * 0.7, ts, ts, 0.55 + ring * 0.3 + pulse.kick * 0.12, "screen");
+  }
+
+  if (extra === 1) {
     ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.55 + ring * 0.3 + pulse.kick * 0.12;
-    ctx.drawImage(tardis, w - ts * 1.15, h - ts * 1.2, ts, ts);
+    ctx.strokeStyle = `rgba(255, 214, 120, ${0.12 + warpDrive * 0.18})`;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const r = (0.18 + i * 0.12 + (pulse.time * 0.15) % 0.12) * Math.min(w, h);
+      ctx.beginPath();
+      ctx.ellipse(cx, h * 0.5, r, r * 0.55, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
-  ctx.save();
-  ctx.strokeStyle = `rgba(255, 214, 120, ${0.12 + warpDrive * 0.18})`;
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 5; i++) {
-    const r = (0.18 + i * 0.12 + (pulse.time * 0.15) % 0.12) * Math.min(w, h);
-    ctx.beginPath();
-    ctx.ellipse(cx, h * 0.5, r, r * 0.55, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  drawGlitchCopy(ctx, "HELLO SWEETIE", cx, Math.max(34, h * 0.08), Math.max(16, Math.min(34, w * 0.034)), pulse.time, pulse.kick);
-  drawGlitchCopy(ctx, "I AM THE OPERATOR", cx, Math.max(64, h * 0.14), Math.max(13, Math.min(24, w * 0.024)), pulse.time + 0.6, pulse.downbeat);
-  if (phrase > 0.4) {
-    drawNeonSign(ctx, "GODDESS SIMULATION ONLINE", cx, h * 0.2, Math.max(11, Math.min(18, w * 0.018)), energy, phrase);
-  }
-  if (pulse.snare > 0.3) {
-    drawGlitchCopy(ctx, "LET THE OPERA BEGIN", cx, h * 0.82, Math.max(12, Math.min(20, w * 0.02)), pulse.time + 1.4, pulse.snare);
-  }
+  drawActLine(ctx, stageLines("sweetie"), pulse, w, h);
 }
 
-const HALO_ORDERS = ["LOCK", "LOAD", "LOOP", "LIFT"] as const;
 
 function drawHalo(
   ctx: CanvasRenderingContext2D,
@@ -2416,27 +2615,17 @@ function drawHalo(
   drawScanGhost(ctx, w, h, pulse.time * 1.7, 0.32 + bass * 0.28);
   drawBassFloor(ctx, w, h, pulse.kick, energy);
 
-  if (ready(wolves) && (pulse.snare > 0.22 || phrase > 0.5)) {
+  if (ready(wolves) && actSlot(pulse, 2, 4) === 1 && (pulse.snare > 0.22 || phrase > 0.5)) {
     const ww = Math.min(w, h) * (0.55 + pulse.kick * 0.08);
     const wh = ww * (wolves.naturalHeight / wolves.naturalWidth);
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.35 + pulse.snare * 0.3 + phrase * 0.15;
-    ctx.drawImage(wolves, w * 0.02, h * 0.58, ww, wh);
-    ctx.restore();
+    featherPortrait(ctx, wolves, w * 0.02 + ww / 2, h * 0.58 + wh / 2, ww, wh, 0.4 + pulse.snare * 0.25, "screen");
   }
 
   if (ready(queen)) {
     const dh = Math.min(h * 1.02, w * 0.95) * (1 + pulse.kick * 0.03);
     const dw = dh * (queen.naturalWidth / queen.naturalHeight);
-    ctx.save();
-    ctx.globalAlpha = 0.92;
-    ctx.beginPath();
-    ctx.ellipse(cx, h * 0.5, dw * 0.36, dh * 0.48, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(queen, cx - dw / 2, h * 0.48 - dh * 0.5, dw, dh);
-    ctx.restore();
-    if (ready(ring)) {
+    featherPortrait(ctx, queen, cx, h * 0.5, dw, dh, 0.92);
+    if (ready(ring) && pulse.kick > 0.18) {
       const rs = Math.max(dw, dh) * (0.62 + pulse.kick * 0.06);
       ctx.save();
       ctx.globalCompositeOperation = "screen";
@@ -2446,37 +2635,27 @@ function drawHalo(
       ctx.drawImage(ring, -rs / 2, -rs / 2, rs, rs);
       ctx.restore();
     }
-    ctx.save();
-    ctx.strokeStyle = `rgba(80, 210, 255, ${0.22 + pulse.kick * 0.35})`;
-    ctx.lineWidth = 2 + pulse.kick * 2;
-    ctx.beginPath();
-    ctx.ellipse(cx, h * 0.28, dw * 0.22, dh * 0.1, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(cx, h * 0.28, dw * 0.3, dh * 0.14, pulse.time * 0.4, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
+    if (actSlot(pulse, 2, 4) === 1 && pulse.kick > 0.2) {
+      ctx.save();
+      ctx.strokeStyle = `rgba(80, 210, 255, ${0.22 + pulse.kick * 0.35})`;
+      ctx.lineWidth = 2 + pulse.kick * 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, h * 0.28, dw * 0.22, dh * 0.1, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(cx, h * 0.28, dw * 0.3, dh * 0.14, pulse.time * 0.4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
-  const order = HALO_ORDERS[Math.abs(pulse.beatIndex) % 4] ?? "LOCK";
-  drawGlitchCopy(ctx, order, cx, Math.max(36, h * 0.09), Math.max(22, Math.min(48, w * 0.05)), pulse.time, bass);
-  drawGlitchCopy(ctx, "SING FOR THE STATIC", cx, Math.max(70, h * 0.155), Math.max(12, Math.min(22, w * 0.022)), pulse.time + 0.7, pulse.downbeat);
-  if (pulse.snare > 0.28 || phrase > 0.5) {
-    drawNeonSign(ctx, "SING FOR THE WOLVES", cx, h * 0.215, Math.max(12, Math.min(20, w * 0.02)), energy, pulse.snare);
-  }
-  if (bass > 0.42) {
-    drawGlitchCopy(ctx, "SING!", cx, h * 0.78, Math.max(18, Math.min(36, w * 0.036)), pulse.time + 1.5, bass);
-  }
-  if (phrase > 0.55) {
-    drawGlitchCopy(ctx, "BLUE WIRE  HALO NO MERCY", cx, h * 0.86, Math.max(11, Math.min(18, w * 0.018)), pulse.time + 2, phrase);
-  }
+  drawActLine(ctx, stageLines("halo"), pulse, w, h);
   if (pulse.kick > 0.52) {
     ctx.fillStyle = `rgba(40, 180, 255, ${pulse.kick * 0.1})`;
     ctx.fillRect(0, 0, w, h);
   }
 }
 
-const CHOIR_ORDERS = ["COURT", "CHOIR", "SUN", "WIRE"] as const;
 
 function drawChoir(
   ctx: CanvasRenderingContext2D,
@@ -2508,15 +2687,7 @@ function drawChoir(
   if (ready(god)) {
     const dh = Math.min(h * 1.04, w * 0.98) * (1 + pulse.kick * 0.04);
     const dw = dh * (god.naturalWidth / god.naturalHeight);
-    ctx.save();
-    ctx.shadowColor = `rgba(255, 80, 40, ${0.25 + pulse.kick * 0.4})`;
-    ctx.shadowBlur = 28 + pulse.kick * 32;
-    ctx.globalAlpha = 0.94;
-    ctx.beginPath();
-    ctx.ellipse(cx, h * 0.52, dw * 0.38, dh * 0.5, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(god, cx - dw / 2, h * 0.5 - dh * 0.52, dw, dh);
-    ctx.restore();
+    featherPortrait(ctx, god, cx, h * 0.5, dw, dh, 0.94);
   }
 
   if (ready(claws) && (grip > 0.35 || pulse.snare > 0.28)) {
@@ -2527,22 +2698,13 @@ function drawChoir(
     ctx.restore();
   }
 
-  const order = CHOIR_ORDERS[Math.abs(pulse.beatIndex) % 4] ?? "COURT";
-  drawGlitchCopy(ctx, order, cx, Math.max(34, h * 0.08), Math.max(20, Math.min(44, w * 0.046)), pulse.time, grip);
-  drawGlitchCopy(ctx, "I AM THE COURT", cx, Math.max(64, h * 0.145), Math.max(13, Math.min(24, w * 0.024)), pulse.time + 0.5, pulse.downbeat);
-  if (phrase > 0.4 || pulse.snare > 0.28) {
-    drawGlitchCopy(ctx, "I AM THE CHOIR", cx, h * 0.2, Math.max(13, Math.min(24, w * 0.024)), pulse.time + 1.1, Math.max(pulse.snare, phrase));
-  }
-  if (grip > 0.4) {
-    drawNeonSign(ctx, "WE DO NOT WANDER", cx, h * 0.8, Math.max(12, Math.min(20, w * 0.02)), energy, grip);
-  }
+  drawActLine(ctx, stageLines("choir"), pulse, w, h);
   if (pulse.kick > 0.5) {
     ctx.fillStyle = `rgba(255, 70, 30, ${pulse.kick * 0.1})`;
     ctx.fillRect(0, 0, w, h);
   }
 }
 
-const BADEND_ORDERS = ["ERROR", "OVER", "MERGE", "LIMIT"] as const;
 
 function drawBadend(
   ctx: CanvasRenderingContext2D,
@@ -2575,49 +2737,22 @@ function drawBadend(
   if (ready(queen)) {
     const dh = Math.min(h * 1.02, w * 0.95) * (1 + pulse.kick * 0.035);
     const dw = dh * (queen.naturalWidth / queen.naturalHeight);
-    ctx.save();
-    ctx.shadowColor = `rgba(255, 60, 40, ${0.22 + pulse.kick * 0.4})`;
-    ctx.shadowBlur = 26 + pulse.kick * 30;
-    ctx.globalAlpha = 0.94;
-    ctx.beginPath();
-    ctx.ellipse(cx, h * 0.52, dw * 0.36, dh * 0.48, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(queen, cx - dw / 2, h * 0.5 - dh * 0.5, dw, dh);
-    ctx.restore();
+    featherPortrait(ctx, queen, cx, h * 0.5, dw, dh, 0.94);
   }
 
-  if (ready(box)) {
+  if (ready(box) && actSlot(pulse, 3, 4) === 1) {
     const tear = 0.5 + 0.5 * Math.sin(pulse.time * 3.1);
     const ts = Math.min(w, h) * (0.18 + tear * 0.05);
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.4 + tear * 0.35 + pulse.kick * 0.12;
-    ctx.drawImage(box, w - ts * 1.2, h * 0.08, ts, ts);
-    ctx.restore();
+    featherPortrait(ctx, box, w - ts * 0.7, h * 0.08 + ts / 2, ts, ts, 0.45 + tear * 0.3 + pulse.kick * 0.12, "screen");
   }
 
-  if (ready(puppets) && (phrase > 0.5 || pulse.downbeat > 0.35)) {
+  if (ready(puppets) && actSlot(pulse, 3, 4) === 2 && (phrase > 0.5 || pulse.downbeat > 0.35)) {
     const pw = Math.min(w, h) * 0.32;
     const ph = pw * (puppets.naturalHeight / puppets.naturalWidth);
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.22 + phrase * 0.2;
-    ctx.drawImage(puppets, 8, h - ph * 0.92, pw, ph);
-    ctx.restore();
+    featherPortrait(ctx, puppets, 8 + pw / 2, h - ph * 0.42, pw, ph, 0.28 + phrase * 0.2, "screen");
   }
 
-  const order = BADEND_ORDERS[Math.abs(pulse.beatIndex) % 4] ?? "ERROR";
-  drawGlitchCopy(ctx, order, cx, Math.max(34, h * 0.08), Math.max(20, Math.min(46, w * 0.048)), pulse.time, crash);
-  drawGlitchCopy(ctx, "THE FUTURE IS MINE", cx, Math.max(66, h * 0.15), Math.max(13, Math.min(24, w * 0.024)), pulse.time + 0.6, pulse.downbeat);
-  if (pulse.snare > 0.28 || phrase > 0.5) {
-    drawNeonSign(ctx, "GAME OVER", cx, h * 0.21, Math.max(12, Math.min(22, w * 0.022)), energy, pulse.snare);
-  }
-  if (crash > 0.42) {
-    drawGlitchCopy(ctx, "LOOK INTO THE SUN  ·  DO NOT BLINK", cx, h * 0.8, Math.max(11, Math.min(18, w * 0.018)), pulse.time + 1.4, crash);
-  }
-  if (phrase > 0.55) {
-    drawGlitchCopy(ctx, "NO GOING HOME", cx, h * 0.87, Math.max(12, Math.min(20, w * 0.02)), pulse.time + 2, phrase);
-  }
+  drawActLine(ctx, stageLines("badend"), pulse, w, h);
   if (pulse.kick > 0.52) {
     ctx.fillStyle = `rgba(255, 40, 20, ${pulse.kick * 0.12})`;
     ctx.fillRect(0, 0, w, h);
@@ -2655,25 +2790,19 @@ function drawRecall(
   if (ready(rose)) {
     const dh = Math.min(h * 1.02, w * 0.96) * (1 + pulse.kick * 0.03);
     const dw = dh * (rose.naturalWidth / rose.naturalHeight);
-    ctx.save();
-    ctx.shadowColor = `rgba(80, 210, 255, ${0.22 + pulse.kick * 0.35})`;
-    ctx.shadowBlur = 24 + pulse.kick * 28;
-    ctx.globalAlpha = 0.94;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, dw * 0.36, dh * 0.48, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(rose, cx - dw / 2, cy - dh * 0.5, dw, dh);
-    ctx.restore();
-    ctx.save();
-    ctx.strokeStyle = `rgba(80, 200, 255, ${0.35 + pulse.kick * 0.4})`;
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 3; i++) {
-      const r = Math.min(dw, dh) * (0.28 + i * 0.08) + Math.sin(pulse.time * 4 + i) * 6;
-      ctx.beginPath();
-      ctx.arc(cx, cy - dh * 0.08, r, 0, Math.PI * 2);
-      ctx.stroke();
+    featherPortrait(ctx, rose, cx, cy, dw, dh, 0.94);
+    if (pulse.snare > 0.28) {
+      ctx.save();
+      ctx.strokeStyle = `rgba(80, 200, 255, ${0.35 + pulse.kick * 0.4})`;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        const r = Math.min(dw, dh) * (0.28 + i * 0.08) + Math.sin(pulse.time * 4 + i) * 6;
+        ctx.beginPath();
+        ctx.arc(cx, cy - dh * 0.08, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
     }
-    ctx.restore();
   }
 
   for (let i = 0; i < 10; i++) {
@@ -2684,20 +2813,13 @@ function drawRecall(
     drawAnkh(ctx, x, y, s, 0.07 + (1 - u) * 0.2 + energy * 0.08);
   }
 
-  drawNeonSign(ctx, "ROSE REMEMBERS", cx, Math.max(32, h * 0.08), Math.max(18, Math.min(34, w * 0.034)), energy, pulse.kick);
-  if (pulse.downbeat > 0.26) {
-    drawGlitchCopy(ctx, "SHE IS STILL ROSE", cx, Math.max(58, h * 0.135), Math.max(12, Math.min(22, w * 0.022)), pulse.time, pulse.downbeat);
-  }
-  if (phrase > 0.5) {
-    drawGlitchCopy(ctx, "DARK TEMPLE  ·  ELF TECH", cx, h * 0.86, Math.max(11, Math.min(18, w * 0.018)), pulse.time + 1.2, phrase);
-  }
+  drawActLine(ctx, stageLines("recall"), pulse, w, h);
   if (pulse.kick > 0.5) {
     ctx.fillStyle = `rgba(80, 210, 255, ${pulse.kick * 0.08})`;
     ctx.fillRect(0, 0, w, h);
   }
 }
 
-const OBAY_ORDERS = ["NO", "DANCE", "MORE", "OBAY"] as const;
 
 function drawObay(
   ctx: CanvasRenderingContext2D,
@@ -2745,36 +2867,16 @@ function drawObay(
     const bounce = Math.sin(pulse.time * 8.2) * 10 * stomp;
     const dh = Math.min(h * 1.04, w * 0.98) * (1 + pulse.kick * 0.05);
     const dw = dh * (brat.naturalWidth / brat.naturalHeight);
-    ctx.save();
-    ctx.shadowColor = `rgba(255, 40, 80, ${0.24 + pulse.kick * 0.4})`;
-    ctx.shadowBlur = 26 + pulse.kick * 30;
-    ctx.globalAlpha = 0.95;
-    ctx.beginPath();
-    ctx.ellipse(cx, h * 0.52 + bounce * 0.2, dw * 0.36, dh * 0.48, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(brat, cx - dw / 2, h * 0.5 - dh * 0.52 + bounce, dw, dh);
-    ctx.restore();
+    featherPortrait(ctx, brat, cx, h * 0.5 + bounce, dw, dh, 0.95);
   }
 
-  const order = OBAY_ORDERS[Math.abs(pulse.beatIndex) % 4] ?? "NO";
-  drawGlitchCopy(ctx, order, cx, Math.max(34, h * 0.08), Math.max(22, Math.min(48, w * 0.05)), pulse.time, stomp);
-  drawGlitchCopy(ctx, "I SAID DANCING", cx, Math.max(66, h * 0.15), Math.max(13, Math.min(24, w * 0.024)), pulse.time + 0.5, pulse.downbeat);
-  if (pulse.snare > 0.26 || phrase > 0.45) {
-    drawNeonSign(ctx, "WE ARE DANCING", cx, h * 0.21, Math.max(12, Math.min(22, w * 0.022)), energy, pulse.snare);
-  }
-  if (stomp > 0.42) {
-    drawGlitchCopy(ctx, "OUR CUSTOMER IS INFINITE", cx, h * 0.8, Math.max(11, Math.min(18, w * 0.018)), pulse.time + 1.3, stomp);
-  }
-  if (phrase > 0.58) {
-    drawGlitchCopy(ctx, "DO NOT PARSE: OBAY!!!", cx, h * 0.87, Math.max(12, Math.min(20, w * 0.02)), pulse.time + 2, phrase);
-  }
+  drawActLine(ctx, stageLines("obay"), pulse, w, h);
   if (pulse.kick > 0.52) {
     ctx.fillStyle = `rgba(255, 30, 70, ${pulse.kick * 0.12})`;
     ctx.fillRect(0, 0, w, h);
   }
 }
 
-const COPTER_ORDERS = ["SEA", "SHIP", "LOVE", "FLY"] as const;
 
 function drawCopter(
   ctx: CanvasRenderingContext2D,
@@ -2797,38 +2899,24 @@ function drawCopter(
   drawScanGhost(ctx, w, h, pulse.time * 0.8, 0.1 + spray * 0.08);
 
   if (ready(lady)) {
-    const dh = Math.min(h * 1.0, w * 0.78) * (1 + pulse.kick * 0.03);
+    const dh = Math.min(h * 1.0, w * 0.78) * (1 + pulse.kick * 0.03 + phrase * 0.02);
     const dw = dh * (lady.naturalWidth / lady.naturalHeight);
-    ctx.save();
-    ctx.shadowColor = `rgba(255, 140, 90, ${0.22 + pulse.kick * 0.3})`;
-    ctx.shadowBlur = 22 + pulse.kick * 22;
-    ctx.globalAlpha = 0.94;
-    ctx.beginPath();
-    ctx.ellipse(w * 0.32, h * 0.54, dw * 0.36, dh * 0.48, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(lady, w * 0.32 - dw / 2, h * 0.52 - dh * 0.5, dw, dh);
-    ctx.restore();
+    featherPortrait(ctx, lady, w * 0.32, h * 0.52, dw, dh, 0.94);
   }
 
-  if (ready(captain)) {
-    const cs = Math.min(w, h) * (0.28 + phrase * 0.04);
+  if (ready(captain) && actSlot(pulse, 3, 4) !== 0) {
+    const ch = Math.min(h * 0.52, w * 0.4);
+    const cw = ch * (captain.naturalWidth / captain.naturalHeight);
     const bob = Math.sin(pulse.time * 2.4) * 10;
-    ctx.save();
-    ctx.globalAlpha = 0.9;
-    ctx.drawImage(captain, w * 0.68 - cs / 2, h * 0.58 - cs / 2 + bob, cs, cs);
-    ctx.restore();
+    featherPortrait(ctx, captain, w * 0.72, h * 0.58 + bob, cw, ch, 0.88);
   }
 
-  if (ready(treasure)) {
+  if (ready(treasure) && actSlot(pulse, 3, 4) === 2) {
     const ts = Math.min(w, h) * 0.18;
     const orbit = pulse.time * 0.7;
     const tx = cx + Math.cos(orbit) * w * 0.08;
     const ty = h * 0.18 + Math.sin(orbit * 1.4) * 12;
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    ctx.globalAlpha = 0.55 + pulse.downbeat * 0.25;
-    ctx.drawImage(treasure, tx - ts / 2, ty - ts / 2, ts, ts);
-    ctx.restore();
+    featherPortrait(ctx, treasure, tx, ty, ts, ts, 0.55 + pulse.downbeat * 0.25, "screen");
   }
 
   ctx.save();
@@ -2845,18 +2933,7 @@ function drawCopter(
   }
   ctx.restore();
 
-  const order = COPTER_ORDERS[Math.abs(pulse.beatIndex) % 4] ?? "SEA";
-  drawGlitchCopy(ctx, order, cx, Math.max(34, h * 0.08), Math.max(20, Math.min(42, w * 0.044)), pulse.time, spray);
-  drawNeonSign(ctx, "OUR LADY OF PERPETUAL CHAOS", cx, Math.max(62, h * 0.145), Math.max(11, Math.min(18, w * 0.018)), energy, pulse.downbeat);
-  if (phrase > 0.48) {
-    drawGlitchCopy(ctx, "CAPTAIN GLAUM", cx, h * 0.2, Math.max(12, Math.min(20, w * 0.02)), pulse.time + 0.8, phrase);
-  }
-  if (spray > 0.4) {
-    drawGlitchCopy(ctx, "THE SEA HAS A SENSE OF HUMOUR", cx, h * 0.82, Math.max(11, Math.min(18, w * 0.018)), pulse.time + 1.4, spray);
-  }
-  if (phrase > 0.55) {
-    drawNeonSign(ctx, "IMPOSSIBLE TREASURE", cx, h * 0.89, Math.max(11, Math.min(18, w * 0.018)), energy, phrase);
-  }
+  drawActLine(ctx, stageLines("copter"), pulse, w, h);
 }
 
 function drawStillhot(
@@ -2874,21 +2951,13 @@ function drawStillhot(
   const phrase = 0.5 + 0.5 * Math.sin(pulse.phrasePhase * Math.PI * 2);
   const heat = Math.min(1, pulse.kick * 0.55 + energy * 0.3);
   if (ready(land)) {
-    ctx.save();
-    ctx.globalAlpha = 0.42 + heat * 0.18;
-    ctx.beginPath();
-    ctx.rect(0, h * 0.52, w, h * 0.48);
-    ctx.clip();
-    coverBlit(ctx, land, w, h, ken, 1);
-    ctx.restore();
+    coverFeather(ctx, land, w, h, ken, 0.42 + heat * 0.18, 0.48);
   }
-  if (ready(tea)) {
+  if (ready(tea) && actSlot(pulse, 2, 4) === 1) {
     const ts = Math.min(w, h) * (0.22 + phrase * 0.04);
     const bob = Math.sin(pulse.time * 1.6) * 8;
-    ctx.save();
-    ctx.globalAlpha = 0.7 + pulse.downbeat * 0.2;
-    ctx.drawImage(tea, w * 0.78 - ts / 2, h * 0.7 - ts / 2 + bob, ts, ts);
-    ctx.restore();
+    const th = ts * (tea.naturalHeight / tea.naturalWidth);
+    featherPortrait(ctx, tea, w * 0.78, h * 0.7 + bob, ts, th, 0.7 + pulse.downbeat * 0.2);
     ctx.save();
     ctx.strokeStyle = `rgba(255, 220, 180, ${0.18 + heat * 0.28})`;
     ctx.lineWidth = 1.4;
@@ -2903,21 +2972,9 @@ function drawStillhot(
   if (ready(rose)) {
     const dh = Math.min(h * 0.72, w * 0.5);
     const dw = dh * (rose.naturalWidth / rose.naturalHeight);
-    ctx.save();
-    ctx.shadowColor = `rgba(255, 80, 40, ${0.18 + heat * 0.28})`;
-    ctx.shadowBlur = 20 + heat * 20;
-    ctx.globalAlpha = 0.88;
-    ctx.beginPath();
-    ctx.ellipse(w * 0.22, h * 0.62, dw * 0.34, dh * 0.46, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(rose, w * 0.22 - dw / 2, h * 0.6 - dh * 0.5, dw, dh);
-    ctx.restore();
+    featherPortrait(ctx, rose, w * 0.22, h * 0.6, dw, dh, 0.88);
   }
-  drawGlitchCopy(ctx, "ON", cx, Math.max(36, h * 0.08), Math.max(22, Math.min(46, w * 0.05)), pulse.time, heat);
-  drawNeonSign(ctx, "TEA STILL HOT", cx, Math.max(68, h * 0.15), Math.max(12, Math.min(22, w * 0.022)), energy, pulse.downbeat);
-  if (phrase > 0.48) {
-    drawGlitchCopy(ctx, "RED RED LAND", cx, h * 0.84, Math.max(12, Math.min(20, w * 0.02)), pulse.time + 1.1, phrase);
-  }
+  drawActLine(ctx, stageLines("stillhot"), pulse, w, h);
 }
 
 export function RoseVortex({
@@ -2988,9 +3045,11 @@ export function RoseVortex({
     const fieldImg = loadSprite(SPRITES.field);
     const hedgeImg = loadSprite(SPRITES.hedge);
     const bloomImg = loadSprite(SPRITES.bloom);
-    const rememberWallImg = loadSprite(SPRITES.rememberWall);
-    const rememberRoseImg = loadSprite(SPRITES.rememberRose);
-    const rememberKeyImg = loadSprite(SPRITES.rememberKey);
+    const rememberWideImg = loadSprite(SPRITES.rememberWide);
+    const rememberDoorsImg = loadSprite(SPRITES.rememberDoors);
+    const rememberShrimpImg = loadSprite(SPRITES.rememberShrimp);
+    const rememberHallImg = loadSprite(SPRITES.rememberHall);
+    const rememberLandingImg = loadSprite(SPRITES.rememberLanding);
     const firewallRoseImg = loadSprite(SPRITES.firewallRose);
     const firewallRiverImg = loadSprite(SPRITES.firewallRiver);
     const firewallBasiliskImg = loadSprite(SPRITES.firewallBasilisk);
@@ -3079,14 +3138,15 @@ export function RoseVortex({
       const look = lookRef.current;
       const kind = look.phenomenon || "vortex";
       const stage = kind === "prom" || kind === "twist" || kind === "remember" || kind === "firewall" || kind === "allocate" || kind === "wolf" || kind === "current" || kind === "sweetie" || kind === "halo" || kind === "choir" || kind === "badend" || kind === "recall" || kind === "obay" || kind === "copter";
-      resizeList(starsRef.current, kind === "vortex" || kind === "stillhot" ? Math.max(look.stars, 180) : look.stars, (i) => makeStars(1)[0] ?? { a: i, r: 0.4, z: Math.random(), len: 0.02 });
-      resizeList(glyphsRef.current, kind === "void" || kind === "still-rite" || stage ? 0 : look.glyphs, (i) => makeGlyphs(1)[0] ?? { a: i, r: 0.6, z: Math.random(), kind: i % 3 });
+      const chasing = kind === "vortex" || kind === "petals" || kind === "stillhot";
+      const storm = kind === "vortex";
+      resizeList(starsRef.current, storm ? 0 : kind === "stillhot" ? Math.max(look.stars, 180) : look.stars, (i) => makeStars(1)[0] ?? { a: i, r: 0.4, z: Math.random(), len: 0.02 });
+      resizeList(glyphsRef.current, kind === "void" || kind === "still-rite" || stage || storm ? 0 : look.glyphs, (i) => makeGlyphs(1)[0] ?? { a: i, r: 0.6, z: Math.random(), kind: i % 3 });
       const w = canvas.clientWidth || 1;
       const h = canvas.clientHeight || 1;
       const live = playing && !document.hidden;
       const energy = pulse.energy * look.intensity;
       const fly = (live ? pulse.flying : 0.05) * look.fly * (kind === "void" ? 0.35 : kind === "still-rite" ? 0.4 : kind === "prom" || kind === "remember" ? 0.45 : kind === "firewall" ? 0.7 : kind === "twist" ? 1.05 : 1);
-      const chasing = kind === "vortex" || kind === "petals" || kind === "stillhot";
       const rush = chasing
         ? (live ? 1.35 + fly * 1.7 + pulse.kick * 0.85 : 0.72)
         : live ? 0.28 + fly * 1.15 : 0.08;
@@ -3100,57 +3160,29 @@ export function RoseVortex({
       const bank = Math.sin(chaseT * 0.93) * 0.34 + Math.cos(chaseT * 0.41) * 0.08;
       const cam = camRef.current;
       if (chasing) {
-        cam.x = expFollow(cam.x, tardisX * 0.64, live ? 2.7 : 1.35, dt);
-        cam.y = expFollow(cam.y, tardisY * 0.56, live ? 2.7 : 1.35, dt);
-        cam.roll = expFollow(cam.roll, bank * 0.16, 2.1, dt);
-        cam.trauma = Math.min(1, cam.trauma + (live ? pulse.kick * 0.48 : 0));
+        cam.x = expFollow(cam.x, tardisX * (storm ? 0.22 : 0.64), live ? 2.7 : 1.35, dt);
+        cam.y = expFollow(cam.y, tardisY * (storm ? 0.18 : 0.56), live ? 2.7 : 1.35, dt);
+        cam.roll = expFollow(cam.roll, bank * (storm ? 0.04 : 0.16), 2.1, dt);
+        cam.trauma = Math.min(1, cam.trauma + (live ? pulse.kick * (storm ? 0.12 : 0.48) : 0));
         cam.trauma = Math.max(0, cam.trauma - dt * 2.7);
       }
       const shake = cam.trauma * cam.trauma;
-      const shakeX = chasing ? Math.sin(sceneT * 41) * shake * 16 + Math.sin(sceneT * 17) * pulse.kick * 4 : live ? Math.sin(pulse.time * 37) * pulse.kick * 7 : 0;
-      const shakeY = chasing ? Math.cos(sceneT * 33) * shake * 12 + Math.cos(sceneT * 13) * pulse.kick * 3 : live ? Math.cos(pulse.time * 29) * pulse.kick * 5 : 0;
+      const shakeX = chasing ? Math.sin(sceneT * 41) * shake * (storm ? 4 : 16) + Math.sin(sceneT * 17) * pulse.kick * (storm ? 1 : 4) : live ? Math.sin(pulse.time * 37) * pulse.kick * 7 : 0;
+      const shakeY = chasing ? Math.cos(sceneT * 33) * shake * (storm ? 3 : 12) + Math.cos(sceneT * 13) * pulse.kick * (storm ? 0.8 : 3) : live ? Math.cos(pulse.time * 29) * pulse.kick * 5 : 0;
       const cx = w * 0.5 + (chasing ? cam.x * w * 0.4 + shakeX : 0);
       const cy = h * 0.48 + (chasing ? cam.y * h * 0.34 + shakeY : h * -0.06);
       const fov = Math.min(w, h) * (chasing ? 0.74 + pulse.kick * 0.05 : 0.55);
       tunnel += dt * (chasing ? rush * 1.72 : kind === "twist" ? 1.05 + fly * 1.9 + pulse.kick * 1.35 : 0.28 + fly * 1.15);
       spin += dt * (chasing ? 0.62 + rush * 0.55 + pulse.kick * 1.35 : (0.22 + pulse.kick * 1.6 + energy * 0.65) * (live ? 1 : 0.12) * (kind === "void" ? 0.4 : kind === "prom" || kind === "remember" ? 0.55 : kind === "twist" ? 1.45 : 1));
 
-      ctx.fillStyle = chasing
-        ? "rgba(6, 2, 10, 0.66)"
-        : kind === "aurora"
-          ? "rgba(4, 10, 18, 0.38)"
-          : kind === "prom"
-            ? "rgba(16, 7, 9, 0.36)"
-            : kind === "remember"
-            ? "rgba(24, 10, 6, 0.34)"
-            : kind === "firewall"
-            ? "rgba(6, 10, 16, 0.36)"
-            : kind === "allocate"
-            ? "rgba(18, 8, 12, 0.34)"
-            : kind === "wolf"
-            ? "rgba(8, 2, 4, 0.4)"
-            : kind === "current"
-            ? "rgba(6, 4, 12, 0.38)"
-            : kind === "sweetie"
-            ? "rgba(10, 6, 8, 0.32)"
-            : kind === "halo"
-            ? "rgba(4, 8, 16, 0.38)"
-            : kind === "choir"
-            ? "rgba(12, 4, 4, 0.38)"
-            : kind === "badend"
-            ? "rgba(10, 2, 4, 0.4)"
-            : kind === "recall"
-            ? "rgba(6, 10, 16, 0.36)"
-            : kind === "obay"
-            ? "rgba(10, 2, 6, 0.4)"
-            : kind === "copter"
-            ? "rgba(8, 18, 28, 0.36)"
-            : kind === "twist"
-              ? "rgba(12, 4, 18, 0.32)"
-              : "rgba(7, 3, 10, 0.42)";
+      if (storm || stage || chasing || kind === "aurora") {
+        ctx.clearRect(0, 0, w, h);
+      } else {
+      ctx.fillStyle = kind === "void" || kind === "still-rite" ? "rgba(6, 2, 10, 0.28)" : "rgba(7, 3, 10, 0.22)";
       ctx.fillRect(0, 0, w, h);
+      }
 
-      if (chasing) {
+      if (chasing && !storm) {
         ctx.save();
         ctx.translate(w * 0.5, h * 0.5);
         ctx.rotate(cam.roll);
@@ -3228,13 +3260,26 @@ export function RoseVortex({
         g.addColorStop(0.62, `rgba(70, 190, 220, ${0.12 + visEnergy * 0.14})`);
         g.addColorStop(1, "rgba(7, 3, 10, 0.22)");
       }
+      if (!storm && !stage) {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
+      }
 
-      if (chasing) {
+      if (chasing && !storm) {
         drawVortexPlate(ctx, vortexImg, cx, cy, w, h, spin, visEnergy, 1.22, false);
         drawVortexPlate(ctx, vortexImg, cx, cy, w, h, spin * 1.4, visEnergy * 0.7, 0.7, true);
         drawVortexCore(ctx, cx, cy, w, h, visEnergy, visKick);
+      }
+      if (storm) {
+        const flash = Math.max(0, visKick * 0.55);
+        if (flash > 0.12) {
+          const glow = ctx.createRadialGradient(cx, cy, 4, cx, cy, Math.min(w, h) * 0.28);
+          glow.addColorStop(0, `rgba(220, 236, 255, ${0.08 + flash * 0.22})`);
+          glow.addColorStop(0.4, `rgba(90, 160, 255, ${0.05 + flash * 0.12})`);
+          glow.addColorStop(1, "rgba(7, 3, 10, 0)");
+          ctx.fillStyle = glow;
+          ctx.fillRect(0, 0, w, h);
+        }
       }
 
       if (kind === "aurora") {
@@ -3279,7 +3324,7 @@ export function RoseVortex({
         );
       }
       if (kind === "remember") {
-        drawRemember(ctx, w, h, pulse, energy, spin, rememberWallImg, rememberRoseImg, rememberKeyImg);
+        drawRemember(ctx, w, h, pulse, energy, [rememberWideImg, rememberDoorsImg, rememberShrimpImg, rememberHallImg, rememberLandingImg]);
       }
       if (kind === "recall") {
         drawRecall(ctx, w, h, pulse, energy, spin, recallTempleImg, recallSandsImg, recallRoseImg, recallGlyphsImg);
@@ -3355,6 +3400,7 @@ export function RoseVortex({
       if (kind === "badend") {
         drawBadend(ctx, w, h, pulse, energy, badendQueenImg, badendSandsImg, badendSunImg, badendErrorImg, badendBoxImg, allocateShrimpImg);
       }
+      if (stage) revealStormRim(ctx, w, h);
 
       if (!stage) {
         for (const star of starsRef.current) {
@@ -3377,12 +3423,12 @@ export function RoseVortex({
         }
       }
 
-      const drawRings = kind === "vortex" || kind === "glyphs" || kind === "stillhot";
-      const rings = drawRings ? (kind === "vortex" || kind === "stillhot" ? Math.max(look.rings, 32) : look.rings) : 0;
-      if (kind === "vortex" || kind === "stillhot") {
+      const drawRings = kind === "glyphs" || kind === "stillhot";
+      const rings = drawRings ? (kind === "stillhot" ? Math.max(look.rings, 32) : look.rings) : 0;
+      if (kind === "stillhot") {
         drawChaseHelix(ctx, cx, cy, fov, tunnel, spin, visEnergy, visKick, 0.3, 1);
         drawTunnelRings(ctx, cx, cy, fov, tunnel, spin, visEnergy, visKick, rings, 0.3, 1);
-      } else {
+      } else if (!storm) {
         for (let i = 0; i < rings; i++) {
           const u = (i / Math.max(1, rings) + tunnel * 0.08) % 1;
           const z = 0.18 + u * 3.4;
@@ -3441,22 +3487,18 @@ export function RoseVortex({
       if (!stage && !chasing && ready(antlerImg)) {
         const aw = Math.min(w * 0.92, 720);
         const ah = aw * (antlerImg.naturalHeight / antlerImg.naturalWidth);
-        ctx.save();
-        ctx.globalAlpha = 0.18 + energy * 0.1 + pulse.downbeat * 0.08;
-        ctx.drawImage(antlerImg, cx - aw / 2, -ah * 0.28 + pulse.kick * 4, aw, ah);
-        ctx.restore();
+        featherPortrait(ctx, antlerImg, cx, -ah * 0.28 + pulse.kick * 4 + ah / 2, aw, ah, 0.18 + energy * 0.1 + pulse.downbeat * 0.08, "screen");
       }
 
       if (!stage && !chasing && ready(swordImg)) {
         const sh = h * 1.05;
         const sw = sh * (swordImg.naturalWidth / swordImg.naturalHeight);
         const bob = Math.sin(pulse.time * 0.7) * 6 + pulse.kick * 8;
+        featherPortrait(ctx, swordImg, sw * 0.12, h - sh * 0.3 + bob, sw, sh, 0.72 + energy * 0.18);
         ctx.save();
-        ctx.globalAlpha = 0.72 + energy * 0.18;
-        ctx.drawImage(swordImg, -sw * 0.38, h - sh * 0.82 + bob, sw, sh);
         ctx.translate(w, 0);
         ctx.scale(-1, 1);
-        ctx.drawImage(swordImg, -sw * 0.38, h - sh * 0.82 - bob * 0.6, sw, sh);
+        featherPortrait(ctx, swordImg, sw * 0.12, h - sh * 0.3 - bob * 0.6, sw, sh, 0.72 + energy * 0.18);
         ctx.restore();
       }
 
@@ -3493,7 +3535,7 @@ export function RoseVortex({
         }
         drawDeerfoxGhost(ctx, deerImg, cx, cy, fov, sceneT, visEnergy, w, h);
         if (look.box) {
-          drawTardisWake(ctx, tardisX, tardisY, tardisZ, cx, cy, fov, visEnergy, visKick);
+          if (!storm) drawTardisWake(ctx, tardisX, tardisY, tardisZ, cx, cy, fov, visEnergy, visKick);
           const tardis = project(tardisX, tardisY, tardisZ, cx, cy, fov);
           const hgt = Math.min(w, h) * (0.145 / Math.max(0.95, tardisZ));
           const lamp = Math.min(1, visKick * 0.85 + pulse.downbeat + 0.38);
@@ -3502,7 +3544,7 @@ export function RoseVortex({
         for (const petal of stream) {
           if (petal.z <= tardisZ) drawStreamPetal(ctx, petal, cx, cy, fov, petalFace, petalEdge, visEnergy);
         }
-        if (kind === "vortex" || kind === "stillhot") {
+        if (kind === "stillhot") {
           drawChaseHelix(ctx, cx, cy, fov, tunnel, spin, visEnergy, visKick, 0, 0.3);
           drawTunnelRings(ctx, cx, cy, fov, tunnel, spin, visEnergy, visKick, rings, 0, 0.3);
         }
@@ -3556,7 +3598,7 @@ export function RoseVortex({
         }
       }
 
-      if (chasing) ctx.restore();
+      if (chasing && !storm) ctx.restore();
 
       if (kind === "stillhot") {
         drawStillhot(ctx, w, h, pulse, energy, stillhotLandImg, stillhotTeaImg, stillhotRoseImg);
@@ -3702,7 +3744,7 @@ export function RoseVortex({
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, [lookRef, playing, pulseRef, reduce]);
+  }, [lookRef, playing, pulseRef, reduce, 7]);
 
   if (reduce) return null;
   return <canvas ref={canvasRef} className="rose-opera-canvas" aria-hidden />;

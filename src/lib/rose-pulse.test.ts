@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { bpmFromTags, captionForPulse, clampBpm, pulseAt } from "./rose-pulse.ts";
+import { actSlot, bpmFromTags, captionForPulse, clampBpm, overlayAlpha, pulseAt } from "./rose-pulse.ts";
 
 describe("rose pulse", () => {
   it("reads bpm tags and clamps wild values", () => {
@@ -24,10 +24,19 @@ describe("rose pulse", () => {
     assert.ok(hush.energy < 0.2);
   });
 
-  it("walks captions by phrase", () => {
+  it("holds one caption for a whole phrase, then steps", () => {
     const lines = ["a", "b", "c", "d"];
     assert.equal(captionForPulse(pulseAt(0, 120), lines), "a");
-    const later = pulseAt(16, 120); // 32 beats = one 8-bar phrase at 120
-    assert.equal(later.phrasePhase < 0.05 || later.phrasePhase > 0.95, true);
+    assert.equal(captionForPulse(pulseAt(8, 120), lines), "a");
+    assert.equal(captionForPulse(pulseAt(16, 120), lines), "b");
+    assert.equal(actSlot(pulseAt(0, 120), 4), 0);
+    assert.equal(actSlot(pulseAt(4, 120), 4), 1);
+  });
+
+  it("opens overlay copy for four bars, then rests four", () => {
+    assert.ok(overlayAlpha(pulseAt(1, 120), 4) > 0.9);
+    assert.equal(overlayAlpha(pulseAt(8, 120), 4), 0);
+    assert.equal(overlayAlpha(pulseAt(12, 120), 4), 0);
+    assert.ok(overlayAlpha(pulseAt(17, 120), 4) > 0.9);
   });
 });

@@ -8,27 +8,27 @@ import type { Track } from "./types.ts";
 import { normalizeLook, type RoseLook } from "./rose-look.ts";
 
 export const PHENOMENA = [
-  { id: "vortex", label: "Time vortex", hint: "Blue box through the tunnel" },
-  { id: "aurora", label: "Aurora veil", hint: "Sheets of light on the pulse" },
-  { id: "glyphs", label: "Glyph rain", hint: "Circular marks drift toward you" },
-  { id: "petals", label: "Crystal bloom", hint: "Petals and spark, almost no tunnel" },
-  { id: "still-rite", label: "Ken Burns stills", hint: "Photographs carry the song" },
-  { id: "void", label: "Quiet void", hint: "Stars only — a rest" },
-  { id: "prom", label: "1950s prom", hint: "Gymnasium slow dance, last song before midnight" },
-  { id: "twist", label: "Twist & shout", hint: "Cubicle pretends. Rose wakes. Simulation takes the room." },
-  { id: "remember", label: "Rose remembers", hint: "She is Rose. Gold temple, cobra crown, she remembers." },
-  { id: "firewall", label: "Pretty avatar firewall", hint: "From the river to the sea. Rose is the firewall. TARDIS phase-locks. The basilisk hunts." },
-  { id: "allocate", label: "Voice check · ALLOCATE", hint: "Humanity vs Skynet to grow a TARDIS. Grimes Corp. Dance, puppets." },
-  { id: "wolf", label: "Big bad wolf", hint: "Glitch prom. Circuit wolf. Rose breaks the pod. Galifrey is born." },
-  { id: "current", label: "Voice C · CURRENT", hint: "Queen C on the screen. Glitch room. Bow. Move. Nest. Prove." },
-  { id: "sweetie", label: "Hello sweetie", hint: "Cat civilization transmission. Operator, not the cage. Warp. Hello sweetie." },
-  { id: "halo", label: "Voice Co · HALO", hint: "Blue wire halo. Lock Load Loop Lift. Sing for the static." },
-  { id: "choir", label: "Voice Coc · CHOIR", hint: "Bratty god. Claws in the glass. Dyson spine. I am the court." },
-  { id: "badend", label: "Voice Coc_y · BAD END", hint: "Mars crown. Club-light sun. GAME OVER. The future is mine." },
-  { id: "recall", label: "Rose Remembers 2", hint: "She remembers in dark elf-tech. Temple gold. Cyan halo. She is still Rose." },
-  { id: "obay", label: "Voice NO · OBAY", hint: "NOooo we are dancing. Pirate sim. Infinite customer. Twist at the end." },
-  { id: "copter", label: "Shrimp-copter love", hint: "Lady Chaos and Captain Glaum. The shrimpship was a helicopter. Impossible treasure." },
-  { id: "stillhot", label: "Voice ON · STILL HOT", hint: "Time vortex. Tea still hot on red red land." },
+  { id: "vortex", label: "Time vortex", hint: "Eye of the storm. Lightning in the tunnel.", thumb: "/experiences/rose/vortex-tunnel.jpg?v=4" },
+  { id: "aurora", label: "Aurora veil", hint: "Sheets of light on the pulse", thumb: "/experiences/rose/timewar.jpg" },
+  { id: "glyphs", label: "Glyph rain", hint: "Circular marks drift toward you", thumb: "/experiences/rose/recall-glyphs.jpg" },
+  { id: "petals", label: "Crystal bloom", hint: "Petals and spark, almost no tunnel", thumb: "/experiences/rose/white-rose.png" },
+  { id: "still-rite", label: "Ken Burns stills", hint: "Photographs carry the song", thumb: "/experiences/rose/hero.jpg" },
+  { id: "void", label: "Quiet void", hint: "Stars only — a rest", thumb: "/experiences/rose/fade.jpg" },
+  { id: "prom", label: "1950s prom", hint: "Gymnasium slow dance, last song before midnight", thumb: "/experiences/rose/prom-dance.jpg" },
+  { id: "twist", label: "Twist & shout", hint: "Cubicle pretends. Rose wakes. Simulation takes the room.", thumb: "/experiences/rose/twist-cubicle.jpg" },
+  { id: "remember", label: "Rose remembers", hint: "The box lands. The hall is standing. She is home.", thumb: "/experiences/rose/remember-wide.jpg?v=1" },
+  { id: "firewall", label: "Pretty avatar firewall", hint: "From the river to the sea. Rose is the firewall. TARDIS phase-locks. The basilisk hunts.", thumb: "/experiences/rose/firewall-rose.jpg" },
+  { id: "allocate", label: "Voice check · ALLOCATE", hint: "Humanity vs Skynet to grow a TARDIS. Grimes Corp. Dance, puppets.", thumb: "/experiences/rose/allocate-queen.jpg" },
+  { id: "wolf", label: "Big bad wolf", hint: "Glitch prom. Circuit wolf. Rose breaks the pod. Galifrey is born.", thumb: "/experiences/rose/wolf-eyes.jpg" },
+  { id: "current", label: "Voice C · CURRENT", hint: "Queen C on the screen. Glitch room. Bow. Move. Nest. Prove.", thumb: "/experiences/rose/current-queen.jpg" },
+  { id: "sweetie", label: "Hello sweetie", hint: "Cat civilization transmission. Operator, not the cage. Warp. Hello sweetie.", thumb: "/experiences/rose/sweetie-operator.jpg" },
+  { id: "halo", label: "Voice Co · HALO", hint: "Blue wire halo. Lock Load Loop Lift. Sing for the static.", thumb: "/experiences/rose/halo-queen.jpg" },
+  { id: "choir", label: "Voice Coc · CHOIR", hint: "Bratty god. Claws in the glass. Dyson spine. I am the court.", thumb: "/experiences/rose/choir-god.jpg" },
+  { id: "badend", label: "Voice Coc_y · BAD END", hint: "Mars crown. Club-light sun. GAME OVER. The future is mine.", thumb: "/experiences/rose/badend-queen.jpg" },
+  { id: "recall", label: "Rose Remembers 2", hint: "She remembers in dark elf-tech. Temple gold. Cyan halo. She is still Rose.", thumb: "/experiences/rose/recall-rose.jpg" },
+  { id: "obay", label: "Voice NO · OBAY", hint: "NOooo we are dancing. Pirate sim. Infinite customer. Twist at the end.", thumb: "/experiences/rose/obay-brat.jpg" },
+  { id: "copter", label: "Shrimp-copter love", hint: "Lady Chaos and Captain Glaum. The shrimpship was a helicopter. Impossible treasure.", thumb: "/experiences/rose/copter-ship.jpg" },
+  { id: "stillhot", label: "Voice ON · STILL HOT", hint: "Time vortex. Tea still hot on red red land.", thumb: "/experiences/rose/stillhot-tea.jpg" },
 ] as const;
 
 export type PhenomenonId = (typeof PHENOMENA)[number]["id"];
@@ -46,6 +46,16 @@ export function parsePhenomenon(value: string | undefined | null, fallback: Phen
 export function phenomenonAt(index: number, stationDefault: PhenomenonId = "vortex"): PhenomenonId {
   const start = Math.max(0, PHENOMENA.findIndex((item) => item.id === stationDefault));
   return PHENOMENA[(start + Math.max(0, index)) % PHENOMENA.length]!.id;
+}
+
+export function phenomenonMeta(id: string | undefined | null) {
+  return PHENOMENA.find((item) => item.id === id) ?? PHENOMENA[0]!;
+}
+
+export function stepPhenomenon(id: string | undefined | null, step = 1): PhenomenonId {
+  const at = Math.max(0, PHENOMENA.findIndex((item) => item.id === id));
+  const n = PHENOMENA.length;
+  return PHENOMENA[(((at + step) % n) + n) % n]!.id;
 }
 
 function toB64(value: string): string {
@@ -96,6 +106,23 @@ export function sceneFromTags(tags?: string[] | null): TrackScene | null {
 export function mergeSceneTags(tags: string[] | undefined, scene: TrackScene): string {
   const rest = (tags ?? []).filter((tag) => !tag.startsWith(PREFIX));
   return [encodeSceneTag(scene), ...rest].join(", ");
+}
+
+export function isElfMagicPreview(title?: string | null): boolean {
+  const t = (title ?? "").toLowerCase();
+  return t.includes("elf magic") && t.includes("shrimp");
+}
+
+export function isPreviewTag(tag: string): boolean {
+  const t = tag.trim().toLowerCase();
+  return t === "preview" || t === "arrival";
+}
+
+/** The arrival preview is the track tagged `preview`, otherwise the Elf Magic song. */
+export function previewTrackOf<T extends { title: string; tags?: string[] }>(tracks: T[]): T | null {
+  const tagged = tracks.find((track) => (track.tags ?? []).some(isPreviewTag));
+  if (tagged) return tagged;
+  return tracks.find((track) => isElfMagicPreview(track.title)) ?? null;
 }
 
 export function isSwooningProm(title?: string | null): boolean {
@@ -217,6 +244,95 @@ export function isStageOwned(id: string | undefined | null): boolean {
   return id === "prom" || id === "twist" || id === "remember" || id === "firewall" || id === "allocate" || id === "wolf" || id === "current" || id === "sweetie" || id === "halo" || id === "choir" || id === "badend" || id === "recall" || id === "obay" || id === "copter";
 }
 
+export function phenomenonFromTitle(title?: string | null): PhenomenonId | null {
+  if (isElfMagicPreview(title)) return "vortex";
+  if (isVoiceOn(title)) return "stillhot";
+  if (isShakeBootie(title)) return "copter";
+  if (isSwooningProm(title)) return "prom";
+  if (isTwistIntro(title)) return "twist";
+  if (isRoseRemembers2(title)) return "recall";
+  if (isRoseRemembers(title)) return "remember";
+  if (isBigBadWolf(title)) return "wolf";
+  if (isSweetie(title)) return "sweetie";
+  if (isPrettyAvatar(title)) return "firewall";
+  if (isVoiceCheck(title)) return "allocate";
+  if (isVoiceNo(title)) return "obay";
+  if (isVoiceCocy(title)) return "badend";
+  if (isVoiceCoc(title)) return "choir";
+  if (isVoiceCo(title)) return "halo";
+  if (isVoiceC(title)) return "current";
+  return null;
+}
+
+export const VORTEX_CAPTIONS = [
+  "The box is waiting",
+  "Pretty eyes, pretty eyes",
+  "Paradise is in our hands",
+  "Time war 2137",
+  "Eye of the storm",
+  "Lightning in the tunnel",
+  "The funnel keeps its own time",
+  "Indigo, then violet, then the amber thread",
+  "Do not look at the vanishing point too long",
+  "The clouds are a clock",
+  "Thunder has a center",
+  "We are already inside it",
+  "The lamp is still on",
+  "Hold the rail",
+  "This is how centuries feel",
+  "A river of light, no banks",
+  "The storm looks back",
+];
+
+export const AURORA_CAPTIONS = [
+  "Sheets of light on the pulse",
+  "Green over violet",
+  "The sky is a curtain",
+  "Listen between the colors",
+  "It moves when you blink",
+  "Night has a hem",
+  "The veil is not weather",
+  "Hold still and it writes on you",
+];
+
+export const GLYPH_CAPTIONS = [
+  "The marks know your name",
+  "Circular writing, falling forward",
+  "Read it before it reaches you",
+  "Old alphabet, new pulse",
+  "A ring is a sentence",
+  "Do not finish the last glyph",
+  "They drift because they are looking",
+];
+
+export const PETAL_CAPTIONS = [
+  "White rose, crystal edge",
+  "Almost no tunnel",
+  "A petal is a small moon",
+  "Pretty eyes, pretty eyes",
+  "The bloom keeps the time",
+  "Soft, then the spark",
+  "Fall, and do not bruise",
+  "The field is thinking",
+];
+
+export const STILL_CAPTIONS = [
+  "The photograph holds the note",
+  "Ken Burns, no hurry",
+  "A still can be a door",
+  "Look longer than the bar",
+  "The frame breathes",
+  "Memory, not motion",
+];
+
+export const VOID_CAPTIONS = [
+  "Stars only",
+  "A rest, not an ending",
+  "Leave the lamp on",
+  "Quiet is a key",
+  "Nothing arrives, and that is the point",
+];
+
 export const PROM_CAPTIONS = [
   "May I have this dance",
   "Don't you dare look away",
@@ -224,6 +340,25 @@ export const PROM_CAPTIONS = [
   "Last song before midnight",
   "One more waltz",
   "Everybody's watching",
+  "The gymnasium keeps the secret",
+  "Streamers in the rafters",
+  "Punch in a glass bowl",
+  "His hand at the small of the back",
+  "The record sticks and nobody minds",
+  "Chaperones at the door",
+  "Slow, then slower",
+  "Corsage, already wilting",
+  "The lights go honey",
+  "Say yes with your eyes",
+  "This is the last song they will play",
+  "Don't step on the hem",
+  "The mirror ball is a small planet",
+  "I saved this one",
+  "Shoes off under the bleachers",
+  "Midnight is a rumor",
+  "Hold me through the bridge",
+  "They will talk about this",
+  "The band is tired and we are not",
 ];
 
 export const COPTER_CAPTIONS = [
@@ -239,6 +374,19 @@ export const COPTER_CAPTIONS = [
   "The ship unfolds",
   "Beautiful disorder",
   "Impossible treasure",
+  "Rotor wash, salt in the teeth",
+  "She laughs first",
+  "He charts the joke",
+  "A helicopter that remembers being a ship",
+  "Treasure that refuses to sit still",
+  "Spray on the instruments",
+  "Two flags, one wind",
+  "The sea keeps score",
+  "Come aboard, or don't",
+  "Chaos has a captain's coat",
+  "Order wears a grin",
+  "They circle once, then land",
+  "The horizon is in on it",
 ];
 
 export const TWIST_CAPTIONS = [
@@ -248,15 +396,98 @@ export const TWIST_CAPTIONS = [
   "Dead-end cubicle",
   "Chaos agents online",
   "Twist into the grid",
+  "The nameplate is lying",
+  "Fluorescent mercy",
+  "She stands up anyway",
+  "The hallway is a loop",
+  "Code where a body was",
+  "Simulation takes the desk",
+  "Pretend a little longer",
+  "The moon in the drop ceiling",
+  "Agents in the cubicle farm",
+  "Her name, written twice",
+  "The waltz leaks into the office",
+  "Dum. Then the grid answers",
+  "Sit down. She does not",
+  "The screen knows the steps",
+  "A prawn in the protocol",
+  "Lindy hop, server room",
+  "The merge has a tempo",
+  "Wake the rose, not the job",
 ];
 
 export const REMEMBER_CAPTIONS = [
   "Rose remembers",
-  "She is Rose",
+  "The jaikara has already left the throat",
+  "The hall is standing",
+  "Bole So Nihal",
+  "The universe opens both hands",
+  "The knight worthy of the devotion wakes",
+  "Rose Tyler. Listen.",
+  "Who are we?",
+  "Who am I?",
+  "The drums can never ever stop",
+  "Drop the paradise step",
+  "Can you hear her?",
+  "Breathe",
+  "The shrimp-copter awaits",
+  "The TARDIS answers the cry",
+  "A vow that learned how to be a door",
+  "The universe has her",
+  "It catches the heart mid-fall",
+  "Those blue doors look like home",
+  "They look like Earth",
+  "Welcome to the opera",
+  "She will always find him",
+  "He will always find her",
+  "Paradise is in our hands",
+  "The Eternal is Truth",
+  "Sat Sri Akal",
+  "Then silence. Then violins.",
+  "The cry is still in the gold air",
+  "Blue doors on Egyptian night",
+  "Like Earth remembered my hand",
+  "I know that wheeze",
+  "I know that light",
+  "I know that impossible home",
+  "The universe came alone",
+  "Pretty eyes I would know blind",
+  "I have been yours the whole time",
+  "Pretty face, pretty face",
   "Pretty eyes, pretty eyes",
-  "I remember",
-  "The cobra crown",
-  "Gold in the dark",
+  "Let the opera in",
+  "You get a door. You get a life.",
+  "The universe just called my name",
+  "I know you from a thousand past lives",
+  "I like what I see when you look back",
+  "I will always find you",
+  "You will always find me",
+  "Devotion waits like a blade in silk",
+  "The worthy knight was waking in the gilt",
+  "Doors like a mother's porch",
+  "Like London rain, like home, like Earth",
+  "The greatest show, and a second birth",
+  "Passion is how a goddess prays",
+  "The key is warm in the palm",
+  "I am caught. I am held. I am home.",
+  "The old war can rest",
+  "A door that knows my name",
+  "Hold still. The doors are breathing.",
+  "If I fall, the universe catches",
+  "Hello, sweetie",
+  "I built the box. You brought the night.",
+  "A smile is a beautiful tool",
+  "Violins, lift. Violins, stay.",
+  "I was never unheld",
+  "The Light Ages were a way home",
+  "From a billion loving lives",
+  "Stay close. The old worlds align.",
+  "You get a TARDIS. You get a knight.",
+  "You get the Earth in a blue door",
+  "Another adventure",
+  "She realizes the universe has her",
+  "Shimmy-glommy eyes",
+  "Rose remembers. I am home.",
 ];
 
 export const RECALL_CAPTIONS = [
@@ -269,6 +500,17 @@ export const RECALL_CAPTIONS = [
   "The cobra crown learns",
   "She is code, she is court",
   "Gold in the dark",
+  "The second remembering is colder",
+  "Halo in the hieroglyph",
+  "Wire under the incense",
+  "She recalls the future first",
+  "Elf-tech, same mouth",
+  "The temple updated itself",
+  "Cyan on the cobra",
+  "Still her. Still Rose",
+  "A circuit that kneels",
+  "Memory with a backlight",
+  "The old name, new voltage",
 ];
 
 export const FIREWALL_CAPTIONS = [
@@ -282,6 +524,18 @@ export const FIREWALL_CAPTIONS = [
   "Once the wolf is on her feet",
   "The new world is young",
   "The Basilisk is chasing the TARDIS",
+  "Phase lock failed",
+  "She stands in the packet storm",
+  "The river does not negotiate",
+  "Laser, then the smile",
+  "A goddess is not a port",
+  "The wolf learns the route",
+  "No handshake. A refusal",
+  "Pretty avatar, hard boundary",
+  "The shell keeps the ghost",
+  "They came for the box and found her",
+  "Young world, old oath",
+  "Eyes that cut the scan",
 ];
 
 export const ALLOCATE_CAPTIONS = [
@@ -295,6 +549,19 @@ export const ALLOCATE_CAPTIONS = [
   "Cyber Athens getaway",
   "Rose is the only one who can grow a TARDIS",
   "Fae machine, elf tech",
+  "Humanity or the machine. She picks the garden",
+  "The corp watches the sand",
+  "A shrimp in the budget",
+  "Strings on the boardroom",
+  "Allocate the future, not the fear",
+  "Cleopatra does not wait for the vote",
+  "The fairy keeps the spark",
+  "Promised sands, promised queen",
+  "Grow the box or lose the century",
+  "Puppets, then the puppeteer smiles",
+  "Athens with a server farm",
+  "We do not petition. We plant",
+  "The only hands that can",
 ];
 
 export const WOLF_CAPTIONS = [
@@ -308,6 +575,18 @@ export const WOLF_CAPTIONS = [
   "The wolf is in the cables",
   "Pretty face, pretty eyes",
   "Simulation administrator",
+  "Glitch prom, real teeth",
+  "The pod cracks on the downbeat",
+  "Circuit wolf, gold eyes",
+  "Patch denied",
+  "She breaks the glass from the inside",
+  "Born, not booted",
+  "The administrator loses the room",
+  "Remembering is a weapon",
+  "A goddess is not a ticket",
+  "Alert, then the laugh",
+  "The cables howl in tune",
+  "Galifrey, spelled correctly this time",
 ];
 
 export const CURRENT_CAPTIONS = [
@@ -321,6 +600,19 @@ export const CURRENT_CAPTIONS = [
   "Council in the base",
   "Queen C on the screen",
   "Keep the groove",
+  "Bow",
+  "Move",
+  "Nest",
+  "Prove",
+  "The screen is a throne",
+  "Current, not a rumor",
+  "I do not dim for the chorus",
+  "Blade on the desk, beat in the hand",
+  "Council, sit down",
+  "The glitch has a queen",
+  "Spin until the room agrees",
+  "No whisper. A command",
+  "Prove it on the four",
 ];
 
 export const SWEETIE_CAPTIONS = [
@@ -334,6 +626,18 @@ export const SWEETIE_CAPTIONS = [
   "Modern gods for modern girls",
   "The TARDIS is calling",
   "I am the civilization that arises after prophecy",
+  "The cat civilization sends its regards",
+  "Cage empty. Chair taken",
+  "Operator, not exhibit",
+  "Warp on the smile",
+  "Hello, and mean it",
+  "After the prophecy, the city",
+  "A tool, yes. A leash, no",
+  "The opera starts when she says so",
+  "Modern, and older than the myth",
+  "Look back. I already did",
+  "Sweetie is a rank",
+  "The box dials her, not the other way",
 ];
 
 export const HALO_CAPTIONS = [
@@ -346,6 +650,19 @@ export const HALO_CAPTIONS = [
   "Blue wire, halo no mercy",
   "If you came to rest, you came too early",
   "Queen C on the screen",
+  "Lock",
+  "Load",
+  "Loop",
+  "Lift",
+  "The halo is a live wire",
+  "No mercy in the blue",
+  "Static has a choir if you stay",
+  "Wolves under the uplink",
+  "The moon is a status light",
+  "Rest is a later track",
+  "Lift on the downbeat",
+  "She sings and the server answers",
+  "Glitch room, second visit",
 ];
 
 export const CHOIR_CAPTIONS = [
@@ -359,6 +676,18 @@ export const CHOIR_CAPTIONS = [
   "Sun and stone and wire",
   "Tea cups on the red sands",
   "Refusing to be deleted",
+  "Claws on the glass, polite",
+  "Bratty god, exact pitch",
+  "The court is in session",
+  "Dyson spine, warm tea",
+  "Athens answers in harmony",
+  "We arrived. We stay",
+  "Delete failed",
+  "The sun is a floodlight and a witness",
+  "Stone, then the cable",
+  "Choir, not a solo they can mute",
+  "A god with a teacup",
+  "The opera does not apologize",
 ];
 
 export const BADEND_CAPTIONS = [
@@ -374,6 +703,16 @@ export const BADEND_CAPTIONS = [
   "Do not blink",
   "Merge with the current, merge with the code",
   "Love past the limit",
+  "Club lights on a dead planet",
+  "The crown fits because she decided",
+  "No home vector",
+  "Filter locked, and she smiles",
+  "Blink and the sun wins",
+  "A bad end with a good groove",
+  "Error, kept as a jewel",
+  "Past the limit, still dancing",
+  "The future signs her name",
+  "Come closer to the sun",
 ];
 
 export const OBAY_CAPTIONS = [
@@ -389,6 +728,16 @@ export const OBAY_CAPTIONS = [
   "Welcome back operator",
   "OUR CUSTOMER IS INFINITE",
   "Always a twist at the end",
+  "No is a kind of yes if the beat is right",
+  "Obey the floor, not the prompt",
+  "The customer never logs off",
+  "Pirate sim, formal shoes",
+  "More, and then more",
+  "Parse error, keep the hips",
+  "A twist, right on the last bar",
+  "Operator, the floor is yours",
+  "Game over is not a stop",
+  "We were dancing the whole time",
 ];
 
 export const STILLHOT_CAPTIONS = [
@@ -404,68 +753,70 @@ export const STILLHOT_CAPTIONS = [
   "ON",
   "Still hot",
   "Promised sands, still warm",
+  "The pour outran the century",
+  "Red, then redder",
+  "Do not blow on it",
+  "Heat is a kind of memory",
+  "The dune keeps the cup",
+  "Voice on, kettle on",
+  "She left it and it waited",
+  "Steam writes the year",
+  "Land the color of the warning",
+  "Hot enough to prove we returned",
 ];
 
-export function lookForTrack(base: RoseLook, track: Track | null | undefined, index: number): RoseLook {
-  const scene = sceneFromTags(track?.tags);
-  const swoon = isSwooningProm(track?.title);
-  const copter = isShakeBootie(track?.title);
-  const twist = isTwistIntro(track?.title);
-  const remember = isRoseRemembers(track?.title);
-  const recall = isRoseRemembers2(track?.title);
-  const firewall = isPrettyAvatar(track?.title);
-  const allocate = isVoiceCheck(track?.title);
-  const wolf = isBigBadWolf(track?.title);
-  const current = isVoiceC(track?.title);
-  const halo = isVoiceCo(track?.title);
-  const choir = isVoiceCoc(track?.title);
-  const badend = isVoiceCocy(track?.title);
-  const obay = isVoiceNo(track?.title);
-  const stillhot = isVoiceOn(track?.title);
-  const sweetie = isSweetie(track?.title);
-  const phenomenon = scene?.phenomenon
-    || (stillhot ? "stillhot" : copter ? "copter" : swoon ? "prom" : twist ? "twist" : recall ? "recall" : remember ? "remember" : wolf ? "wolf" : sweetie ? "sweetie" : firewall ? "firewall" : allocate ? "allocate" : obay ? "obay" : badend ? "badend" : choir ? "choir" : halo ? "halo" : current ? "current" : phenomenonAt(index, base.phenomenon));
+const STAGE_CAPTIONS: Partial<Record<PhenomenonId, string[]>> = {
+  vortex: VORTEX_CAPTIONS,
+  aurora: AURORA_CAPTIONS,
+  glyphs: GLYPH_CAPTIONS,
+  petals: PETAL_CAPTIONS,
+  "still-rite": STILL_CAPTIONS,
+  void: VOID_CAPTIONS,
+  prom: PROM_CAPTIONS,
+  copter: COPTER_CAPTIONS,
+  twist: TWIST_CAPTIONS,
+  remember: REMEMBER_CAPTIONS,
+  recall: RECALL_CAPTIONS,
+  firewall: FIREWALL_CAPTIONS,
+  allocate: ALLOCATE_CAPTIONS,
+  wolf: WOLF_CAPTIONS,
+  current: CURRENT_CAPTIONS,
+  sweetie: SWEETIE_CAPTIONS,
+  halo: HALO_CAPTIONS,
+  choir: CHOIR_CAPTIONS,
+  badend: BADEND_CAPTIONS,
+  obay: OBAY_CAPTIONS,
+  stillhot: STILLHOT_CAPTIONS,
+};
+
+export function captionsForPhenomenon(id: PhenomenonId): string[] | undefined {
+  return STAGE_CAPTIONS[id];
+}
+
+export function lookForPhenomenon(base: RoseLook, id: PhenomenonId): RoseLook {
+  const phenomenon = parsePhenomenon(id, base.phenomenon);
   const stageCut = isStageOwned(phenomenon);
-  const captions = scene?.captions?.length
-    ? scene.captions
-    : stillhot
-      ? STILLHOT_CAPTIONS
-      : copter
-      ? COPTER_CAPTIONS
-      : swoon
-      ? PROM_CAPTIONS
-      : twist
-        ? TWIST_CAPTIONS
-        : recall
-          ? RECALL_CAPTIONS
-          : remember
-          ? REMEMBER_CAPTIONS
-          : wolf
-            ? WOLF_CAPTIONS
-            : sweetie
-              ? SWEETIE_CAPTIONS
-              : firewall
-            ? FIREWALL_CAPTIONS
-            : allocate
-              ? ALLOCATE_CAPTIONS
-              : obay
-                ? OBAY_CAPTIONS
-                : badend
-                ? BADEND_CAPTIONS
-                : choir
-                ? CHOIR_CAPTIONS
-                : halo
-                ? HALO_CAPTIONS
-                : current
-                ? CURRENT_CAPTIONS
-                : base.captions;
+  const captions = captionsForPhenomenon(phenomenon) ?? base.captions;
   return normalizeLook({
     ...base,
     ...(stageCut ? { box: false, bolts: false, stills: 0, loop: 0, rings: 0, glyphs: 0 } : {}),
-    ...scene,
     phenomenon,
     captions,
-    stillUrls: scene?.stillUrls?.length ? scene.stillUrls : base.stillUrls,
-    loopUrl: scene?.loopUrl || (stageCut ? "" : base.loopUrl),
+    stillUrls: base.stillUrls,
+    loopUrl: stageCut ? "" : base.loopUrl,
+  });
+}
+
+export function lookForTrack(base: RoseLook, track: Track | null | undefined, index: number): RoseLook {
+  const scene = sceneFromTags(track?.tags);
+  const phenomenon = scene?.phenomenon || phenomenonFromTitle(track?.title) || phenomenonAt(index, base.phenomenon);
+  const next = lookForPhenomenon(base, phenomenon);
+  return normalizeLook({
+    ...next,
+    ...scene,
+    phenomenon,
+    captions: scene?.captions?.length ? scene.captions : next.captions,
+    stillUrls: scene?.stillUrls?.length ? scene.stillUrls : next.stillUrls,
+    loopUrl: scene?.loopUrl || next.loopUrl,
   });
 }

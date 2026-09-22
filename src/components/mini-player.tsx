@@ -6,6 +6,7 @@ import { CoverArt } from "@/components/cover-art";
 import { HeroArtSheet } from "@/components/hero-art-sheet";
 import { ListenModeLamp } from "@/components/listen-mode-lamp";
 import { MarqueeTitle } from "@/components/marquee-title";
+import { PlayerBloom, PlayerMastRose } from "@/components/player-bloom";
 import { ShareLink } from "@/components/share-link";
 import { ShuffleToggle } from "@/components/shuffle-toggle";
 import { TrackActions } from "@/components/track-actions";
@@ -474,8 +475,8 @@ export function MiniPlayer() {
         type="button"
         className={cn("player-dock player-sliver", shell)}
         onClick={() => setPlayerHidden(false)}
-        aria-label="Show player"
-        title="Show player"
+        aria-label="Open player"
+        title="Open player"
       >
         <span className="player-sliver-rail" aria-hidden>
           <span className="player-sliver-fill" style={{ width: `${progress}%` }} />
@@ -486,79 +487,87 @@ export function MiniPlayer() {
   }
 
   if (!collapsed) {
+    const pale = skin === "rose";
     return (
       <div className={cn("player-stage", shell)} role="dialog" aria-label="Now playing">
-        {skin === "rose" ? <RoseRiteOrnament /> : null}
-        <div className="player-stage-chrome">
-          <button
-            type="button"
-            onClick={() => setPlayerCollapsed(true)}
-            className="grid size-11 shrink-0 place-items-center text-gold"
-            aria-label="Collapse player"
-            title="Collapse player"
-          >
-            <ChevronDown className="size-5" />
-          </button>
-          <p className="min-w-0 flex-1 truncate text-center font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">
-            {statusLine}
-          </p>
-          <button
-            type="button"
-            onClick={() => setPlayerHidden(true)}
-            className="grid size-11 shrink-0 place-items-center text-subtle hover:text-fg"
-            aria-label="Hide player"
-            title="Hide player"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-        <div className="player-stage-body">
-          <div className="player-stage-art">
-            <div className="player-stage-art-frame">
-              <button
-                type="button"
-                onClick={() => isAdmin && setArtOpen(true)}
-                className="block size-full"
-                aria-label={isAdmin ? "Replace this song’s art" : track.title}
-              >
-                <CoverArt src={art} alt="" className="size-full" motion="loop" />
-              </button>
-              {isAdmin ? (
+        <div className={cn("player-stage-sheet", pale && "is-rose")}>
+          <PlayerBloom playing={playing} time={currentTime} skin={skin} />
+          <div className="player-stage-chrome player-stage-mast">
+            <button
+              type="button"
+              onClick={() => setPlayerCollapsed(true)}
+              className="grid size-11 shrink-0 place-items-center text-gold"
+              aria-label="Collapse player"
+              title="Collapse player"
+            >
+              <ChevronDown className="size-5" />
+            </button>
+            <div className="player-stage-mast-copy">
+              <PlayerMastRose pale={pale} />
+              <div className="min-w-0">
+                <p className="player-stage-kicker">Now playing</p>
+                <p className={cn("player-stage-mast-name", pale && "is-rose")}>{pale ? "White Rose" : channel.name}</p>
+              </div>
+            </div>
+            <p className="player-stage-mast-status">{statusLine}</p>
+            <button
+              type="button"
+              onClick={() => setPlayerHidden(true)}
+              className="grid size-11 shrink-0 place-items-center text-subtle hover:text-fg"
+              aria-label="Hide player"
+              title="Hide player"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
+          <div className="player-stage-body">
+            <div className="player-stage-art">
+              <div className="player-stage-art-frame">
                 <button
                   type="button"
-                  onClick={() => setArtOpen(true)}
-                  className="absolute right-2 top-2 inline-flex size-11 items-center justify-center rounded-md bg-bg/85 text-gold"
-                  aria-label="Replace art"
+                  onClick={() => isAdmin && setArtOpen(true)}
+                  className="block size-full"
+                  aria-label={isAdmin ? "Replace this song’s art" : track.title}
                 >
-                  <Camera className="size-4" />
+                  <CoverArt src={art} alt="" className="size-full" motion="loop" />
                 </button>
-              ) : null}
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => setArtOpen(true)}
+                    className="absolute right-2 top-2 inline-flex size-11 items-center justify-center rounded-md bg-bg/85 text-gold"
+                    aria-label="Replace art"
+                  >
+                    <Camera className="size-4" />
+                  </button>
+                ) : null}
+              </div>
             </div>
-          </div>
-          <div className="player-stage-copy">
-            <div className="min-w-0 text-center md:text-left">
-              {isAdmin && renaming ? (
-                <RenameCutForm slug={channel.slug} track={track} appearance="title" onClose={() => setRenaming(false)} />
-              ) : (
-                <p className={cn("min-w-0 font-display text-2xl font-semibold leading-tight sm:text-3xl", skin === "glaum" && "glaum-title", skin === "rose" && "rose-title")}>
-                  <MarqueeTitle text={track.title} />
+            <div className="player-stage-copy">
+              <div className="min-w-0 text-center md:text-left">
+                {isAdmin && renaming ? (
+                  <RenameCutForm slug={channel.slug} track={track} appearance="title" onClose={() => setRenaming(false)} />
+                ) : (
+                  <p className={cn("min-w-0 font-display text-2xl font-semibold leading-tight sm:text-3xl", skin === "glaum" && "glaum-title", pale && "rose-title")}>
+                    <MarqueeTitle text={track.title} />
+                  </p>
+                )}
+                <p className="mt-1 truncate text-sm text-muted">
+                  {track.artist || "Unknown"}
+                  <span className="text-subtle"> · {channel.name}</span>
                 </p>
-              )}
-              <p className="mt-1 truncate text-sm text-muted">
-                {track.artist || "Unknown"}
-                <span className="text-subtle"> · {channel.name}</span>
+              </div>
+              <div className="player-stage-vu flex justify-center md:justify-start">
+                <VuMeter playing={playing} skin={skin} />
+              </div>
+              <TransportButtons playing={playing} skipHint={skipHint} large />
+              <Scrubber currentTime={currentTime} duration={duration} health={pale} />
+              {!ios ? <VolumeControl className="w-full max-w-sm md:max-w-none" /> : null}
+              {extras}
+              <p className="player-stage-desk text-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle md:text-left">
+                Desk: {kindLabel(deskKind)} · You: {listenModeLabel(listenMode)}
               </p>
             </div>
-            <div className="player-stage-vu flex justify-center md:justify-start">
-              <VuMeter playing={playing} skin={skin} />
-            </div>
-            <TransportButtons playing={playing} skipHint={skipHint} large />
-            <Scrubber currentTime={currentTime} duration={duration} health={skin === "rose"} />
-            {!ios ? <VolumeControl className="w-full max-w-sm md:max-w-none" /> : null}
-            {extras}
-            <p className="player-stage-desk text-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle md:text-left">
-              Desk: {kindLabel(deskKind)} · You: {listenModeLabel(listenMode)}
-            </p>
           </div>
         </div>
         {artSheet}

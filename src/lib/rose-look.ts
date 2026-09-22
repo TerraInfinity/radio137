@@ -73,7 +73,7 @@ export function normalizeLook(raw?: Partial<RoseLook> | null): RoseLook {
     bolts: src.bolts !== false,
     box: src.box !== false,
     phenomenon: asPhenomenon(src.phenomenon),
-    captions: Array.isArray(src.captions) ? src.captions.map((line) => String(line ?? "").trim()).filter(Boolean).slice(0, 12) : [],
+    captions: Array.isArray(src.captions) ? src.captions.map((line) => String(line ?? "").trim()).filter(Boolean).slice(0, 48) : [],
     stillUrls: Array.isArray(src.stillUrls) ? src.stillUrls.map((url) => String(url ?? "").trim()).filter(Boolean).slice(0, 4) : [],
     loopUrl: String(src.loopUrl ?? "").trim(),
   };

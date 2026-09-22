@@ -73,6 +73,26 @@ export function pulseAt(timeSec: number, bpm: number, playing = true): RosePulse
 
 export function captionForPulse(pulse: RosePulse, lines: string[]): string {
   if (!lines.length) return "";
-  const slot = Math.floor(pulse.phrasePhase * lines.length) % lines.length;
-  return lines[slot] ?? lines[0];
+  const hold = (60 / pulse.bpm) * pulse.beatsInBar * BARS_IN_PHRASE;
+  const idx = Math.floor(Math.max(0, pulse.time) / Math.max(0.001, hold)) % lines.length;
+  return lines[idx] ?? lines[0];
+}
+
+/** Which beat-act is on: changes every `bars` bars so layers take turns. */
+export function actSlot(pulse: RosePulse, n: number, bars = 2): number {
+  if (n <= 1) return 0;
+  const bar = Math.floor(pulse.beatIndex / Math.max(1, pulse.beatsInBar));
+  return ((Math.floor(bar / Math.max(1, bars)) % n) + n) % n;
+}
+
+/** How strongly overlay copy should read. `bars` on, then the same rest — no strobe. */
+export function overlayAlpha(pulse: RosePulse, bars = 4): number {
+  const beatsPer = Math.max(1, pulse.beatsInBar * Math.max(1, bars));
+  const cycle = beatsPer * 2;
+  const pos = (((pulse.beatIndex + pulse.beatPhase) % cycle) + cycle) % cycle;
+  if (pos >= beatsPer) return 0;
+  const edge = 0.8;
+  if (pos < edge) return pos / edge;
+  if (pos > beatsPer - edge) return Math.max(0, (beatsPer - pos) / edge);
+  return 1;
 }

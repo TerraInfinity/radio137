@@ -7,8 +7,7 @@ export function ritePrimary(state: {
   started: boolean;
   loading?: boolean;
 }): RitePrimary {
-  if (state.here && state.loading) return "opening";
-  if (state.here && state.playing) return "pause";
+  if (state.here && (state.playing || state.loading)) return "pause";
   if (state.here && state.started) return "resume";
   return "begin";
 }

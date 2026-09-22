@@ -1,24 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Lock, Maximize, MessageSquare, Minimize, Palette, Pause, Play, X } from "lucide-react";
+import { Lock, Maximize, MessageSquare, Minimize, Palette, Pause, Play, RotateCw, X } from "lucide-react";
 import "./rose-opera.css";
 import { AdminStationEdit } from "@/components/admin-track-tools";
+import { GhostCleaner } from "@/components/ghost-cleaner";
 import { RoseAtelier } from "@/components/rose-atelier";
 import { RoseGrokChat } from "@/components/rose-grok-chat";
 import { RoseVortex } from "@/components/rose-vortex";
 import { StationPlaylist } from "@/components/station-playlist";
 import { cn } from "@/lib/cn";
 import { ritePrimary } from "@/lib/rite-primary";
+import { radioEngine } from "@/lib/radio-engine";
 import { useExperienceUnlock } from "@/lib/experience-unlock";
 import type { RadioExperience } from "@/lib/experiences";
 import { lookFromStation, type RoseLook } from "@/lib/rose-look";
-import { lookForTrack, isStageOwned } from "@/lib/phenomena";
+import { lookForPhenomenon, lookForTrack, isStageOwned, phenomenonMeta, previewTrackOf, stepPhenomenon, type PhenomenonId } from "@/lib/phenomena";
 import { getPlayableTracks } from "@/lib/catalog";
 import { bpmFromTags, captionForPulse, pulseAt, type RosePulse } from "@/lib/rose-pulse";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 
-const IDLE_MS = 3200;
+const IDLE_CHROME_MS = 3200;
+const IDLE_OPERA_MS = 15_000;
+const DRIFT_MS = 2400;
 
 const QUIET: RosePulse = pulseAt(0, 120, false);
 
@@ -37,11 +41,14 @@ export function RoseOpera({
   layout?: "full" | "hero";
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const stormRef = useRef<HTMLVideoElement>(null);
   const stageRef = useRef<HTMLElement>(null);
   const pulseRef = useRef<RosePulse>(QUIET);
   const originRef = useRef(performance.now());
   const tuneIn = usePlayerStore((s) => s.tuneIn);
+  const cueTrack = usePlayerStore((s) => s.cueTrack);
   const togglePlay = usePlayerStore((s) => s.togglePlay);
+  const halt = usePlayerStore((s) => s.halt);
   const track = usePlayerStore((s) => (s.channelSlug === experience.stationSlug ? s.track : null));
   const currentTime = usePlayerStore((s) => (s.channelSlug === experience.stationSlug ? s.currentTime : 0));
   const status = usePlayerStore((s) => (s.channelSlug === experience.stationSlug ? s.status : "idle"));
@@ -57,25 +64,49 @@ export function RoseOpera({
   const lookRef = useRef(look);
   lookRef.current = look;
   const tweaked = useRef(false);
+  const [overrideId, setOverrideId] = useState<PhenomenonId | null>(null);
   const [reduce, setReduce] = useState(false);
-  const [cinema, setCinema] = useState(false);
+  const [cinema, setCinema] = useState<"off" | "auto" | "manual">(
+    experience.slug === "rose" && layout === "full" ? "manual" : "off",
+  );
+  const [drift, setDrift] = useState(false);
+  const [arming, setArming] = useState(false);
+  const [holdingPreview, setHoldingPreview] = useState(experience.slug === "rose");
   const [deskOpen, setDeskOpen] = useState(false);
   const [atelierOpen, setAtelierOpen] = useState(false);
   const [grokOpen, setGrokOpen] = useState(false);
   const grokPersist = useRef(false);
-  const [chrome, setChrome] = useState(true);
+  const [chrome, setChrome] = useState(!(experience.slug === "rose" && layout === "full"));
   const [caption, setCaption] = useState(savedLook.captions[0] ?? experience.whisper);
-  const liveVisual = playing || (layout === "full" && !unlocked);
+  const liveVisual = playing || holdingPreview || (layout === "full" && !unlocked);
   const bpm = look.bpm > 0 ? look.bpm : bpmFromTags(track?.tags, experience.bpm);
   const stills = look.stillUrls.length ? look.stillUrls : experience.stills.map((item) => item.src);
-  const loopSrc = look.loopUrl || experience.loop;
-  const primary = ritePrimary({ here, playing, started, loading: status === "loading" });
+  const stormLoop = look.phenomenon === "vortex";
+  const stormSrc = "/experiences/rose/vortex-storm.mp4?v=5";
+  const rawLoop = stormLoop ? stormSrc : look.loopUrl || experience.loop;
+  const loopSrc = rawLoop.includes("tardis-loop") ? "/experiences/rose/vortex-storm.mp4?v=5" : rawLoop;
+  const loopPoster = stormLoop || rawLoop.includes("tardis-loop") ? "/experiences/rose/vortex-tunnel.jpg?v=5" : stills[0];
+  const inRite = !holdingPreview;
+  const primary = ritePrimary({
+    here: inRite && here,
+    playing: inRite && (playing || (arming && status === "loading")),
+    started: inRite && (started || here),
+  });
+  const cinemaDockRef = useRef<{ hidden: boolean; collapsed: boolean } | null>(null);
+
+  useEffect(() => {
+    setOverrideId(null);
+  }, [track?.id]);
 
   useEffect(() => {
     if ((atelierOpen || grokOpen) && tweaked.current) return;
+    if (overrideId) {
+      setLook(lookForPhenomenon(savedLook, overrideId));
+      return;
+    }
     tweaked.current = false;
     setLook(trackLook);
-  }, [atelierOpen, grokOpen, trackLook]);
+  }, [atelierOpen, grokOpen, overrideId, savedLook, trackLook]);
 
   useEffect(() => {
     setReduce(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -105,12 +136,30 @@ export function RoseOpera({
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    if (reduce || !liveVisual) {
+    if (reduce) {
+      el.pause();
+      return;
+    }
+    if (!liveVisual && look.phenomenon !== "vortex") {
       el.pause();
       return;
     }
     void el.play().catch(() => undefined);
-  }, [liveVisual, loopSrc, reduce]);
+  }, [liveVisual, look.phenomenon, loopSrc, reduce]);
+
+  useEffect(() => {
+    const el = stormRef.current;
+    if (!el) return;
+    if (reduce) {
+      el.pause();
+      return;
+    }
+    if (!liveVisual && look.phenomenon !== "vortex") {
+      el.pause();
+      return;
+    }
+    void el.play().catch(() => undefined);
+  }, [liveVisual, look.phenomenon, reduce]);
 
   useEffect(() => {
     const root = stageRef.current;
@@ -123,8 +172,13 @@ export function RoseOpera({
     let raf = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
-      const t = playing ? Math.max(0, (performance.now() - originRef.current) / 1000) : currentTime;
-      const pulse = pulseAt(t, bpm, playing);
+      const alive = playing || holdingPreview;
+      const t = playing
+        ? Math.max(0, (performance.now() - originRef.current) / 1000)
+        : holdingPreview
+          ? performance.now() / 1000
+          : currentTime;
+      const pulse = pulseAt(t, bpm, alive);
       pulseRef.current = pulse;
       const lines = lookRef.current.captions.length ? lookRef.current.captions : experience.captions;
       const next = captionForPulse(pulse, lines);
@@ -140,19 +194,20 @@ export function RoseOpera({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [bpm, currentTime, experience.captions, playing]);
+  }, [bpm, currentTime, experience.captions, holdingPreview, playing]);
 
   useEffect(() => {
-    if (!cinema || atelierOpen || grokOpen || deskOpen) {
+    if (cinema === "off" || atelierOpen || grokOpen || deskOpen) {
       setChrome(true);
       return;
     }
     setChrome(false);
-    let timer = window.setTimeout(() => setChrome(false), IDLE_MS);
+    let timer = window.setTimeout(() => setChrome(false), IDLE_CHROME_MS);
     const poke = () => {
+      if (cinema === "auto" || (holdingPreview && cinema === "manual")) return;
       setChrome(true);
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => setChrome(false), IDLE_MS);
+      timer = window.setTimeout(() => setChrome(false), IDLE_CHROME_MS);
     };
     window.addEventListener("pointermove", poke);
     window.addEventListener("pointerdown", poke);
@@ -163,46 +218,172 @@ export function RoseOpera({
       window.removeEventListener("pointerdown", poke);
       window.removeEventListener("keydown", poke);
     };
-  }, [atelierOpen, cinema, deskOpen, grokOpen]);
+  }, [atelierOpen, cinema, deskOpen, grokOpen, holdingPreview]);
+
+  const opera = cinema !== "off" && layout === "full";
 
   useEffect(() => {
-    document.body.classList.toggle("rose-cinema-on", cinema && layout === "full");
-    return () => document.body.classList.remove("rose-cinema-on");
-  }, [cinema, layout]);
+    document.body.classList.toggle("rose-cinema-on", opera);
+    if (!opera) {
+      return () => document.body.classList.remove("rose-cinema-on");
+    }
+    const store = usePlayerStore.getState();
+    if (!cinemaDockRef.current) {
+      cinemaDockRef.current = { hidden: store.playerHidden, collapsed: store.playerCollapsed };
+    }
+    store.setPlayerHidden(true);
+    return () => {
+      document.body.classList.remove("rose-cinema-on");
+      const prior = cinemaDockRef.current;
+      cinemaDockRef.current = null;
+      if (!prior) return;
+      const now = usePlayerStore.getState();
+      if (!now.playerHidden) return;
+      if (prior.hidden) now.setPlayerHidden(true);
+      else now.setPlayerCollapsed(prior.collapsed);
+    };
+  }, [opera]);
+
+  useEffect(() => {
+    const on = drift && cinema === "off" && layout === "full";
+    document.body.classList.toggle("rose-drift-on", on);
+    return () => document.body.classList.remove("rose-drift-on");
+  }, [cinema, drift, layout]);
+
+  useEffect(() => {
+    if (layout !== "full" || cinema !== "off" || drift || deskOpen || atelierOpen || grokOpen || reduce) return;
+    let timer = window.setTimeout(() => setDrift(true), IDLE_OPERA_MS);
+    let lastX = -1;
+    let lastY = -1;
+    const poke = (event: Event) => {
+      if ("clientX" in event) {
+        const point = event as PointerEvent;
+        if (lastX >= 0 && Math.abs(point.clientX - lastX) < 3 && Math.abs(point.clientY - lastY) < 3) return;
+        lastX = point.clientX;
+        lastY = point.clientY;
+      }
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setDrift(true), IDLE_OPERA_MS);
+    };
+    window.addEventListener("pointermove", poke);
+    window.addEventListener("pointerdown", poke);
+    window.addEventListener("touchstart", poke, { passive: true });
+    window.addEventListener("keydown", poke);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pointermove", poke);
+      window.removeEventListener("pointerdown", poke);
+      window.removeEventListener("touchstart", poke);
+      window.removeEventListener("keydown", poke);
+    };
+  }, [atelierOpen, cinema, deskOpen, drift, grokOpen, layout, reduce]);
+
+  useEffect(() => {
+    if (!drift || cinema !== "off") return;
+    const timer = window.setTimeout(() => {
+      setCinema("auto");
+      setDrift(false);
+    }, DRIFT_MS);
+    const wake = (event: Event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest("[data-rite-cinema]")) return;
+      if ("clientX" in event) {
+        const point = event as PointerEvent;
+        if (event.type === "pointermove" && point.movementX === 0 && point.movementY === 0) return;
+      }
+      setDrift(false);
+    };
+    window.addEventListener("pointermove", wake);
+    window.addEventListener("pointerdown", wake);
+    window.addEventListener("touchstart", wake, { passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pointermove", wake);
+      window.removeEventListener("pointerdown", wake);
+      window.removeEventListener("touchstart", wake);
+    };
+  }, [cinema, drift]);
+
+  useEffect(() => {
+    if (cinema !== "auto") return;
+    const wake = (event: Event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest("[data-rite-cinema], .rose-opera-exit")) return;
+      if (event.type === "pointermove" && "movementX" in event) {
+        const point = event as PointerEvent;
+        if (Math.abs(point.movementX) < 2 && Math.abs(point.movementY) < 2) return;
+      }
+      setCinema("off");
+      setDrift(false);
+    };
+    window.addEventListener("pointermove", wake);
+    window.addEventListener("pointerdown", wake);
+    window.addEventListener("touchstart", wake, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", wake);
+      window.removeEventListener("pointerdown", wake);
+      window.removeEventListener("touchstart", wake);
+    };
+  }, [cinema]);
 
   useEffect(() => {
     const onFs = () => {
-      if (!document.fullscreenElement) setCinema(false);
+      if (!document.fullscreenElement) setCinema((mode) => (mode === "manual" ? "off" : mode));
     };
     document.addEventListener("fullscreenchange", onFs);
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
+  const riteAt = useRef(0);
+
   async function begin() {
-    if (primary === "opening") return;
-    if (primary === "pause" || primary === "resume") {
+    const now = performance.now();
+    if (now - riteAt.current < 400) return;
+    riteAt.current = now;
+    const state = usePlayerStore.getState();
+    const stopping = !holdingPreview && (state.status === "playing" || (arming && state.status === "loading"));
+    if (stopping) {
+      setArming(false);
+      halt();
+      return;
+    }
+    const resume = !holdingPreview && here && started && state.channelSlug === experience.stationSlug && Boolean(state.track);
+    if (resume) {
+      setArming(true);
       await togglePlay();
       return;
     }
+    setHoldingPreview(false);
+    setArming(true);
+    radioEngine.prime();
     await tuneIn(experience.stationSlug, { forcePlay: true, fromStart: true });
   }
 
-  async function toggleCinema() {
-    const el = stageRef.current;
-    if (!el) {
-      setCinema((value) => !value);
-      return;
+  async function resetPreview() {
+    const preview = previewTrackOf(getPlayableTracks(channel));
+    if (!preview) return;
+    const state = usePlayerStore.getState();
+    const play = state.autoplay || state.currentTime > 1;
+    radioEngine.prime();
+    await cueTrack(experience.stationSlug, preview.id, { play, hold: true });
+  }
+
+  function leaveOpera() {
+    setDrift(false);
+    setCinema("off");
+    setChrome(true);
+    if (document.fullscreenElement) {
+      void document.exitFullscreen?.().catch(() => undefined);
     }
+  }
+
+  async function enterOpera() {
+    setDrift(false);
+    setCinema("manual");
     try {
-      if (!document.fullscreenElement) {
-        setCinema(true);
-        await el.requestFullscreen?.();
-      } else {
-        await document.exitFullscreen();
-        setCinema(false);
-      }
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen?.();
     } catch {
-      setCinema((value) => !value);
+      /* the stage still fills the page */
     }
   }
 
@@ -213,15 +394,31 @@ export function RoseOpera({
     setLook(next);
   }
 
+  function cycleLook(step = 1) {
+    const next = stepPhenomenon(look.phenomenon, step);
+    if (next === trackLook.phenomenon) {
+      setOverrideId(null);
+      tweaked.current = false;
+      setLook(trackLook);
+      return;
+    }
+    setOverrideId(next);
+    applyLook(lookForPhenomenon(savedLook, next));
+  }
+
   return (
     <section
       ref={stageRef}
       className={cn(
         "rose-opera",
         layout === "full" && "rose-opera-full",
-        cinema && "is-cinema",
+        cinema !== "off" && "is-cinema",
+        drift && "is-drifting",
         !liveVisual && "is-hush",
         showCopy ? "is-chrome" : "is-screensaver",
+        atelierOpen && "is-atelier",
+        isStageOwned(look.phenomenon) && "is-stage",
+        holdingPreview && cinema === "manual" && "is-arrival",
       )}
       data-phenomenon={look.phenomenon}
     >
@@ -238,12 +435,23 @@ export function RoseOpera({
             ))}
           </div>
         )}
-        {reduce || isStageOwned(look.phenomenon) ? null : (
+        <video
+          ref={stormRef}
+          className={cn("rose-storm-bed", look.phenomenon === "vortex" && "is-full")}
+          src={stormSrc}
+          poster="/experiences/rose/vortex-tunnel.jpg?v=5"
+          muted
+          loop
+          playsInline
+          preload="metadata"
+        />
+        {reduce || isStageOwned(look.phenomenon) || loopSrc.includes("vortex-storm") ? null : (
           <video
+            key={loopSrc}
             ref={videoRef}
             className="rose-opera-loop"
             src={loopSrc}
-            poster={stills[0]}
+            poster={loopPoster}
             muted
             loop
             playsInline
@@ -284,6 +492,7 @@ export function RoseOpera({
         </div>
       </div>
       <p className="rose-opera-caption">{playing ? caption : experience.whisper}</p>
+      <LookCycle current={look.phenomenon} songDefault={trackLook.phenomenon} onCycle={cycleLook} />
       <div className={cn("rose-opera-copy", !showCopy && "is-hidden")}>
         <p className="rose-opera-kicker">{experience.kicker}</p>
         <h1 className="rose-opera-title">{experience.title}</h1>
@@ -294,17 +503,28 @@ export function RoseOpera({
             type="button"
             onClick={() => void begin()}
             className="rose-opera-begin"
-            disabled={primary === "opening"}
             aria-pressed={primary === "pause"}
           >
             {primary === "pause" ? <Pause className="size-4" /> : <Play className="size-4" />}
             {RITE_LABEL[primary]}
           </button>
+          {holdingPreview && layout === "full" ? (
+            <button type="button" onClick={() => void resetPreview()} className="rose-opera-ghost">
+              <RotateCw className="size-3.5" />
+              Reset the preview
+            </button>
+          ) : null}
           {layout === "full" ? (
             <>
-              <button type="button" onClick={() => void toggleCinema()} className="rose-opera-ghost" aria-pressed={cinema}>
-                {cinema ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
-                {cinema ? "Exit cinema" : "Cinema"}
+              <button
+                type="button"
+                data-rite-cinema
+                onClick={() => void (cinema === "manual" ? leaveOpera() : enterOpera())}
+                className="rose-opera-ghost"
+                aria-pressed={cinema === "manual"}
+              >
+                {cinema === "manual" ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
+                {cinema === "manual" ? "Exit cinema" : "Cinema"}
               </button>
               <button
                 type="button"
@@ -357,12 +577,12 @@ export function RoseOpera({
         </div>
         {layout === "full" ? (
           <p className="rose-opera-hint">
-            Begin starts the playlist from the first song. Cinema hides the title for a fullscreen stage — it does not restart the music.
+            The arrival preview is the song marked Arrival in the desk. It plays when Auto is on, and only animates when Auto is off. It stops when that song ends. Reset it, or begin the rite — that always starts the playlist at the first song, from the top.
           </p>
         ) : null}
       </div>
-      {layout === "full" && cinema ? (
-        <button type="button" className="rose-opera-exit" onClick={() => void toggleCinema()} aria-label="Exit cinema">
+      {layout === "full" && cinema === "manual" ? (
+        <button type="button" className="rose-opera-exit" onClick={() => void leaveOpera()} aria-label="Back to the hero">
           <X className="size-4" />
         </button>
       ) : null}
@@ -374,10 +594,12 @@ export function RoseOpera({
               <X className="size-4" />
             </button>
           </div>
+          {isAdmin ? <GhostCleaner channel={channel} /> : null}
           <StationPlaylist
             channel={channel}
             locked={!unlocked}
             onUnlock={() => void begin()}
+            startOpen={isAdmin}
           />
           {isAdmin ? (
             <div className="rose-desk-admin">
@@ -410,5 +632,35 @@ export function RoseOpera({
         />
       ) : null}
     </section>
+  );
+}
+
+function LookCycle({
+  current,
+  songDefault,
+  onCycle,
+}: {
+  current: PhenomenonId;
+  songDefault: PhenomenonId;
+  onCycle: (step?: number) => void;
+}) {
+  const item = phenomenonMeta(current);
+  const overridden = current !== songDefault;
+  return (
+    <button
+      type="button"
+      className="rose-look-cycle"
+      aria-pressed={overridden}
+      aria-label={`${overridden ? "Override look" : "This song's look"}: ${item.label}. Next look`}
+      title={`${item.hint} Click to cycle. Shift-click for the previous scene. The next song returns to its own graphic.`}
+      onClick={(event) => onCycle(event.shiftKey ? -1 : 1)}
+    >
+      <img src={item.thumb} alt="" />
+      <span>
+        <em>{overridden ? "Override" : "This song"}</em>
+        <b>{item.label}</b>
+      </span>
+      <RotateCw className="size-4" aria-hidden />
+    </button>
   );
 }

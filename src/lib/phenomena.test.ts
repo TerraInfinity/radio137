@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { encodeSceneTag, isBigBadWolf, isPrettyAvatar, isRoseRemembers, isRoseRemembers2, isShakeBootie, isSwooningProm, isSweetie, isTwistIntro, isVoiceC, isVoiceCheck, isVoiceCo, isVoiceCoc, isVoiceCocy, isVoiceNo, isVoiceOn, lookForTrack, phenomenonAt, sceneFromTags } from "./phenomena.ts";
+import { encodeSceneTag, isBigBadWolf, isPrettyAvatar, isRoseRemembers, isRoseRemembers2, isShakeBootie, isSwooningProm, isSweetie, isTwistIntro, isVoiceC, isVoiceCheck, isVoiceCo, isVoiceCoc, isVoiceCocy, isVoiceNo, isVoiceOn, lookForPhenomenon, lookForTrack, phenomenonAt, phenomenonFromTitle, PHENOMENA, sceneFromTags, stepPhenomenon } from "./phenomena.ts";
 import { ROSE_LOOK_DEFAULT } from "./rose-look.ts";
 
 describe("phenomena", () => {
@@ -282,5 +282,27 @@ describe("phenomena", () => {
     assert.equal(look.box, true);
     assert.ok(look.captions.some((line) => /tea still hot/i.test(line)));
     assert.ok(look.captions.some((line) => /red red land/i.test(line)));
+  });
+
+  it("steps through every graphic and wraps", () => {
+    assert.equal(stepPhenomenon("vortex"), "aurora");
+    assert.equal(stepPhenomenon("stillhot"), "vortex");
+    assert.equal(stepPhenomenon("vortex", -1), "stillhot");
+    assert.equal(PHENOMENA.every((item) => item.thumb.startsWith("/experiences/rose/")), true);
+  });
+
+  it("applies a graphic override without needing a matching title", () => {
+    const choir = lookForPhenomenon(ROSE_LOOK_DEFAULT, "choir");
+    assert.equal(choir.phenomenon, "choir");
+    assert.equal(choir.box, false);
+    assert.ok(choir.captions.some((line) => /i am the court/i.test(line)));
+    const vortex = lookForPhenomenon(choir, "vortex");
+    assert.equal(vortex.phenomenon, "vortex");
+    assert.equal(vortex.box, false);
+    const fromStation = lookForPhenomenon(ROSE_LOOK_DEFAULT, "vortex");
+    assert.equal(fromStation.box, true);
+    assert.equal(phenomenonFromTitle("Voice Coc_"), "choir");
+    assert.equal(phenomenonFromTitle("Elf Magic Shrimp Kitty Future Nostalgia"), "vortex");
+    assert.equal(phenomenonFromTitle("Time War 2137"), null);
   });
 });

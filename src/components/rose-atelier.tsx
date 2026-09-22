@@ -116,7 +116,7 @@ export function RoseAtelier({
           <X className="size-4" />
         </button>
       </div>
-      <p className="rose-atelier-note">Tweak live, or open Grok on the stage and talk each song into a look. Pin a cut so the next track can be a different phenomenon.</p>
+      <p className="rose-atelier-note">Tweak live, or tap the look chip on the stage to cycle scenes. Grok can talk a cut into a look. Pin a song if you want that override to stick.</p>
       <div className="rose-atelier-presets">
         {PHENOMENA.map((item) => (
           <button
