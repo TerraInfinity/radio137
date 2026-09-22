@@ -11,12 +11,12 @@ export function useExperienceUnlock(stationSlug: string | undefined | null) {
   const playingHere = usePlayerStore(
     (s) => Boolean(stationSlug) && s.channelSlug === stationSlug && s.status === "playing",
   );
-  const [opened, setOpened] = useState(false);
+  const [started, setStarted] = useState(false);
 
   useEffect(() => {
     if (!stationSlug) return;
     try {
-      if (window.sessionStorage.getItem(storageKey(stationSlug)) === "1") setOpened(true);
+      if (window.sessionStorage.getItem(storageKey(stationSlug)) === "1") setStarted(true);
     } catch {
       /* ignore */
     }
@@ -24,7 +24,7 @@ export function useExperienceUnlock(stationSlug: string | undefined | null) {
 
   useEffect(() => {
     if (!stationSlug || !playingHere) return;
-    setOpened(true);
+    setStarted(true);
     try {
       window.sessionStorage.setItem(storageKey(stationSlug), "1");
     } catch {
@@ -32,5 +32,5 @@ export function useExperienceUnlock(stationSlug: string | undefined | null) {
     }
   }, [playingHere, stationSlug]);
 
-  return Boolean(isAdmin || opened);
+  return { unlocked: Boolean(isAdmin || started), started };
 }

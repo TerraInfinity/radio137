@@ -10123,6 +10123,249 @@
           "nsfw": false,
           "enabled": true,
           "tags": ["bpm:108"]
+        },
+        {
+          "id": "rose-004",
+          "title": "Glaum Shrimp Prom Swooning for Glaum's Attention",
+          "artist": "Rose",
+          "durationSec": 193,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/Glaum%20Radio/Glaum%20Frequency/Glaum%20Shrimp%20Prom%20-%20Swooning%20for%20Glaum%27s%20Attention.mp3",
+          "coverUrl": "/experiences/rose/prom-gym.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:96",
+            "scene.v1.eyJicG0iOjk2LCJmbHkiOjAuNCwiaW50ZW5zaXR5IjoxLCJzdGlsbHMiOjAsImxvb3AiOjAsInN0YXJzIjo0OCwiZ2x5cGhzIjowLCJyaW5ncyI6MCwicGV0YWxzIjp0cnVlLCJib2x0cyI6ZmFsc2UsImJveCI6ZmFsc2UsInBoZW5vbWVub24iOiJwcm9tIiwiY2FwdGlvbnMiOlsiTWF5IEkgaGF2ZSB0aGlzIGRhbmNlIiwiRG9uJ3QgeW91IGRhcmUgbG9vayBhd2F5IiwiU3dvb25pbmciLCJMYXN0IHNvbmcgYmVmb3JlIG1pZG5pZ2h0IiwiT25lIG1vcmUgd2FsdHoiLCJFdmVyeWJvZHkncyB3YXRjaGluZyJdLCJzdGlsbFVybHMiOlsiL2V4cGVyaWVuY2VzL3Jvc2UvcHJvbS1neW0uanBnIl0sImxvb3BVcmwiOiIifQ"
+          ]
+        },
+        {
+          "id": "rose-005",
+          "title": "Twist It Intro",
+          "artist": "Rose",
+          "durationSec": 1047,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/What%20If%20Glaum/31_twist%20me%20intro.mp3",
+          "coverUrl": "/experiences/rose/twist-hall.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:154",
+            "scene.v1.eyJicG0iOjE1NCwiZmx5IjoxLjM1LCJpbnRlbnNpdHkiOjEuMjUsInN0aWxscyI6MCwibG9vcCI6MCwic3RhcnMiOjQwLCJnbHlwaHMiOjAsInJpbmdzIjowLCJwZXRhbHMiOnRydWUsImJvbHRzIjpmYWxzZSwiYm94IjpmYWxzZSwicGhlbm9tZW5vbiI6InR3aXN0IiwiY2FwdGlvbnMiOlsiVGhlIHJvb20gaXMgcHJldGVuZGluZyIsIkR1bSBkYS1kYSBkdW0iLCJSb3NlIGlzIGhlciBuYW1lIiwiRGVhZC1lbmQgY3ViaWNsZSIsIkNoYW9zIGFnZW50cyBvbmxpbmUiLCJUd2lzdCBpbnRvIHRoZSBncmlkIl0sInN0aWxsVXJscyI6WyIvZXhwZXJpZW5jZXMvcm9zZS90d2lzdC1jdWJpY2xlLmpwZyJdLCJsb29wVXJsIjoiIn0"
+          ]
+        },
+        {
+          "id": "rose-006",
+          "title": "Rose Remembers",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/misc-mischief-frequency/Time%20War%202137.mp3",
+          "coverUrl": "/experiences/rose/rose-remember.png",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:108",
+            "scene.v1.eyJicG0iOjEwOCwiZmx5IjowLjQsImludGVuc2l0eSI6MSwic3RpbGxzIjowLCJsb29wIjowLCJzdGFycyI6NDAsImdseXBocyI6MCwicmluZ3MiOjAsInBldGFscyI6dHJ1ZSwiYm9sdHMiOmZhbHNlLCJib3giOmZhbHNlLCJwaGVub21lbm9uIjoicmVtZW1iZXIiLCJjYXB0aW9ucyI6WyJSb3NlIHJlbWVtYmVycyIsIlNoZSBpcyBSb3NlIiwiUHJldHR5IGV5ZXMsIHByZXR0eSBleWVzIiwiSSByZW1lbWJlciIsIlRoZSBjb2JyYSBjcm93biIsIkdvbGQgaW4gdGhlIGRhcmsiXSwic3RpbGxVcmxzIjpbIi9leHBlcmllbmNlcy9yb3NlL3Jvc2UtcmVtZW1iZXIucG5nIl0sImxvb3BVcmwiOiIifQ"
+          ]
+        },
+        {
+          "id": "rose-007",
+          "title": "Pretty Face, Pretty Avatar Eyes (From The River to the C)",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/media-empire-frequency/Glaum%20Radio/Media%20Empire/The%20Basilisk%20%28TARDIS%20-%20Lady%20Reset%29.mp3",
+          "coverUrl": "/experiences/rose/firewall-rose.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:118"
+          ]
+        },
+        {
+          "id": "rose-008",
+          "title": "Voice Check ♔ M8ternity",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/What%20If%20Glaum/31_twist%20me%20intro.mp3",
+          "coverUrl": "/experiences/rose/allocate-rose.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:128"
+          ]
+        },
+        {
+          "id": "rose-009",
+          "title": "Pretty Face, Pretty Eyes Big Bad Wolf",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/What%20If%20Glaum/31_twist%20me%20intro.mp3",
+          "coverUrl": "/experiences/rose/wolf-rose.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:132"
+          ]
+        },
+        {
+          "id": "rose-010",
+          "title": "Voice C___",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/What%20If%20Glaum/31_twist%20me%20intro.mp3",
+          "coverUrl": "/experiences/rose/current-queen.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:136"
+          ]
+        },
+        {
+          "id": "rose-011",
+          "title": "Pretty Face, Pretty Eyes Sweetie",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/What%20If%20Glaum/31_twist%20me%20intro.mp3",
+          "coverUrl": "/experiences/rose/sweetie-operator.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:124"
+          ]
+        },
+        {
+          "id": "rose-012",
+          "title": "Voice Co__",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/What%20If%20Glaum/31_twist%20me%20intro.mp3",
+          "coverUrl": "/experiences/rose/halo-queen.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:138"
+          ]
+        },
+        {
+          "id": "rose-013",
+          "title": "Voice Coc_",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/What%20If%20Glaum/31_twist%20me%20intro.mp3",
+          "coverUrl": "/experiences/rose/choir-god.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:140"
+          ]
+        },
+        {
+          "id": "rose-014",
+          "title": "Voice Coc_y",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/What%20If%20Glaum/31_twist%20me%20intro.mp3",
+          "coverUrl": "/experiences/rose/badend-queen.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:142"
+          ]
+        },
+        {
+          "id": "rose-015",
+          "title": "Rose Remembers 2_",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/What%20If%20Glaum/31_twist%20me%20intro.mp3",
+          "coverUrl": "/experiences/rose/recall-rose.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:118"
+          ]
+        },
+        {
+          "id": "rose-016",
+          "title": "Voice NO!",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/What%20If%20Glaum/31_twist%20me%20intro.mp3",
+          "coverUrl": "/experiences/rose/obay-brat.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:144"
+          ]
+        },
+        {
+          "id": "rose-017",
+          "title": "Glaum Shrimp Prom Shake That Bootie",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/What%20If%20Glaum/31_twist%20me%20intro.mp3",
+          "coverUrl": "/experiences/rose/copter-lady.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:126"
+          ]
+        },
+        {
+          "id": "rose-018",
+          "title": "Voice ON!",
+          "artist": "Rose",
+          "durationSec": 240,
+          "audioUrl": "https://r2.terrainfinity.ca/radio/official-glaum-frequency/What%20If%20Glaum/31_twist%20me%20intro.mp3",
+          "coverUrl": "/experiences/rose/stillhot-rose.jpg",
+          "originalUrl": "",
+          "originalPlatform": "other",
+          "playback": "file",
+          "nsfw": false,
+          "enabled": true,
+          "tags": [
+            "bpm:118"
+          ]
         }
       ],
       "tags": [

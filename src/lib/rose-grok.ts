@@ -15,6 +15,8 @@ export const ROSE_GROK_STARTERS = [
   "Time war — faster fly, more rings, keep the box.",
   "Ken Burns stills only. Hide the vortex.",
   "Match a slower BPM and make the laser eyes rarer.",
+  "1950s prom drama — gymnasium last dance, hide the box.",
+  "Voice ON — time vortex, tea still hot on red red land.",
 ];
 
 export function lookSnapshot(look: RoseLook) {

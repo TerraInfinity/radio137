@@ -49,7 +49,7 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
   const skin = stationSkin(channel);
   const catalog = usePlayerStore((s) => s.catalog);
   const experience = experienceForStation(channel.slug, catalog);
-  const unlocked = useExperienceUnlock(experience?.stationSlug ?? channel.slug);
+  const { unlocked } = useExperienceUnlock(experience?.stationSlug ?? channel.slug);
   const statusLabel = !channel.enabled ? "Off air" : playable.length === 0 ? "Empty desk" : here ? status : kindHint(kind);
   const tags = channel.tags ?? [];
 
@@ -87,16 +87,18 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
         </p>
       ) : null}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => void tuneIn(channel.slug, { forcePlay: true })}
-          className={cn(
-            "inline-flex h-12 min-w-36 items-center justify-center rounded-md bg-fg px-5 font-mono text-[12px] uppercase tracking-[0.16em] text-bg",
-            skin === "glaum" && "btn-glaum",
-          )}
-        >
-          Tune in
-        </button>
+        {experience ? null : (
+          <button
+            type="button"
+            onClick={() => void tuneIn(channel.slug, { forcePlay: true })}
+            className={cn(
+              "inline-flex h-12 min-w-36 items-center justify-center rounded-md bg-fg px-5 font-mono text-[12px] uppercase tracking-[0.16em] text-bg",
+              skin === "glaum" && "btn-glaum",
+            )}
+          >
+            Tune in
+          </button>
+        )}
         {experience ? (
           <Link
             to="/experiences/$slug"

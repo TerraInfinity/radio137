@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Lock, Maximize, MessageSquare, Minimize, Palette, X } from "lucide-react";
+import { Lock, Maximize, MessageSquare, Minimize, Palette, Pause, Play, X } from "lucide-react";
 import "./rose-opera.css";
 import { AdminStationEdit } from "@/components/admin-track-tools";
 import { RoseAtelier } from "@/components/rose-atelier";
@@ -8,10 +8,11 @@ import { RoseGrokChat } from "@/components/rose-grok-chat";
 import { RoseVortex } from "@/components/rose-vortex";
 import { StationPlaylist } from "@/components/station-playlist";
 import { cn } from "@/lib/cn";
+import { ritePrimary } from "@/lib/rite-primary";
 import { useExperienceUnlock } from "@/lib/experience-unlock";
 import type { RadioExperience } from "@/lib/experiences";
 import { lookFromStation, type RoseLook } from "@/lib/rose-look";
-import { lookForTrack } from "@/lib/phenomena";
+import { lookForTrack, isStageOwned } from "@/lib/phenomena";
 import { getPlayableTracks } from "@/lib/catalog";
 import { bpmFromTags, captionForPulse, pulseAt, type RosePulse } from "@/lib/rose-pulse";
 import { useRadioUser } from "@/lib/radio-user";
@@ -20,6 +21,13 @@ import { usePlayerStore } from "@/lib/player-store";
 const IDLE_MS = 3200;
 
 const QUIET: RosePulse = pulseAt(0, 120, false);
+
+const RITE_LABEL = {
+  begin: "Begin the rite",
+  pause: "Pause",
+  resume: "Resume",
+  opening: "Opening…",
+} as const;
 
 export function RoseOpera({
   experience,
@@ -33,11 +41,13 @@ export function RoseOpera({
   const pulseRef = useRef<RosePulse>(QUIET);
   const originRef = useRef(performance.now());
   const tuneIn = usePlayerStore((s) => s.tuneIn);
+  const togglePlay = usePlayerStore((s) => s.togglePlay);
   const track = usePlayerStore((s) => (s.channelSlug === experience.stationSlug ? s.track : null));
   const currentTime = usePlayerStore((s) => (s.channelSlug === experience.stationSlug ? s.currentTime : 0));
   const status = usePlayerStore((s) => (s.channelSlug === experience.stationSlug ? s.status : "idle"));
   const playing = status === "playing";
-  const unlocked = useExperienceUnlock(experience.stationSlug);
+  const here = usePlayerStore((s) => s.channelSlug === experience.stationSlug);
+  const { unlocked, started } = useExperienceUnlock(experience.stationSlug);
   const { isAdmin } = useRadioUser();
   const channel = usePlayerStore((s) => s.catalog.channels.find((item) => item.slug === experience.stationSlug));
   const savedLook = useMemo(() => lookFromStation(experience, channel), [channel, experience]);
@@ -59,6 +69,7 @@ export function RoseOpera({
   const bpm = look.bpm > 0 ? look.bpm : bpmFromTags(track?.tags, experience.bpm);
   const stills = look.stillUrls.length ? look.stillUrls : experience.stills.map((item) => item.src);
   const loopSrc = look.loopUrl || experience.loop;
+  const primary = ritePrimary({ here, playing, started, loading: status === "loading" });
 
   useEffect(() => {
     if ((atelierOpen || grokOpen) && tweaked.current) return;
@@ -132,7 +143,7 @@ export function RoseOpera({
   }, [bpm, currentTime, experience.captions, playing]);
 
   useEffect(() => {
-    if (!cinema || !playing || atelierOpen) {
+    if (!cinema || atelierOpen || grokOpen || deskOpen) {
       setChrome(true);
       return;
     }
@@ -152,7 +163,7 @@ export function RoseOpera({
       window.removeEventListener("pointerdown", poke);
       window.removeEventListener("keydown", poke);
     };
-  }, [atelierOpen, cinema, playing]);
+  }, [atelierOpen, cinema, deskOpen, grokOpen]);
 
   useEffect(() => {
     document.body.classList.toggle("rose-cinema-on", cinema && layout === "full");
@@ -168,11 +179,12 @@ export function RoseOpera({
   }, []);
 
   async function begin() {
-    await tuneIn(experience.stationSlug, { forcePlay: true, fromStart: true });
-    if (layout === "full") {
-      setDeskOpen(false);
-      setCinema(true);
+    if (primary === "opening") return;
+    if (primary === "pause" || primary === "resume") {
+      await togglePlay();
+      return;
     }
+    await tuneIn(experience.stationSlug, { forcePlay: true, fromStart: true });
   }
 
   async function toggleCinema() {
@@ -194,7 +206,7 @@ export function RoseOpera({
     }
   }
 
-  const showCopy = layout === "hero" || chrome || !playing || deskOpen || atelierOpen || grokOpen;
+  const showCopy = layout === "hero" || chrome || deskOpen || atelierOpen || grokOpen;
 
   function applyLook(next: RoseLook) {
     tweaked.current = true;
@@ -214,17 +226,19 @@ export function RoseOpera({
       data-phenomenon={look.phenomenon}
     >
       <div className="rose-opera-stage" aria-hidden>
-        <div className="rose-opera-stills">
-          {stills.map((src, index) => (
-            <img
-              key={src}
-              src={src}
-              alt=""
-              className={`rose-opera-still rose-opera-still-${index}`}
-            />
-          ))}
-        </div>
-        {reduce ? null : (
+        {isStageOwned(look.phenomenon) ? null : (
+          <div className="rose-opera-stills">
+            {stills.map((src, index) => (
+              <img
+                key={src}
+                src={src}
+                alt=""
+                className={`rose-opera-still rose-opera-still-${index}`}
+              />
+            ))}
+          </div>
+        )}
+        {reduce || isStageOwned(look.phenomenon) ? null : (
           <video
             ref={videoRef}
             className="rose-opera-loop"
@@ -237,13 +251,37 @@ export function RoseOpera({
           />
         )}
         <RoseVortex pulseRef={pulseRef} lookRef={lookRef} playing={liveVisual} reduce={reduce} />
-        <div className="rose-opera-vortex">
+        {isStageOwned(look.phenomenon) ? null : (
+          <>
+            <div className="rose-opera-vortex">
+              <span />
+              <span />
+              <span />
+            </div>
+            <span className="rose-opera-lantern" />
+          </>
+        )}
+        <div className="rose-opera-veil" />
+        <div className="rose-opera-fields" aria-hidden>
+          <img className="rose-field-hedge is-left" src="/experiences/rose/rose-hedge.jpg" alt="" />
+          <img className="rose-field-hedge is-right" src="/experiences/rose/rose-hedge.jpg" alt="" />
+          <img className="rose-field-ground" src="/experiences/rose/rose-field.jpg" alt="" />
+          <img className="rose-field-bloom is-a" src="/experiences/rose/rose-bloom.jpg" alt="" />
+          <img className="rose-field-bloom is-b" src="/experiences/rose/rose-bloom.jpg" alt="" />
+          <span className="rose-glitter" />
+          <span className="rose-glitter" />
+          <span className="rose-glitter" />
+          <span className="rose-glitter" />
+          <span className="rose-glitter" />
+          <span className="rose-glitter" />
+          <span className="rose-glitter" />
+          <span className="rose-glitter" />
+        </div>
+        <div className="rose-opera-air" aria-hidden>
           <span />
           <span />
           <span />
         </div>
-        <span className="rose-opera-lantern" />
-        <div className="rose-opera-veil" />
       </div>
       <p className="rose-opera-caption">{playing ? caption : experience.whisper}</p>
       <div className={cn("rose-opera-copy", !showCopy && "is-hidden")}>
@@ -252,8 +290,15 @@ export function RoseOpera({
         <p className="rose-opera-line">{experience.line}</p>
         <p className="rose-opera-whisper">{experience.whisper}</p>
         <div className="rose-opera-actions">
-          <button type="button" onClick={() => void begin()} className="rose-opera-begin">
-            {playing ? "On the stage" : "Begin the rite"}
+          <button
+            type="button"
+            onClick={() => void begin()}
+            className="rose-opera-begin"
+            disabled={primary === "opening"}
+            aria-pressed={primary === "pause"}
+          >
+            {primary === "pause" ? <Pause className="size-4" /> : <Play className="size-4" />}
+            {RITE_LABEL[primary]}
           </button>
           {layout === "full" ? (
             <>
@@ -310,6 +355,11 @@ export function RoseOpera({
             </>
           )}
         </div>
+        {layout === "full" ? (
+          <p className="rose-opera-hint">
+            Begin starts the playlist from the first song. Cinema hides the title for a fullscreen stage — it does not restart the music.
+          </p>
+        ) : null}
       </div>
       {layout === "full" && cinema ? (
         <button type="button" className="rose-opera-exit" onClick={() => void toggleCinema()} aria-label="Exit cinema">

@@ -209,11 +209,11 @@ export function StationPlaylist({
             <Lock className="size-3.5" />
             Desk sealed
           </p>
-          <p className="font-display text-xl text-fg">Begin the rite to open the playlist.</p>
-          <p className="text-sm text-muted">Play unlocks the desk so you can pick the next song. The stage stays the picture.</p>
+          <p className="font-display text-xl text-fg">Playlist sealed until the rite begins.</p>
+          <p className="text-sm text-muted">Start from the first song on the stage above. Cinema is fullscreen only — it does not unlock the desk.</p>
           {onUnlock ? (
-            <button type="button" onClick={onUnlock} className="mt-2 inline-flex h-12 min-w-36 items-center justify-center rounded-md bg-fg px-5 font-mono text-[12px] uppercase tracking-[0.16em] text-bg">
-              Begin the rite
+            <button type="button" onClick={onUnlock} className="mt-1 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+              Begin the rite on the stage
             </button>
           ) : null}
         </div>

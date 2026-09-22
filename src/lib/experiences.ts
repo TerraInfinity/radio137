@@ -120,10 +120,10 @@ export const EXPERIENCES: RadioExperience[] = [
       "Time war 2137",
     ],
     stills: [
+      { src: "/experiences/rose/rose-field.jpg", caption: "White rose field" },
       { src: "/experiences/rose/hero.jpg", caption: "The box takes the stage" },
       { src: "/experiences/rose/eyes.jpg", caption: "Pretty eyes, pretty eyes" },
       { src: "/experiences/rose/timewar.jpg", caption: "Time war 2137" },
-      { src: "/experiences/rose/fade.jpg", caption: "Paradise is in our hands" },
     ],
   },
 ];

@@ -16,8 +16,10 @@ import { durationOf, neighborTrack, nextForward, nextShuffled, rememberDuration,
 import type { CutGroup } from "@/lib/cuts";
 import { endPad, radioEngine } from "@/lib/radio-engine";
 import { effectiveKind, listenModeFromLocation, type ListenMode } from "@/lib/listen-mode";
+import { experienceSlugFromPath, pageCuesPlayback } from "@/lib/playback-page";
+import { getExperience } from "@/lib/experiences";
 import { bindMediaSession, flushMediaSession, ignoreHidePause, rebindMediaSession, syncMediaSession } from "@/lib/media-session";
-import { forgetCachedAudio, hasCachedAudio, playableSrc, rememberAudio, shouldHoldAutoAdvance, dataSaverOn, warmTrackSrc } from "@/lib/audio-cache";
+import { forgetCachedAudio, hasCachedAudio, pinCachedAudio, playableSrc, rememberAudio, shouldHoldAutoAdvance, dataSaverOn, warmTrackSrc } from "@/lib/audio-cache";
 import { mediaUrl } from "@/lib/media";
 import { loadPersisted, savePersisted } from "@/lib/storage";
 import { playbackLock, thisTabOwnsClock, type PlaybackPeer } from "@/lib/playback-lock";
@@ -63,7 +65,7 @@ type PlayerState = {
   elsewhere: PlaybackPeer | null;
   hydrate: () => void;
   enterGate: () => void;
-  tuneIn: (slug: string, opts?: { forcePlay?: boolean; fromStart?: boolean }) => Promise<void>;
+  tuneIn: (slug: string, opts?: { forcePlay?: boolean; fromStart?: boolean; play?: boolean }) => Promise<void>;
   cueTrack: (slug: string, trackId: string, opts?: { play?: boolean }) => Promise<void>;
   togglePlay: () => Promise<void>;
   next: (reason?: "user" | "ended" | "error") => Promise<void>;
@@ -97,14 +99,6 @@ let justEndedId: string | null = null;
 let userPaused = false;
 const viewed = new Set<string>();
 const recents: string[] = [];
-
-function pageCuesPlayback(pathname: string): boolean {
-  if (pathname.startsWith("/channel/")) return true;
-  if (pathname.startsWith("/player/") && pathname.length > "/player/".length) return true;
-  const parts = pathname.split("/").filter(Boolean);
-  if (parts.length !== 1) return false;
-  return !["library", "experiences", "desk", "about", "login", "logout", "player", "songs"].includes(parts[0]);
-}
 
 function persist() {
   const s = usePlayerStore.getState();
@@ -238,7 +232,10 @@ function bindEngine() {
         rememberDuration(track.id, known);
         patchTrackDuration(track.id, known);
       }
-      if (track) justEndedId = track.id;
+      if (track) {
+        justEndedId = track.id;
+        rememberAudio(track, { listenedRatio: 1 });
+      }
       void usePlayerStore.getState().next("ended");
     },
     onError: () => {
@@ -247,6 +244,9 @@ function bindEngine() {
     onPause: () => {
       const s = usePlayerStore.getState();
       if (s.status === "playing") usePlayerStore.setState({ status: "paused" });
+      if (s.track && s.duration > 20) {
+        rememberAudio(s.track, { listenedRatio: s.currentTime / Math.max(s.duration, 1) });
+      }
       syncMediaSession();
     },
     onPlay: () => {
@@ -350,6 +350,10 @@ async function loadTrack(
   mode: "join" | "flow" = "flow",
 ) {
   bindEngine();
+  if (!play) {
+    radioEngine.pause();
+    playbackLock.release();
+  }
   if (justEndedId && track.id === justEndedId && hops === 0 && mode !== "join") {
     const channel = channelOf(slug);
     const playable = getPlayableTracks(channel);
@@ -470,7 +474,6 @@ async function loadTrack(
   });
   persist();
   if (playing) usePlayerStore.getState().bumpView(track.id);
-  rememberAudio(track);
   const channel = channelOf(slug);
   const playable = getPlayableTracks(channel);
   const kind = effectiveKind(channel, listenOf());
@@ -634,10 +637,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   enterGate: () => {
-    const last = get().lastSlug || get().catalog.defaultSlug;
+    const xpSlug = typeof window !== "undefined" ? experienceSlugFromPath(window.location.pathname) : null;
+    const xp = xpSlug ? getExperience(xpSlug, get().catalog) : undefined;
+    const last = xp?.stationSlug || get().lastSlug || get().catalog.defaultSlug;
     set({ gateOpen: false, visited: true, lastSlug: last });
     persist();
-    void get().tuneIn(last, { forcePlay: true });
+    void get().tuneIn(last, { forcePlay: !xp, fromStart: Boolean(xp), play: xp ? false : undefined });
   },
 
   tuneIn: async (slug, opts) => {
@@ -683,13 +688,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
     if (opts?.forcePlay) {
       userPaused = false;
+    } else if (opts?.play === false) {
+      userPaused = true;
     }
     const peer = !opts?.forcePlay ? playbackLock.otherLeader() : null;
     if (peer) {
       userPaused = true;
       set({ elsewhere: peer });
     }
-    const play = Boolean(opts?.forcePlay) || (!userPaused && get().autoplay);
+    const play = Boolean(opts?.forcePlay) || (opts?.play !== false && !userPaused && get().autoplay);
     const kind = opts?.fromStart ? "fixed" : effectiveKind(channel, listenOf(get()));
     const mixing = opts?.fromStart ? false : shuffleActive(channel, Boolean(get().shuffleBySlug[slug]));
     if (slug !== get().channelSlug) justEndedId = null;
@@ -1044,8 +1051,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   toggleFavorite: (trackId) => {
     const favorites = new Set(get().favorites);
-    if (favorites.has(trackId)) favorites.delete(trackId);
-    else {
+    if (favorites.has(trackId)) {
+      favorites.delete(trackId);
+      void pinCachedAudio(trackId, false);
+    } else {
       favorites.add(trackId);
       const track =
         get().track?.id === trackId

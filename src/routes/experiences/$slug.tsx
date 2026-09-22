@@ -28,11 +28,13 @@ function ExperiencePage() {
   const tuneIn = usePlayerStore((s) => s.tuneIn);
   const ready = usePlayerStore((s) => s.ready);
   const catalogReady = usePlayerStore((s) => s.catalogReady);
+  const here = usePlayerStore((s) => Boolean(experience) && s.channelSlug === experience?.stationSlug);
+  const stationSlug = experience?.stationSlug;
 
   useEffect(() => {
-    if (!ready || !catalogReady || !experience) return;
-    void tuneIn(experience.stationSlug, { fromStart: true });
-  }, [ready, catalogReady, experience?.stationSlug, tuneIn]);
+    if (!ready || !catalogReady || !stationSlug || here) return;
+    void tuneIn(stationSlug, { fromStart: true, play: false });
+  }, [ready, catalogReady, stationSlug, here, tuneIn]);
 
   if (!experience) {
     return (

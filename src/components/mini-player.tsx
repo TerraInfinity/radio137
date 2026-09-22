@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { Camera, ChevronDown, ChevronUp, Pause, Pencil, Play, Radio, SkipBack, SkipForward, Volume1, Volume2, VolumeX, X } from "lucide-react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { RenameCutForm } from "@/components/admin-rename";
@@ -16,7 +16,34 @@ import { isOnDemandOverlay, listenModeLabel } from "@/lib/listen-mode";
 import { visualSrc } from "@/lib/media";
 import { useRadioUser } from "@/lib/radio-user";
 import { songPath } from "@/lib/song-url";
+import { cacheUsage, clearCachedAudio, subscribeAudioCache, audioCacheGeneration } from "@/lib/audio-cache";
 import { usePlayerStore } from "@/lib/player-store";
+
+function DeviceCacheLine() {
+  const gen = useSyncExternalStore(subscribeAudioCache, audioCacheGeneration, () => 0);
+  const [usage, setUsage] = useState<{ used: number; count: number; budget: number } | null>(null);
+  useEffect(() => {
+    let live = true;
+    void cacheUsage().then((value) => {
+      if (live) setUsage(value);
+    });
+    return () => {
+      live = false;
+    };
+  }, [gen]);
+  if (!usage || usage.count < 1) return null;
+  const mb = Math.max(1, Math.round(usage.used / (1024 * 1024)));
+  return (
+    <button
+      type="button"
+      onClick={() => void clearCachedAudio()}
+      className="inline-flex h-11 items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle hover:text-gold"
+      title="Clear copies kept on this device"
+    >
+      {usage.count} kept · {mb} MB · clear
+    </button>
+  );
+}
 
 function VuMeter({ playing, skin }: { playing: boolean; skin: string }) {
   return (
@@ -422,6 +449,7 @@ export function MiniPlayer() {
       <AutoplayLamp compact />
       <ShuffleToggle channel={channel} compact />
       <TrackActions trackId={track.id} compact />
+      <DeviceCacheLine />
       <UnallocateControl channel={channel} track={track} />
       {isAdmin ? (
         <button
