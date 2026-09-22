@@ -1,0 +1,273 @@
+You are updating Radio137 (radio.terrainfinity.ca / radio.cyber-athens.ca, repo TerraInfinity/radio137). Implement ALL of the following in one coherent change set: (1) mobile Media Session / headset / screen-off playback, (2) listener Streaming vs On-demand preference with real shared-clock sync, (3) UX/UI upgrades so the in-page player feels like an obvious media app — especially on phones, (4) admin one-tap Unallocate → Desk Review queue with conscious duplicate handling, (5) admin mobile-easy hero art/video replace for song + station — shipped as one cohesive player experience. Keep the dark-elf clockwork / station-skin visual language (gold lamps, filigree, Glaum/Wahe skins). Do not reinvent station kinds, the single audio deck, or polish already on main (/hari /gong aliases, desk song-vs-station split, art uploads, Glaum bubble words, share/download UX).
+
+═══════════════════════════════════════
+ALREADY TRUE — KEEP AND EXTEND
+═══════════════════════════════════════
+- Single long-lived HTMLAudioElement deck: src/lib/radio-engine.ts (playsinline already set). Optional muted preload via warm() — second Audio() must NEVER play or steal Media Session.
+- Player state: src/lib/player-store.ts. Actions: tuneIn, togglePlay, next(reason), prev, seek, cueTrack, skipAllowed(slug).
+- Persist: src/lib/storage.ts key radio.persist.v4 (autoplay, shuffleBySlug, volume, …). Extend carefully; bump key only if needed with legacy read.
+- Desk station kinds via normalizeKind: live | ondemand | fixed (src/lib/catalog.ts). ModePill shows DESK kind.
+- Live shared clock: liveCursor / resolveLivePlayhead in src/lib/playback.ts — same slug + wall second ⇒ same cut/offset. Uses published durationSec slots, not measured MP3 length.
+- TODAY’S GAP (must fix as part of Streaming): tuneIn joins the clock, but next("ended") / user flow uses pickNext — listeners drift after track 1. Streaming mode must re-join the clock on natural end.
+- Mini player: src/components/mini-player.tsx — fixed bottom bar, safe-area padding, collapsed/expanded, thin top progress strip, prev hidden below sm breakpoint, scrubber only when expanded.
+- AutoplayLamp / ShuffleToggle lamp pattern for listener controls.
+- Claims gate skip on live via skipAllowed — respect everywhere (UI + Media Session).
+- Enter gate: src/components/enter-gate.tsx — first-visit Tune in unlocks audio gesture.
+- Do NOT use src/lib/multiplayer/p2p.ts for A/V sync. Do NOT add Icecast/WebRTC/server stream. Do NOT change Vercel secrets/env in this task.
+- Honor prefers-reduced-motion (styles.css already does for atmospheres) for any new motion.
+
+═══════════════════════════════════════
+FEATURE 1 — MOBILE MEDIA SESSION / HEADSET / SCREEN-OFF
+═══════════════════════════════════════
+Goal: phone browser (Chrome/Brave primary; iOS Safari best-effort) feels like a real media player — lock screen metadata, AirPods/headset next-prev, music continues with display off.
+
+Research anchors (implement, don’t cite): Media Session API (MDN / web.dev) — metadata + action handlers + setPositionState; Chrome notes that Android notifications want rich artwork (~512 artwork), duration ≥ ~5s for full focus; keep using a real HTMLAudioElement (not Web-Audio-only) so OS audio focus + Media Session attach correctly.
+
+1) Media Session module (prefer src/lib/media-session.ts), bound from player-store / engine attach — not duplicated in every React component.
+   - On track load / change: navigator.mediaSession.metadata = MediaMetadata({ title, artist, album: station name, artwork: absolute https covers at multiple sizes incl. ~256 and ~512 when possible }). Relative or auth-walled art = blank; use R2 / MEDIA public https bases.
+   - playbackState synced: playing | paused | none.
+   - setPositionState({ duration, playbackRate: 1, position }) with finite positive values only; throttle from onTime; clear/update after seek.
+   - Handlers: play, pause, stop→pause, nexttrack→next("user"), previoustrack→prev, seekto when seek allowed; optional ±10s seekbackward/forward when seek allowed.
+   - When !skipAllowed(slug) (or seek blocked): remove/omit nexttrack, previoustrack, and seek handlers so OS doesn’t show dead controls — same gate as mini player.
+   - All handlers call existing store/engine paths — never a second playing element.
+
+2) Background / screen-off
+   - Never pause solely because document.hidden / visibilitychange / pagehide.
+   - Keep one playing element; warm() preload stays muted, no play(), must not take Media Session.
+   - Keep playsinline on the main element.
+   - On pageshow (BFCache): re-bind Media Session + re-attach engine handlers if needed.
+   - Sync store status if the element pauses from an OS interruption (phone call).
+   - No service worker required for v1 unless one already exists and helps; don’t invent a big SW.
+   - Comment: iOS Safari limits some headset gestures; Chrome/Brave/Android are the primary AirPods-style win. Media Session attaches after first user-gesture unlocked play — don’t break enter-gate / autoplay lamp.
+
+Acceptance A:
+- Android Chrome/Brave: play, screen off, audio continues; lock screen / notification shows title/artist/art; next/prev/play/pause work when allowed; blocked skip doesn’t expose next/prev.
+- No second audible element; no pause-on-hide; desktop player not regressed.
+
+═══════════════════════════════════════
+FEATURE 2 — LISTENER PREFERENCE: STREAMING vs ON DEMAND
+═══════════════════════════════════════
+Goal: each listener can prefer shared “streaming” (live clock sync) or personal on-demand pace, without changing desk station kind for everyone.
+
+1) Persisted preference
+   - listenMode: "stream" | "ondemand" in radio.persist (and hydrate).
+   - Default: "ondemand" (independent listening).
+   - UI: ListenModeLamp (or equivalent) beside AutoplayLamp — same lamp language. Labels: “Streaming” = prefer shared station clock when available; “On demand” = prefer own pace when available.
+   - This is “how I listen,” not “what this station is.” ModePill still shows desk kind.
+   - Enter gate: offer the Streaming / On demand choice once alongside Autoplay before Tune in (short copy), then keep the lamp available afterward.
+
+2) effectiveKind(station, listenMode)
+   - fixed → always fixed (ignore preference).
+   - ondemand (desk vault) → always ondemand.
+   - live + listenMode "stream" → live/stream behavior.
+   - live + listenMode "ondemand" → on-demand OVERLAY: personal pace; skip/seek free (skipAllowed effectively true for overlay); do NOT yank back to wall clock on every track end; advance like ondemand/flow (shuffle rules still apply). Show a clear “Jump to live” control (mini player + station now-playing area) that re-resolves resolveLivePlayhead and loads that cut+offset without flipping the global preference.
+
+3) CRITICAL — stream mode must actually stay in sync
+   - On tuneIn, “Jump to live”, and natural next("ended") while effective mode is stream/live: load via resolveLivePlayhead (join clock), NOT pickNext.
+   - User skip in stream mode: still claim-gated via skipAllowed. If skip isn’t allowed, no-op.
+   - Soft periodic re-sync is optional v2 — not required if ended→rejoin clock is correct.
+   - Measured MP3 length must still NOT spin the shared clock (existing slotDuration rule).
+
+4) Mid-listen toggle
+   - Streaming → On demand: stay on current cut; from here skip/seek are free (overlay).
+   - On demand → Streaming: immediate Jump to live (re-resolve clock now).
+
+5) Optional if cheap: ?listen=stream (or #stream) on station URLs forces stream for this visit as a session override without permanently changing the global default — “listen together” links. If not shipped, leave a one-line TODO.
+
+6) Claims
+   - Stream/live effective: claims + skipAllowed matter.
+   - On-demand overlay on a live station: skips free; Jump to live restores claim rules.
+
+Acceptance B:
+- Toggle persists across reload.
+- Two browsers, same live station, both Streaming, hands-off: stay on same cut/offset across natural track boundaries (re-join clock on ended).
+- Same station, On demand: independent skip; Jump to live re-syncs.
+- Fixed stations ignore toggle; pure vaults unchanged; ModePill = desk kind.
+- Autoplay / shuffle still work; Media Session follows effective skip rules.
+
+═══════════════════════════════════════
+FEATURE 3 — UX / UI: OBVIOUS MEDIA-PLAYER EXPERIENCE
+═══════════════════════════════════════
+Goal: the site should feel like a proper radio/media app in the browser — especially mobile — not a thin progress tick with half the controls missing. Keep clockwork aesthetic; improve hierarchy, touch, and clarity.
+
+Research-backed principles to apply (grounded in Media Session guidance + common audio-player UX):
+- Play/pause is the hero control (largest, highest contrast, ≥44×44px tap target).
+- Progressive disclosure: collapsed = essentials; expanded = scrubber, volume, secondary lamps/actions.
+- Scrubbers need a large hit area (not a 2px decorative bar only); tap-anywhere-on-track to seek when seek is allowed.
+- Elapsed / remaining time always visible when playing.
+- Don’t hide prev/next on the phone width where people actually listen with headsets.
+- State should be readable at a glance: Playing / Paused / Live sync / On demand / Jump to live.
+- Reduce clutter: don’t pack every lamp into the collapsed row if it crowds title+controls — overflow into expanded or a compact “deck” chip row.
+- Safe areas: keep env(safe-area-inset-bottom); ensure content pb isn’t covered by the taller player.
+- Accessibility: every control keeps aria-label; disabled skip states explained (title/tooltip: “Desk claimed” / “Streaming — skip locked”); focus-visible already gold — don’t break it.
+- iOS: volume slider may be ineffective (OS owns volume) — hide or de-emphasize volume on iOS if detection is easy; never let a dead volume control dominate the expanded row.
+
+Concrete UX work (do these):
+
+A) Mini player (src/components/mini-player.tsx) — primary surface
+   - Collapsed (default on mobile): cover, title, station (or artist · station), play/pause (hero), prev + next BOTH visible on mobile (remove hidden sm:grid on prev), compact time (elapsed or remaining), and a SCRUBBABLE progress control with a fat touch target (min ~44px hit area even if the visual bar stays thin — e.g. range overlay or taller invisible hit zone). Decorative-only 0.5px bar is not enough by itself.
+   - Expanded: VU (keep), full scrubber with elapsed − remaining, volume (desktop / non-iOS), TrackActions, Autoplay + Shuffle + ListenMode lamps, Jump to live when overlay applies.
+   - When skip/seek blocked in Streaming: dim/disable prev/next/scrubber; show short reason; Media Session matches.
+   - Loading / buffering: subtle status on the player (“Tuning…” / “Buffering…”) so taps don’t feel dead.
+   - Larger play hit target on mobile (at least size-12 / 48px if it fits the shell).
+
+B) Listen mode + Jump to live affordances
+   - ListenModeLamp uses the existing lamp-bezel language (green = Streaming engaged on a live station; muted/off = On demand).
+   - “Jump to live” appears only when it matters (live desk station + currently in on-demand overlay, or drifted). One tap; toast or brief mono kicker “Back on the station clock.”
+   - Station page (channel-view / now-playing): mirror current listen mode in the kind hint line (“Desk: Live · You: On demand”) so ModePill vs preference isn’t confusing.
+
+C) Enter gate
+   - Keep Tune in as the audio unlock gesture.
+   - Add Listen mode choice (Streaming / On demand) + Autoplay lamp with one sentence each — not a wall of text.
+   - Default On demand selected visually unless ?listen=stream forced stream.
+
+D) Home / station browsing (light touch — don’t redesign the catalog)
+   - Ensure channel cards still clear Live / On demand / Fixed via ModePill.
+   - pb / bottom spacing accounts for the (possibly taller) mini player so the last cards aren’t trapped under it (channel-view already uses pb-44 — verify home/lists too).
+
+E) Visual polish constraints
+   - Stay in existing tokens (gold, ember, lamp green, skins). No flat Material redesign, no new font stack.
+   - Motion: small lamp glow / bar transitions OK; respect prefers-reduced-motion.
+   - Document Picture-in-Picture / always-on-top mini window is OUT OF SCOPE (nice later) — Media Session + strong in-page player is enough for v1.
+
+Acceptance C:
+- On a ~390px-wide phone viewport: prev, play, next all tappable without expanding; scrubbing works from collapsed or with one expand; title remains readable; lamps don’t crush the title into oblivion.
+- Streaming vs On demand is obvious within one glance of the player or gate.
+- Jump to live is discoverable when in overlay.
+- No layout regression on desktop; skins (Glaum/Wahe/buzz) still tint the player shell.
+- Keyboard / screen reader: controls labeled; disabled skip announced or titled.
+
+═══════════════════════════════════════
+FEATURE 4 — ADMIN: ONE-TAP UNALLOCATE → REVIEW QUEUE (+ DUPLICATES)
+═══════════════════════════════════════
+Goal: When signed in as admin (isAdmin / C accounts via useRadioUser), from desktop OR mobile while listening, one obvious control removes the current cut from THIS station into a review holding area — without deleting R2, without nuking copies on other stations, and without disrupting listeners. Later, Desk has a Review queue to restore, re-home, or consolidate duplicates consciously.
+
+Already true (extend — do not reinvent):
+- hideStationTrack / radio_track_edits.hidden already removes a cut from a station’s playable list; file stays on R2 (AdminTrackTools “Remove from station”).
+- Desk playlist can “show removed” per station (desk-stations showHidden).
+- transfer/copy-move between stations exists (catalog-edits.server move/copy).
+- Cut groups / clusters already exist: src/lib/cuts.ts (CutGroup, CutCluster by file stem / title / merged), cuts.server mergeCuts / unmergeCut / dissolveCut, listCutGroups. USE THESE for duplicate awareness.
+- AdminTrackTools already on NowPlayingCard but is heavy; mini-player has NO one-tap unallocate today.
+- isAdmin from useRadioUser — guests never see these controls.
+
+Recommended product model (implement this — low disruption):
+1) **Unallocate = hide-from-station + flag for review** (not R2 delete, not instant destroy).
+   - Prefer extending the hide edit with a review marker rather than inventing a parallel catalog: e.g. keep hidden:true and add a lightweight field if easy (review_status / needs_review / unallocated_at / from_slug) on radio_track_edits OR a small radio_review_queue table (track_id, from_channel_slug, reason, created_at, editor_email, status: open|restored|rehomed|merged|dismissed).
+   - If schema change is heavy for v1: hide from station + write into a dedicated holding station slug e.g. \`review\` / \`outdated\` (desk-only, not featured, not in public dial) via move/copy-then-hide. Holding station is fine IF it never appears in public station lists / default dial. Prefer review_queue table or edit flag so we don’t pollute the public catalog with a fake “station.”
+   - R2 object stays put. Other stations’ copies of “the same song” stay on air until admin consolidates in Review.
+
+2) **One-tap UI (admin only)**
+   - Mini player (collapsed + expanded) and Now playing / channel view: compact control labeled **“Unallocate”** or **“To review”** (not “Delete”). Confirm: “Remove from {station}? File stays on R2. Lands in Desk → Review. Other stations untouched.”
+   - On success: if that cut was playing, advance next() like current hide behavior; toast/hint “Sent to Review.”
+   - Keep full AdminTrackTools for meta/R2 destroy; do not replace them — this is the fast path.
+   - Touch target ≥44px; don’t show to non-admins; don’t show when no track.
+
+3) **Desk → Review queue** (new section on /desk or desk-directory)
+   - Lists open unallocated items: title, artist, from-station, when, editor, audio preview link, R2/folder path if known.
+   - Actions per row:
+     - **Restore** to original station (unhide / clear review).
+     - **Move to station…** (pick slug — use existing transfer move).
+     - **Keep hidden** / dismiss from queue without restoring (still hidden on origin).
+     - **Find duplicates** — show CutCluster matches (same file stem, folded title, or existing cut group) listing other stations/folders where a cousin lives. Do NOT auto-remove cousins.
+     - **Merge into cut group** (existing mergeCuts) when admin confirms they’re the same work.
+     - **Delete R2** only behind a second, scary confirm (existing destroy path) — never the default.
+   - Empty state: “Nothing to review.”
+   - Count badge on Desk nav when open items > 0.
+
+4) **Duplicate / multi-folder strategy (conscious, non-disruptive)**
+   Problem: station folders may hold the same song under slightly different filenames/titles.
+   Rules:
+   - Unallocating from station A never auto-unallocates B/C.
+   - Review “Find duplicates” uses existing clustering (file stem + folded title; duration proximity as a soft hint if easy) and cut groups.
+   - Consolidation is **admin-driven**: merge cut group for identity; optionally unallocate extras from stations after listening; optionally rename R2 keys later — not in the one-tap path.
+   - Do not auto-dedupe the live catalog on deploy. Do not rewrite seed JSON as the primary path — edits DB remains source of truth for hides/moves.
+   - Optional later: “Unallocate this cut group from all stations” — only as an explicit bulk action in Review with a typed confirm; not v1 required.
+
+5) **Safety / live clock**
+   - Unallocate updates catalog edits; playable lists refresh (applyCatalogEdits / replaceCatalog).
+   - Live station clock uses remaining playable tracks + slot durations — removing a cut should not require a redeploy; next resolveLivePlayhead should simply not land on a hidden id (existing hide behavior). Verify and fix if a hidden id can still be selected.
+   - Never delete R2 from the one-tap button.
+
+Acceptance D:
+- Admin on phone or desktop: one tap Unallocate / To review on now-playing; cut leaves that station; R2 intact; other stations unchanged; item appears in Desk Review.
+- Non-admin: control absent.
+- Review queue: restore, move, duplicate suggestions via cut clusters, merge; R2 delete still separate/scary.
+- No mass auto-dedupe; public dial unchanged except the unallocated cut gone from that station.
+
+═══════════════════════════════════════
+FEATURE 5 — ADMIN: MOBILE-EASY HERO VISUALS (SONG + STATION)
+═══════════════════════════════════════
+Goal: While listening (especially on phone), an admin can quickly update the visual that “is” the playing cut — Spotify-style hero focus — and also update the station’s visual, without spelunking Desk forms. Guests only see the art; admins get a light edit affordance on the hero itself.
+
+Already true (extend):
+- Tracks have coverUrl; stations have cover; Channel also has animationUrl / videoUrl in types for motion art.
+- CoverArt + StationVisual + mini-player / now-playing show track.coverUrl || channel.cover (often tiny thumbs on the mini player).
+- Desk/admin can patch cover URL and upload audio via /api/desk/upload; station settings have a cover URL field. Grok chat already shipped art upload incl. looping mp4/webm with size caps (~10 MB video / ~2 MB stills) — reuse that pipeline and caps; do not invent a second upload stack.
+- isAdmin via useRadioUser.
+
+Product model:
+1) **Hero-first player visual (all listeners)**
+   - Expanded mini-player and/or station now-playing: large hero art (square or 1:1 / 4:5) as the focus — image or muted looping video when animationUrl/videoUrl/cover is video. Keep clockwork chrome; don’t clone Spotify pixels, clone the hierarchy (art dominates, metadata secondary, controls thumb-reachable).
+   - Collapsed mini-player can stay compact, but expanded should feel like “the visual for this song.”
+   - Media Session artwork must use the same absolute https URLs after updates (Feature 1).
+
+2) **Admin quick replace (mobile-first)**
+   - When isAdmin: tapping the hero (or a small camera/edit chip on it) opens a lightweight sheet/panel — NOT the full AdminTrackTools wall:
+     - **This cut’s art** — pick image (jpeg/png/webp/gif) or short loop (mp4/webm) within existing size caps; upload → set track coverUrl / motion field; optimistic preview.
+     - **Station art** — same sheet, second tab/segment: update channel.cover / station motion art.
+   - One thumb flow: Play → expand player → tap hero → choose file → done. Works in Brave/Chrome mobile; desktop too.
+   - Progress/error toasts; reject oversize with clear message matching existing caps.
+   - Non-admins: hero is display-only (no edit chrome).
+
+3) **API / data**
+   - Prefer extending existing desk upload or a dedicated /api/desk/art upload that writes R2 + patchStationTrack / station edit. Same auth as other desk mutations.
+   - Updating song art does not change other stations’ copies unless they share the same cover URL by reference — document that. Optional “apply to cut group” later; not required.
+   - Don’t block playback for upload; audio keeps playing.
+
+Acceptance E:
+- Admin on phone: change now-playing cut art in a few taps from the player hero; change station art from the same sheet; new art shows in player + now-playing + Media Session after refresh of metadata.
+- Guest: no edit UI on hero.
+- Oversize files rejected cleanly; R2 + catalog edit persist; skins still frame the hero.
+
+═══════════════════════════════════════
+COHESION — HOW 1–5 WORK AS ONE EXPERIENCE
+═══════════════════════════════════════
+Build these as one player system, not five bolted features. Shared rules:
+
+1) **One deck, one chrome.** Mini-player + Media Session + listen-mode lamp + Jump to live + admin Unallocate + admin hero-edit all sit on the SAME bottom player / now-playing surface. Don’t invent a second floating admin bar or a separate “mobile admin app” shell.
+
+2) **Progressive disclosure by role.**
+   - Guest: play, scrub (when allowed), listen mode, autoplay/shuffle, lock-screen controls.
+   - Admin: guest controls + Unallocate + hero art replace (+ existing deep AdminTrackTools still on desk / expanded now-playing for power edits).
+   - Never let admin chips crowd out play/pause on collapsed mobile — put Unallocate + art edit on expanded player and/or long-press/overflow (“Admin”) menu if space is tight; hero tap-to-edit is enough for art.
+
+3) **State honesty.** Listen mode label, ModePill (desk kind), claim/skip locks, buffering, and “Sent to Review” must agree with Media Session handlers (no next on lock screen when skip locked).
+
+4) **Streaming vs art/unallocate.** Unallocating or changing art must not break stream clock re-join; catalog replaceCatalog after edits; if current track vanishes, next() as today.
+
+5) **Visual language.** Gold lamps, filigree, station skins — admin affordances should feel like small desk tools (mono labels, lamp chips), not Material buttons. Hero art is large; controls stay clockwork.
+
+6) **Ship order inside the one change set (suggested):** (a) listenMode + clock re-join, (b) Media Session + no-pause-on-hide, (c) mini-player UX/hero layout, (d) admin Unallocate + Review queue, (e) admin hero art sheet — each layer reuses the upgraded player chrome.
+
+7) **Do not regress** aliases, desk split, Glaum words, share/download, or guest listen path while adding admin power.
+
+═══════════════════════════════════════
+OUT OF SCOPE
+═══════════════════════════════════════
+- Icecast / WebRTC / server authoritative audio
+- Account-synced preference across devices (hub profile later)
+- Chromecast / AirPlay / Document PiP miniplayer window
+- Offline downloads / PWA install campaign
+- Renaming desk “live” network-wide
+- Unrelated open PRs (stale .vercel/output, grok.me SSO returnTo)
+- Experiences feature, hub SSO route work
+- Full visual rebrand
+- Auto-dedupe / auto-delete duplicate files across station folders without admin confirm
+- Changing which emails are admin
+- Separate admin-only mobile app or second player shell
+- Auto-generating AI cover art
+
+═══════════════════════════════════════
+SHIP BAR
+═══════════════════════════════════════
+Ship Features 1–5 together. Prefer small modules (media-session.ts, listen-mode helpers, ListenModeLamp) + upgraded mini-player/enter-gate. Stream-mode ended→rejoin-clock fix is mandatory. Match existing design language. After building, sanity-check: phone width player, two-browser Streaming sync across a track boundary, On-demand overlay + Jump to live, lock-screen metadata on Android Chrome if testable in your environment; admin Unallocate → Desk Review round-trip; duplicate suggestions appear without removing other stations’ copies.
