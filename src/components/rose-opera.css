@@ -239,15 +239,7 @@ body.rose-drift-on .player-dock {
 .rose-glitter:nth-child(12) { left: 18%; top: 74%; animation-delay: -6.1s; }
 .rose-glitter:nth-child(13) { left: 72%; top: 12%; animation-delay: -2.1s; color: var(--rose-blush); }
 .rose-opera-fields::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse at 8% 88%, color-mix(in oklab, var(--rose-vein) 16%, transparent), transparent 32%),
-    radial-gradient(ellipse at 92% 86%, color-mix(in oklab, var(--rose-blush) 14%, transparent), transparent 30%);
-  mix-blend-mode: screen;
-  opacity: 0.55;
+  content: none;
 }
 .rose-opera[data-phenomenon="remember"] .rose-opera-veil {
   background:
@@ -577,22 +569,16 @@ body.rose-drift-on .player-dock {
 .rose-bad-wolf {
   position: absolute;
   z-index: 6;
-  left: 50%;
-  top: 36%;
-  translate: -50% -50%;
+  left: 0.7rem;
+  bottom: 38%;
   opacity: 0;
   pointer-events: none;
   border: 0;
-  border-radius: 999px;
-  padding: 0.9rem 1.7rem 1rem;
-  color: #fff7f4;
-  background: radial-gradient(circle at 50% 35%, #ff5a62, #c40022 58%, #4a0010);
-  box-shadow:
-    0 0 0 3px #2a0008,
-    0 0 0 7px #ff243c,
-    0 20px 48px #000000b0;
+  padding: 0.4rem 0.2rem;
+  background: none;
+  color: rgba(255, 244, 236, 0.34);
   cursor: pointer;
-  transition: opacity 700ms ease;
+  transition: opacity 1.6s ease, color 0.45s ease;
 }
 .rose-bad-wolf.is-on {
   opacity: 1;
@@ -600,27 +586,28 @@ body.rose-drift-on .player-dock {
 }
 .rose-bad-wolf span {
   display: block;
-  font-family: Impact, "Arial Narrow", sans-serif;
-  font-size: clamp(2.4rem, 8vw, 4.8rem);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  line-height: 0.85;
-  text-transform: uppercase;
-  text-shadow: 0 3px 0 #4a0010, 0 0 22px #ffb0b8;
+  font-family: var(--font-glaum), Georgia, "Times New Roman", serif;
+  font-size: 0.68rem;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0.46em;
+  line-height: 1;
+  text-transform: lowercase;
+  writing-mode: vertical-rl;
+  text-shadow: none;
 }
-.rose-bad-wolf.is-hot span {
-  animation: wolf-pump 0.22s ease;
+.rose-bad-wolf:hover,
+.rose-bad-wolf:focus-visible {
+  color: rgba(255, 244, 236, 0.92);
+}
+.rose-bad-wolf.is-hot {
+  color: rgba(255, 196, 176, 0.8);
 }
 .rose-opera.is-rocking .rose-opera-stage {
-  filter: saturate(1.5) contrast(1.12);
-}
-@keyframes wolf-pump {
-  40% { scale: 1.08; }
-  100% { scale: 1; }
+  filter: saturate(1.35) contrast(1.08);
 }
 @media (prefers-reduced-motion: reduce) {
-  .rose-bad-wolf.is-hot span { animation: none; }
-  .rose-opera.is-rocking .rose-opera-stage { filter: saturate(1.15); }
+  .rose-opera.is-rocking .rose-opera-stage { filter: saturate(1.12); }
 }
 .rose-opera-kicker {
   font-family: var(--font-glaum);
@@ -1460,6 +1447,11 @@ body:has(.player-sliver) .rose-opera-full:not(.is-cinema) .rose-grok {
 .rose-opera[data-phenomenon="elevate"] .rose-opera-caption,
 .rose-opera[data-phenomenon="shell"] .rose-opera-caption {
   display: none;
+}
+.rose-opera[data-phenomenon] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 48%, transparent 48%, #07030a55 90%),
+    linear-gradient(180deg, transparent, #07030a99);
 }
 .rose-atelier-presets button[aria-pressed="true"] {
   color: var(--color-bg);

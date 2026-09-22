@@ -2374,7 +2374,6 @@ function drawShell(
   w: number,
   h: number,
   pulse: RosePulse,
-  energy: number,
   cat: HTMLImageElement,
   rose: HTMLImageElement,
   warp: HTMLImageElement,
@@ -2383,17 +2382,6 @@ function drawShell(
   coverBlit(ctx, warp, w, h, 0.5, 0.75);
   const lock = 0.45 + 0.55 * (0.5 + 0.5 * Math.cos(pulse.phrasePhase * Math.PI * 2));
   const gap = (1 - lock) * w * 0.22;
-  ctx.save();
-  ctx.strokeStyle = `rgba(255, 186, 210, ${0.2 + energy * 0.25})`;
-  ctx.lineWidth = 1.1;
-  for (let i = 1; i <= 5; i++) {
-    const rw = w * (0.2 + i * 0.1) * (0.85 + lock * 0.15);
-    const rh = rw * 0.62;
-    ctx.beginPath();
-    ctx.ellipse(w * 0.5, h * 0.48, rw * 0.5, rh * 0.5, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.restore();
   if (ready(cat)) {
     const dw = Math.min(w * 0.38, h * 0.62);
     const dh = dw * (cat.naturalHeight / Math.max(1, cat.naturalWidth));
@@ -2687,14 +2675,6 @@ function drawFirewall(
     const dw = dh * (rose.naturalWidth / rose.naturalHeight);
     featherPortrait(ctx, rose, cx, cy + bob, dw, dh, 0.9);
     drawLaserGaze(ctx, cx, cy - dh * 0.12 + bob, pulse.kick, energy);
-    ctx.save();
-    const heart = ctx.createRadialGradient(cx, cy + dh * 0.08, 4, cx, cy + dh * 0.08, 56);
-    heart.addColorStop(0, `rgba(255, 186, 200, ${0.22 + pulse.downbeat * 0.35})`);
-    heart.addColorStop(1, "rgba(255, 120, 150, 0)");
-    ctx.globalCompositeOperation = "screen";
-    ctx.fillStyle = heart;
-    ctx.fillRect(cx - 70, cy, 140, 110);
-    ctx.restore();
   }
 
   if (extra === 2 && ready(wolf)) {
@@ -3742,7 +3722,7 @@ export function RoseVortex({
       const chasing = kind === "vortex" || kind === "petals" || kind === "stillhot";
       const storm = kind === "vortex" || kind === "arrival";
       resizeList(starsRef.current, storm ? 0 : kind === "stillhot" ? Math.max(look.stars, 180) : look.stars, (i) => makeStars(1)[0] ?? { a: i, r: 0.4, z: Math.random(), len: 0.02 });
-      resizeList(glyphsRef.current, kind === "void" || kind === "still-rite" || stage || storm ? 0 : look.glyphs, (i) => makeGlyphs(1)[0] ?? { a: i, r: 0.6, z: Math.random(), kind: i % 3 });
+      resizeList(glyphsRef.current, kind === "glyphs" ? look.glyphs : 0, (i) => makeGlyphs(1)[0] ?? { a: i, r: 0.6, z: Math.random(), kind: i % 3 });
       const w = canvas.clientWidth || 1;
       const h = canvas.clientHeight || 1;
       const live = playing && !document.hidden;
@@ -3951,7 +3931,7 @@ export function RoseVortex({
         drawElevate(ctx, w, h, pulse, energy, bloomImg, roseImg, allocateFairyImg);
       }
       if (kind === "shell") {
-        drawShell(ctx, w, h, pulse, energy, sweetieCatImg, roseImg, sweetieWarpImg, petalFace);
+        drawShell(ctx, w, h, pulse, sweetieCatImg, roseImg, sweetieWarpImg, petalFace);
       }
       if (kind === "recall") {
         drawRecall(ctx, w, h, pulse, energy, spin, recallTempleImg, recallSandsImg, recallRoseImg, recallGlyphsImg);

@@ -118,14 +118,14 @@ export function RoseOpera({
         return;
       }
       setWolfOn(false);
-      show = window.setTimeout(arm, 9000 + Math.random() * 8000);
+      show = window.setTimeout(arm, 22000 + Math.random() * 18000);
     };
     const arm = () => {
       if (!alive) return;
       setWolfOn(true);
-      hide = window.setTimeout(considerHide, 6200);
+      hide = window.setTimeout(considerHide, 4200);
     };
-    show = window.setTimeout(arm, 3600);
+    show = window.setTimeout(arm, 14000 + Math.random() * 8000);
     const watch = window.setInterval(() => setRocking(rockRef.current.charge > 0.06), 180);
     return () => {
       alive = false;
@@ -549,9 +549,9 @@ export function RoseOpera({
           onClick={howl}
           tabIndex={wolfOn ? 0 : -1}
           aria-hidden={!wolfOn}
-          aria-label="Bad Wolf. Press to rock this song."
+          aria-label="Bad Wolf"
         >
-          <span key={wolfPop}>Bad Wolf</span>
+          <span key={wolfPop}>bad wolf</span>
         </button>
       ) : null}
       {holdingPreview && layout === "full" ? (
