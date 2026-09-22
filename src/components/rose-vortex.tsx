@@ -2003,6 +2003,96 @@ function drawRemember(ctx: CanvasRenderingContext2D, w: number, h: number, pulse
   drawActLine(ctx, stageLines("remember"), pulse, w, h, Math.max(16, Math.min(28, w * 0.028)));
 }
 
+let floatPad: HTMLCanvasElement | null = null;
+
+/** A figure melted into the vortex. Corners go soft so the storm stays the room. */
+function floatInVortex(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  cx: number,
+  cy: number,
+  dw: number,
+  dh: number,
+  alpha: number,
+) {
+  if (!ready(img) || alpha <= 0.03 || dw < 8 || dh < 8 || typeof document === "undefined") return;
+  if (!floatPad) floatPad = document.createElement("canvas");
+  const tw = 520;
+  const th = 680;
+  if (floatPad.width !== tw) floatPad.width = tw;
+  if (floatPad.height !== th) floatPad.height = th;
+  const pad = floatPad.getContext("2d");
+  if (!pad) return;
+  pad.clearRect(0, 0, tw, th);
+  const keyed = keyedPortrait(img, dw, dh);
+  const src: CanvasImageSource = keyed && keyed !== "keep" ? keyed : img;
+  const sw = keyed && keyed !== "keep" ? keyed.width : img.naturalWidth;
+  const sh = keyed && keyed !== "keep" ? keyed.height : img.naturalHeight;
+  if (!sw || !sh) return;
+  const scale = Math.max(tw / sw, th / sh);
+  pad.drawImage(src, tw * 0.5 - (sw * scale) / 2, th * 0.46 - (sh * scale) / 2, sw * scale, sh * scale);
+  pad.globalCompositeOperation = "destination-in";
+  const veil = pad.createRadialGradient(tw * 0.5, th * 0.44, tw * 0.16, tw * 0.5, th * 0.48, tw * 0.58);
+  veil.addColorStop(0, "rgba(0,0,0,1)");
+  veil.addColorStop(0.7, "rgba(0,0,0,0.88)");
+  veil.addColorStop(1, "rgba(0,0,0,0)");
+  pad.fillStyle = veil;
+  pad.fillRect(0, 0, tw, th);
+  pad.globalCompositeOperation = "source-over";
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(floatPad, cx - dw / 2, cy - dh / 2, dw, dh);
+  ctx.restore();
+}
+
+function drawArrival(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  pulse: RosePulse,
+  fairy: HTMLImageElement,
+  shrimp: HTMLImageElement,
+  cat: HTMLImageElement,
+  cleo: HTMLImageElement,
+  lady: HTMLImageElement,
+  sword: HTMLImageElement,
+) {
+  const girls = [fairy, cleo, lady];
+  const unit = Math.max(1, pulse.beatsInBar) * 8;
+  const cursor = (((pulse.beatIndex + pulse.beatPhase) / unit) % girls.length + girls.length) % girls.length;
+  const slot = Math.floor(cursor);
+  const local = cursor - slot;
+  const enter = local < 0.14 ? local / 0.14 : 1;
+  const leave = local > 0.84 ? (1 - local) / 0.16 : 1;
+  const alpha = Math.min(enter, leave);
+  const bob = Math.sin(pulse.time * 0.65) * 7;
+  const spots = [
+    { x: 0.58, y: 0.56, s: 0.74 },
+    { x: 0.48, y: 0.54, s: 0.8 },
+    { x: 0.4, y: 0.56, s: 0.72 },
+  ];
+  const spot = spots[slot] ?? spots[0]!;
+  const girl = girls[slot];
+  if (girl) {
+    const dh = Math.min(h * 0.92, w * 0.7) * spot.s;
+    const dw = dh * (girl.naturalWidth / Math.max(1, girl.naturalHeight));
+    floatInVortex(ctx, girl, w * spot.x, h * spot.y + bob, dw, dh, 0.94 * alpha);
+  }
+  const pal = slot % 2 === 0 ? shrimp : cat;
+  const side = spot.x > 0.5 ? 0.16 : 0.84;
+  if (ready(pal)) {
+    const ph = Math.min(h, w) * (slot % 2 === 0 ? 0.34 : 0.3);
+    const pw = ph * (pal.naturalWidth / Math.max(1, pal.naturalHeight));
+    floatInVortex(ctx, pal, w * side, h * (slot % 2 === 0 ? 0.74 : 0.3) - bob * 0.4, pw, ph, 0.72);
+  }
+  if (slot === 0 && ready(sword)) {
+    const sh = h * 0.26;
+    const sw = sh * (sword.naturalWidth / Math.max(1, sword.naturalHeight));
+    floatInVortex(ctx, sword, w * 0.14, h * 0.7, sw, sh, 0.4);
+  }
+  drawActLine(ctx, stageLines("arrival"), pulse, w, h, Math.max(16, Math.min(26, w * 0.026)));
+}
+
 function revealStormRim(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.save();
   ctx.globalCompositeOperation = "destination-out";
@@ -3139,7 +3229,7 @@ export function RoseVortex({
       const kind = look.phenomenon || "vortex";
       const stage = kind === "prom" || kind === "twist" || kind === "remember" || kind === "firewall" || kind === "allocate" || kind === "wolf" || kind === "current" || kind === "sweetie" || kind === "halo" || kind === "choir" || kind === "badend" || kind === "recall" || kind === "obay" || kind === "copter";
       const chasing = kind === "vortex" || kind === "petals" || kind === "stillhot";
-      const storm = kind === "vortex";
+      const storm = kind === "vortex" || kind === "arrival";
       resizeList(starsRef.current, storm ? 0 : kind === "stillhot" ? Math.max(look.stars, 180) : look.stars, (i) => makeStars(1)[0] ?? { a: i, r: 0.4, z: Math.random(), len: 0.02 });
       resizeList(glyphsRef.current, kind === "void" || kind === "still-rite" || stage || storm ? 0 : look.glyphs, (i) => makeGlyphs(1)[0] ?? { a: i, r: 0.6, z: Math.random(), kind: i % 3 });
       const w = canvas.clientWidth || 1;
@@ -3294,6 +3384,10 @@ export function RoseVortex({
         }
       }
 
+      if (kind === "arrival") {
+        drawArrival(ctx, w, h, pulse, allocateFairyImg, allocateShrimpImg, sweetieCatImg, allocateCleoImg, copterLadyImg, swordImg);
+      }
+
       if (kind === "prom") {
         drawProm(ctx, w, h, pulse, energy, spin, gymImg, danceImg, streamerImg, ballImg, punchImg);
       }
@@ -3402,7 +3496,7 @@ export function RoseVortex({
       }
       if (stage) revealStormRim(ctx, w, h);
 
-      if (!stage) {
+      if (!stage && kind !== "arrival") {
         for (const star of starsRef.current) {
           if (chasing || live) star.z -= dt * (chasing ? 0.95 + rush * 1.85 : 0.42 + fly * 2.1) * (0.4 + star.len * 10);
           if (star.z < 0) star.z += 1;
@@ -3744,7 +3838,7 @@ export function RoseVortex({
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, [lookRef, playing, pulseRef, reduce, 7]);
+  }, [lookRef, playing, pulseRef, reduce, 8]);
 
   if (reduce) return null;
   return <canvas ref={canvasRef} className="rose-opera-canvas" aria-hidden />;

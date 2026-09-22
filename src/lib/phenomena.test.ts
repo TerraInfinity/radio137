@@ -286,8 +286,9 @@ describe("phenomena", () => {
 
   it("steps through every graphic and wraps", () => {
     assert.equal(stepPhenomenon("vortex"), "aurora");
-    assert.equal(stepPhenomenon("stillhot"), "vortex");
-    assert.equal(stepPhenomenon("vortex", -1), "stillhot");
+    assert.equal(stepPhenomenon("stillhot"), "arrival");
+    assert.equal(stepPhenomenon("arrival"), "vortex");
+    assert.equal(stepPhenomenon("vortex", -1), "arrival");
     assert.equal(PHENOMENA.every((item) => item.thumb.startsWith("/experiences/rose/")), true);
   });
 
@@ -302,7 +303,7 @@ describe("phenomena", () => {
     const fromStation = lookForPhenomenon(ROSE_LOOK_DEFAULT, "vortex");
     assert.equal(fromStation.box, true);
     assert.equal(phenomenonFromTitle("Voice Coc_"), "choir");
-    assert.equal(phenomenonFromTitle("Elf Magic Shrimp Kitty Future Nostalgia"), "vortex");
+    assert.equal(phenomenonFromTitle("Elf Magic Shrimp Kitty Future Nostalgia"), "arrival");
     assert.equal(phenomenonFromTitle("Time War 2137"), null);
   });
 });

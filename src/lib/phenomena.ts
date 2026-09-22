@@ -29,6 +29,7 @@ export const PHENOMENA = [
   { id: "obay", label: "Voice NO · OBAY", hint: "NOooo we are dancing. Pirate sim. Infinite customer. Twist at the end.", thumb: "/experiences/rose/obay-brat.jpg" },
   { id: "copter", label: "Shrimp-copter love", hint: "Lady Chaos and Captain Glaum. The shrimpship was a helicopter. Impossible treasure.", thumb: "/experiences/rose/copter-ship.jpg" },
   { id: "stillhot", label: "Voice ON · STILL HOT", hint: "Time vortex. Tea still hot on red red land.", thumb: "/experiences/rose/stillhot-tea.jpg" },
+  { id: "arrival", label: "Elf shrimp kitty", hint: "The time vortex, and the elf, the shrimp, the kitty, the girls.", thumb: "/experiences/rose/allocate-fairy.jpg" },
 ] as const;
 
 export type PhenomenonId = (typeof PHENOMENA)[number]["id"];
@@ -245,7 +246,7 @@ export function isStageOwned(id: string | undefined | null): boolean {
 }
 
 export function phenomenonFromTitle(title?: string | null): PhenomenonId | null {
-  if (isElfMagicPreview(title)) return "vortex";
+  if (isElfMagicPreview(title)) return "arrival";
   if (isVoiceOn(title)) return "stillhot";
   if (isShakeBootie(title)) return "copter";
   if (isSwooningProm(title)) return "prom";
@@ -765,6 +766,19 @@ export const STILLHOT_CAPTIONS = [
   "Hot enough to prove we returned",
 ];
 
+export const ARRIVAL_CAPTIONS = [
+  "Elf magic",
+  "The shrimp is in the storm",
+  "Kitty in the funnel",
+  "Girls in the lightning",
+  "Future nostalgia",
+  "The vortex keeps them",
+  "She brought the night in with her",
+  "A shrimp, a kitty, a girl",
+  "Indigo around the pretty eyes",
+  "The storm learned their names",
+];
+
 const STAGE_CAPTIONS: Partial<Record<PhenomenonId, string[]>> = {
   vortex: VORTEX_CAPTIONS,
   aurora: AURORA_CAPTIONS,
@@ -787,6 +801,7 @@ const STAGE_CAPTIONS: Partial<Record<PhenomenonId, string[]>> = {
   badend: BADEND_CAPTIONS,
   obay: OBAY_CAPTIONS,
   stillhot: STILLHOT_CAPTIONS,
+  arrival: ARRIVAL_CAPTIONS,
 };
 
 export function captionsForPhenomenon(id: PhenomenonId): string[] | undefined {

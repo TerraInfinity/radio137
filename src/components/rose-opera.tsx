@@ -66,9 +66,7 @@ export function RoseOpera({
   const tweaked = useRef(false);
   const [overrideId, setOverrideId] = useState<PhenomenonId | null>(null);
   const [reduce, setReduce] = useState(false);
-  const [cinema, setCinema] = useState<"off" | "auto" | "manual">(
-    experience.slug === "rose" && layout === "full" ? "manual" : "off",
-  );
+  const [cinema, setCinema] = useState<"off" | "auto" | "manual">("off");
   const [drift, setDrift] = useState(false);
   const [arming, setArming] = useState(false);
   const [holdingPreview, setHoldingPreview] = useState(experience.slug === "rose");
@@ -76,12 +74,12 @@ export function RoseOpera({
   const [atelierOpen, setAtelierOpen] = useState(false);
   const [grokOpen, setGrokOpen] = useState(false);
   const grokPersist = useRef(false);
-  const [chrome, setChrome] = useState(!(experience.slug === "rose" && layout === "full"));
+  const [chrome, setChrome] = useState(true);
   const [caption, setCaption] = useState(savedLook.captions[0] ?? experience.whisper);
   const liveVisual = playing || holdingPreview || (layout === "full" && !unlocked);
   const bpm = look.bpm > 0 ? look.bpm : bpmFromTags(track?.tags, experience.bpm);
   const stills = look.stillUrls.length ? look.stillUrls : experience.stills.map((item) => item.src);
-  const stormLoop = look.phenomenon === "vortex";
+  const stormLoop = look.phenomenon === "vortex" || look.phenomenon === "arrival";
   const stormSrc = "/experiences/rose/vortex-storm.mp4?v=5";
   const rawLoop = stormLoop ? stormSrc : look.loopUrl || experience.loop;
   const loopSrc = rawLoop.includes("tardis-loop") ? "/experiences/rose/vortex-storm.mp4?v=5" : rawLoop;
@@ -204,7 +202,7 @@ export function RoseOpera({
     setChrome(false);
     let timer = window.setTimeout(() => setChrome(false), IDLE_CHROME_MS);
     const poke = () => {
-      if (cinema === "auto" || (holdingPreview && cinema === "manual")) return;
+      if (cinema === "auto") return;
       setChrome(true);
       window.clearTimeout(timer);
       timer = window.setTimeout(() => setChrome(false), IDLE_CHROME_MS);
@@ -218,7 +216,7 @@ export function RoseOpera({
       window.removeEventListener("pointerdown", poke);
       window.removeEventListener("keydown", poke);
     };
-  }, [atelierOpen, cinema, deskOpen, grokOpen, holdingPreview]);
+  }, [atelierOpen, cinema, deskOpen, grokOpen]);
 
   const opera = cinema !== "off" && layout === "full";
 
@@ -371,7 +369,6 @@ export function RoseOpera({
   function leaveOpera() {
     setDrift(false);
     setCinema("off");
-    setChrome(true);
     if (document.fullscreenElement) {
       void document.exitFullscreen?.().catch(() => undefined);
     }
@@ -418,12 +415,11 @@ export function RoseOpera({
         showCopy ? "is-chrome" : "is-screensaver",
         atelierOpen && "is-atelier",
         isStageOwned(look.phenomenon) && "is-stage",
-        holdingPreview && cinema === "manual" && "is-arrival",
       )}
       data-phenomenon={look.phenomenon}
     >
       <div className="rose-opera-stage" aria-hidden>
-        {isStageOwned(look.phenomenon) ? null : (
+        {isStageOwned(look.phenomenon) || stormLoop ? null : (
           <div className="rose-opera-stills">
             {stills.map((src, index) => (
               <img
@@ -459,7 +455,7 @@ export function RoseOpera({
           />
         )}
         <RoseVortex pulseRef={pulseRef} lookRef={lookRef} playing={liveVisual} reduce={reduce} />
-        {isStageOwned(look.phenomenon) ? null : (
+        {isStageOwned(look.phenomenon) || look.phenomenon === "arrival" ? null : (
           <>
             <div className="rose-opera-vortex">
               <span />
@@ -582,7 +578,7 @@ export function RoseOpera({
         ) : null}
       </div>
       {layout === "full" && cinema === "manual" ? (
-        <button type="button" className="rose-opera-exit" onClick={() => void leaveOpera()} aria-label="Back to the hero">
+        <button type="button" className="rose-opera-exit" onClick={() => void leaveOpera()} aria-label="Exit cinema">
           <X className="size-4" />
         </button>
       ) : null}

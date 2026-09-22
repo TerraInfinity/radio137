@@ -14,31 +14,8 @@
 .rose-opera-full {
   min-height: calc(100dvh - 3.5rem);
 }
-.rose-opera.is-arrival .rose-opera-stage,
-.rose-opera.is-arrival .rose-opera-caption,
-.rose-opera.is-arrival .rose-opera-exit {
-  animation: rose-arrival-in 2.6s ease both;
-}
-.rose-opera.is-arrival .rose-opera-caption {
-  animation-delay: 1.15s;
-}
-.rose-opera.is-arrival .rose-opera-exit {
-  animation-delay: 0.7s;
-}
-.rose-opera.is-arrival .rose-look-cycle {
-  opacity: 0;
-  pointer-events: none;
-}
-@keyframes rose-arrival-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .rose-opera.is-arrival .rose-opera-stage,
-  .rose-opera.is-arrival .rose-opera-caption,
-  .rose-opera.is-arrival .rose-opera-exit {
-    animation: none;
-  }
+.rose-opera.is-cinema.rose-opera-full {
+  min-height: 100dvh;
 }
 .rose-opera:not(.rose-opera-full) {
   min-height: 22rem;
@@ -111,6 +88,7 @@ body.rose-drift-on .player-dock {
   mix-blend-mode: screen;
 }
 .rose-opera[data-phenomenon="vortex"] .rose-storm-bed,
+.rose-opera[data-phenomenon="arrival"] .rose-storm-bed,
 .rose-opera.is-stage .rose-storm-bed {
   opacity: 1;
   mix-blend-mode: normal;
