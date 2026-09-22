@@ -18,6 +18,8 @@ import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LogoutRouteImport } from './routes/logout'
 import { Route as ChannelSlugRouteImport } from './routes/channel/$slug'
+import { Route as ExperiencesIndexRouteImport } from './routes/experiences/index'
+import { Route as ExperiencesSlugRouteImport } from './routes/experiences/$slug'
 import { Route as PlayerIndexRouteImport } from './routes/player/index'
 import { Route as PlayerIdRouteImport } from './routes/player/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -73,6 +75,16 @@ const ChannelSlugRoute = ChannelSlugRouteImport.update({
   id: '/channel/$slug',
   path: '/channel/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ExperiencesIndexRoute = ExperiencesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ExperiencesRoute,
+} as any)
+const ExperiencesSlugRoute = ExperiencesSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => ExperiencesRoute,
 } as any)
 const PlayerIndexRoute = PlayerIndexRouteImport.update({
   id: '/player/',
@@ -130,12 +142,14 @@ export interface FileRoutesByFullPath {
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
-  '/experiences': typeof ExperiencesRoute
+  '/experiences': typeof ExperiencesRouteWithChildren
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/channel/$slug': typeof ChannelSlugRoute
+  '/experiences/$slug': typeof ExperiencesSlugRoute
   '/player/$id': typeof PlayerIdRoute
+  '/experiences/': typeof ExperiencesIndexRoute
   '/player/': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/desk/upload': typeof ApiDeskUploadRoute
@@ -151,12 +165,13 @@ export interface FileRoutesByTo {
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
-  '/experiences': typeof ExperiencesRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/channel/$slug': typeof ChannelSlugRoute
+  '/experiences/$slug': typeof ExperiencesSlugRoute
   '/player/$id': typeof PlayerIdRoute
+  '/experiences': typeof ExperiencesIndexRoute
   '/player': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/desk/upload': typeof ApiDeskUploadRoute
@@ -173,12 +188,14 @@ export interface FileRoutesById {
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
-  '/experiences': typeof ExperiencesRoute
+  '/experiences': typeof ExperiencesRouteWithChildren
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/channel/$slug': typeof ChannelSlugRoute
+  '/experiences/$slug': typeof ExperiencesSlugRoute
   '/player/$id': typeof PlayerIdRoute
+  '/experiences/': typeof ExperiencesIndexRoute
   '/player/': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/desk/upload': typeof ApiDeskUploadRoute
@@ -201,7 +218,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/logout'
     | '/channel/$slug'
+    | '/experiences/$slug'
     | '/player/$id'
+    | '/experiences/'
     | '/player/'
     | '/api/auth/$'
     | '/api/desk/upload'
@@ -217,12 +236,13 @@ export interface FileRouteTypes {
     | '/$alias'
     | '/about'
     | '/desk'
-    | '/experiences'
     | '/library'
     | '/login'
     | '/logout'
     | '/channel/$slug'
+    | '/experiences/$slug'
     | '/player/$id'
+    | '/experiences'
     | '/player'
     | '/api/auth/$'
     | '/api/desk/upload'
@@ -243,7 +263,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/logout'
     | '/channel/$slug'
+    | '/experiences/$slug'
     | '/player/$id'
+    | '/experiences/'
     | '/player/'
     | '/api/auth/$'
     | '/api/desk/upload'
@@ -260,7 +282,7 @@ export interface RootRouteChildren {
   AliasRoute: typeof AliasRoute
   AboutRoute: typeof AboutRoute
   DeskRoute: typeof DeskRoute
-  ExperiencesRoute: typeof ExperiencesRoute
+  ExperiencesRoute: typeof ExperiencesRouteWithChildren
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
   LogoutRoute: typeof LogoutRoute
@@ -342,6 +364,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChannelSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/experiences/': {
+      id: '/experiences/'
+      path: '/'
+      fullPath: '/experiences/'
+      preLoaderRoute: typeof ExperiencesIndexRouteImport
+      parentRoute: typeof ExperiencesRoute
+    }
+    '/experiences/$slug': {
+      id: '/experiences/$slug'
+      path: '/$slug'
+      fullPath: '/experiences/$slug'
+      preLoaderRoute: typeof ExperiencesSlugRouteImport
+      parentRoute: typeof ExperiencesRoute
+    }
     '/player/': {
       id: '/player/'
       path: '/player'
@@ -415,12 +451,26 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ExperiencesRouteChildren {
+  ExperiencesSlugRoute: typeof ExperiencesSlugRoute
+  ExperiencesIndexRoute: typeof ExperiencesIndexRoute
+}
+
+const ExperiencesRouteChildren: ExperiencesRouteChildren = {
+  ExperiencesSlugRoute: ExperiencesSlugRoute,
+  ExperiencesIndexRoute: ExperiencesIndexRoute,
+}
+
+const ExperiencesRouteWithChildren = ExperiencesRoute._addFileChildren(
+  ExperiencesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AliasRoute: AliasRoute,
   AboutRoute: AboutRoute,
   DeskRoute: DeskRoute,
-  ExperiencesRoute: ExperiencesRoute,
+  ExperiencesRoute: ExperiencesRouteWithChildren,
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
   LogoutRoute: LogoutRoute,

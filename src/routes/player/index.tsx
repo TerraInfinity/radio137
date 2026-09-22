@@ -3,6 +3,7 @@ import { DialSearch } from "@/components/dial-search";
 import { listPublicSongs } from "@/lib/catalog";
 import { collapseByCanonical, listCutCopies } from "@/lib/cuts";
 import { formatClock } from "@/lib/cn";
+import { durationOf } from "@/lib/playback";
 import { qSearch } from "@/lib/search";
 import { songKey } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
@@ -43,7 +44,7 @@ function PlayerIndex() {
                   {track.title}
                 </Link>
                 <span className="hidden truncate text-sm text-muted sm:inline">{channel.name}</span>
-                <span className="font-mono text-[11px] text-subtle">{formatClock(track.durationSec)}</span>
+                <span className="font-mono text-[11px] tabular-nums text-subtle">{formatClock(durationOf(track))}</span>
               </li>
             ))}
           </ul>

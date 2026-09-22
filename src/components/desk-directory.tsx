@@ -24,6 +24,7 @@ import {
 import { applyCatalogEdits, type CatalogEdit, type StationEdit } from "@/lib/catalog-edits";
 import { getSeedCatalog } from "@/lib/catalog";
 import { formatClock } from "@/lib/cn";
+import { durationOf } from "@/lib/playback";
 import { DownloadLink } from "@/components/download-link";
 import { songKey } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
@@ -297,7 +298,7 @@ function CopyRow({
           {copy.track.title}
         </Link>
         <span className="block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-          {copy.channel.name} · {formatClock(copy.track.durationSec)} · {copy.folder || copy.filename}
+          {copy.channel.name} · {formatClock(durationOf(copy.track))} · {copy.folder || copy.filename}
         </span>
       </span>
       {merged ? (
@@ -334,7 +335,7 @@ export function SongCopies({ trackId }: { trackId: string }) {
                 {copy.channel.name}
               </Link>
               <span className="block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-                {formatClock(copy.track.durationSec)} · {copy.folder || copy.filename}
+                {formatClock(durationOf(copy.track))} · {copy.folder || copy.filename}
               </span>
             </span>
             <button

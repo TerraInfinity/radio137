@@ -20,6 +20,7 @@ import { bindMediaSession, flushMediaSession, ignoreHidePause, rebindMediaSessio
 import { forgetCachedAudio, hasCachedAudio, playableSrc, rememberAudio, shouldHoldAutoAdvance, dataSaverOn, warmTrackSrc } from "@/lib/audio-cache";
 import { mediaUrl } from "@/lib/media";
 import { loadPersisted, savePersisted } from "@/lib/storage";
+import { playbackLock, thisTabOwnsClock, type PlaybackPeer } from "@/lib/playback-lock";
 import { isLandingLocation } from "@/lib/landing";
 import type { Catalog, Channel, ClaimRecord, Identity, Track } from "@/lib/types";
 
@@ -59,9 +60,10 @@ type PlayerState = {
   buffering: boolean;
   deckHint: string;
   catalogReady: boolean;
+  elsewhere: PlaybackPeer | null;
   hydrate: () => void;
   enterGate: () => void;
-  tuneIn: (slug: string, opts?: { forcePlay?: boolean }) => Promise<void>;
+  tuneIn: (slug: string, opts?: { forcePlay?: boolean; fromStart?: boolean }) => Promise<void>;
   cueTrack: (slug: string, trackId: string, opts?: { play?: boolean }) => Promise<void>;
   togglePlay: () => Promise<void>;
   next: (reason?: "user" | "ended" | "error") => Promise<void>;
@@ -106,11 +108,13 @@ function pageCuesPlayback(pathname: string): boolean {
 
 function persist() {
   const s = usePlayerStore.getState();
+  const prev = loadPersisted();
+  const ownsClock = thisTabOwnsClock(playbackLock.isLeader(), Boolean(s.elsewhere));
   savePersisted({
     autoplay: s.autoplay,
-    lastSlug: s.lastSlug,
-    lastTrackId: s.track?.id ?? s.lastTrackId,
-    lastOffsetSec: s.track ? s.currentTime : s.lastOffsetSec,
+    lastSlug: ownsClock ? s.lastSlug : prev.lastSlug,
+    lastTrackId: ownsClock ? (s.track?.id ?? s.lastTrackId) : prev.lastTrackId,
+    lastOffsetSec: ownsClock ? (s.track ? s.currentTime : s.lastOffsetSec) : prev.lastOffsetSec,
     visited: s.visited,
     playerCollapsed: s.playerCollapsed,
     playerHidden: s.playerHidden,
@@ -175,9 +179,46 @@ function setHint(message: string) {
   }, 3200);
 }
 
+function takeSpeaker() {
+  const s = usePlayerStore.getState();
+  playbackLock.claim({
+    trackId: s.track?.id,
+    title: s.track?.title,
+    slug: s.channelSlug,
+  });
+  if (s.elsewhere) usePlayerStore.setState({ elsewhere: null });
+}
+
+function yieldTo(peer: PlaybackPeer) {
+  radioEngine.pause();
+  userPaused = true;
+  usePlayerStore.setState({ status: "paused", elsewhere: peer, buffering: false });
+  flushMediaSession();
+  const who = peer.title ? peer.title : "the radio";
+  setHint(`Playing in another tab · ${who}`);
+}
+
+let lockBound = false;
+function bindPlaybackLock() {
+  if (lockBound || typeof window === "undefined") return;
+  lockBound = true;
+  playbackLock.start({
+    onYield: (peer) => {
+      yieldTo(peer);
+    },
+    onReleased: () => {
+      const s = usePlayerStore.getState();
+      if (!s.elsewhere) return;
+      usePlayerStore.setState({ elsewhere: null });
+      setHint("This tab is ready — press play");
+    },
+  });
+}
+
 function bindEngine() {
   if (engineBound || typeof window === "undefined") return;
   engineBound = true;
+  bindPlaybackLock();
   ignoreHidePause();
   radioEngine.attach({
     onTime: (currentTime, duration) => {
@@ -210,9 +251,13 @@ function bindEngine() {
     },
     onPlay: () => {
       const s = usePlayerStore.getState();
+      if (userPaused) {
+        radioEngine.pause();
+        return;
+      }
+      takeSpeaker();
       if (s.status === "paused" || s.status === "loading") {
-        userPaused = false;
-        usePlayerStore.setState({ status: "playing", buffering: false });
+        usePlayerStore.setState({ status: "playing", buffering: false, elsewhere: null });
       }
       syncMediaSession();
     },
@@ -314,6 +359,24 @@ async function loadTrack(
       return;
     }
   }
+  if (!play) {
+    const peer = playbackLock.otherLeader();
+    if (peer) {
+      set({
+        channelSlug: slug,
+        track,
+        status: "paused",
+        currentTime: Math.max(0, offset),
+        duration: durationOf(track),
+        lastTrackId: track.id,
+        lastOffsetSec: Math.max(0, offset),
+        lastSlug: slug,
+        elsewhere: peer,
+      });
+      persist();
+      return;
+    }
+  }
   set({
     channelSlug: slug,
     track,
@@ -324,6 +387,10 @@ async function loadTrack(
     lastOffsetSec: Math.max(0, offset),
     lastSlug: slug,
   });
+  if (play) {
+    playbackLock.claim({ trackId: track.id, title: track.title, slug });
+    usePlayerStore.setState({ elsewhere: null });
+  }
   const state = usePlayerStore.getState();
   const src = await playableSrc(track);
   let result = await radioEngine.load({
@@ -453,6 +520,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   buffering: false,
   deckHint: "",
   catalogReady: false,
+  elsewhere: null,
 
   hydrate: () => {
     bindEngine();
@@ -507,6 +575,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         if (typeof window === "undefined") return;
         if (!s.visited || s.gateOpen || !s.lastSlug || s.track) return;
         if (pageCuesPlayback(window.location.pathname)) return;
+        const peer = playbackLock.otherLeader();
+        if (peer) {
+          userPaused = true;
+          set({ elsewhere: peer });
+        }
         void get().tuneIn(s.lastSlug);
       });
     if (typeof window !== "undefined") {
@@ -526,6 +599,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             listenMode: s.listenModeSession ?? s.listenMode,
             justEndedId,
             userPaused,
+            elsewhere: s.elsewhere?.tabId ?? null,
             driving: drivingDesk(s.channelSlug),
           };
         },
@@ -584,19 +658,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       persist();
       return;
     }
+    if (opts?.fromStart) {
+      leaveLiveClock();
+      justEndedId = null;
+      set({ listenModeSession: "ondemand" });
+    }
     const alreadyHere =
       get().channelSlug === slug &&
       Boolean(get().track) &&
       get().status !== "idle" &&
       get().status !== "off-air" &&
       get().status !== "missing";
-    if (alreadyHere) {
+    if (alreadyHere && !opts?.fromStart) {
       set({ visited: true, gateOpen: false, lastSlug: slug });
       persist();
       if (opts?.forcePlay && get().status !== "playing" && get().track) {
         userPaused = false;
+        takeSpeaker();
         const ok = await radioEngine.resume();
-        set({ status: ok ? "playing" : "paused" });
+        set({ status: ok ? "playing" : "paused", elsewhere: ok ? null : get().elsewhere });
         flushMediaSession();
       }
       return;
@@ -604,18 +684,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (opts?.forcePlay) {
       userPaused = false;
     }
+    const peer = !opts?.forcePlay ? playbackLock.otherLeader() : null;
+    if (peer) {
+      userPaused = true;
+      set({ elsewhere: peer });
+    }
     const play = Boolean(opts?.forcePlay) || (!userPaused && get().autoplay);
-    const kind = effectiveKind(channel, listenOf(get()));
-    const mixing = shuffleActive(channel, Boolean(get().shuffleBySlug[slug]));
+    const kind = opts?.fromStart ? "fixed" : effectiveKind(channel, listenOf(get()));
+    const mixing = opts?.fromStart ? false : shuffleActive(channel, Boolean(get().shuffleBySlug[slug]));
     if (slug !== get().channelSlug) justEndedId = null;
     const run = async () => {
-      if (kind === "live") {
+      if (kind === "live" && !opts?.fromStart) {
         const head = resolveLivePlayhead(playable, Date.now(), slug, justEndedId);
         const track = head?.track ?? playable[0];
         const offset = head?.offsetSec ?? 0;
         await loadTrack(slug, track, offset, play, set, 0, "join");
       } else {
-        const resumeId = get().lastTrackId;
+        const resumeId = opts?.fromStart ? null : get().lastTrackId;
         const resume = resumeId ? playable.find((item) => item.id === resumeId) : undefined;
         if (resume) {
           const dur = durationOf(resume);
@@ -657,14 +742,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (state.status === "playing") {
       userPaused = true;
       radioEngine.pause();
-      set({ status: "paused" });
+      playbackLock.release();
+      set({ status: "paused", elsewhere: null });
       flushMediaSession();
       return;
     }
     userPaused = false;
-    if (state.track) {
+    takeSpeaker();
+    if (state.track && state.channelSlug) {
+      if (!radioEngine.snapshot().src) {
+        await loadTrack(state.channelSlug, state.track, state.currentTime, true, set, 0, "flow");
+        return;
+      }
       const ok = await radioEngine.resume();
-      set({ status: ok ? "playing" : "paused" });
+      set({ status: ok ? "playing" : "paused", elsewhere: ok ? null : get().elsewhere });
       flushMediaSession();
       return;
     }
@@ -694,6 +785,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (reason === "ended") {
         if (!get().autoplay || userPaused) {
           radioEngine.pause();
+          playbackLock.release();
           set({ status: "paused" });
           flushMediaSession();
           return;
@@ -703,6 +795,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           if (!nxt) return false;
           if (!shouldHoldAutoAdvance(dataSaverOn(), await hasCachedAudio(nxt.id))) return false;
           radioEngine.pause();
+          playbackLock.release();
           set({ status: "paused" });
           flushMediaSession();
           return true;

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Link } from "@tanstack/react-router";
 import { AdminStationEdit } from "@/components/admin-track-tools";
 import { FoldSection } from "@/components/fold-section";
 import { GlaumWordBooth } from "@/components/glaum-word-booth";
@@ -10,6 +11,9 @@ import { ShareLink } from "@/components/share-link";
 import { StationChat } from "@/components/station-chat";
 import { StationPlaylist } from "@/components/station-playlist";
 import { StationVisual } from "@/components/station-visual";
+import { RoseOpera } from "@/components/rose-opera";
+import { experienceForStation } from "@/lib/experiences";
+import { useExperienceUnlock } from "@/lib/experience-unlock";
 import { getPlayableTracks, kindHint, kindLabel, normalizeKind, stationSkin } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
 import { isOnDemandOverlay, listenModeLabel } from "@/lib/listen-mode";
@@ -43,6 +47,9 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
         ? resolveLivePlayhead(playable, Date.now(), channel.slug)?.track ?? playable[0]
         : playable[0];
   const skin = stationSkin(channel);
+  const catalog = usePlayerStore((s) => s.catalog);
+  const experience = experienceForStation(channel.slug, catalog);
+  const unlocked = useExperienceUnlock(experience?.stationSlug ?? channel.slug);
   const statusLabel = !channel.enabled ? "Off air" : playable.length === 0 ? "Empty desk" : here ? status : kindHint(kind);
   const tags = channel.tags ?? [];
 
@@ -54,17 +61,25 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 pb-52">
       <div className="overflow-hidden rounded-xl shadow-[var(--shadow-filigree)]">
-        <StationVisual channel={channel} size="hero" className="aspect-[4/3] w-full sm:aspect-auto sm:h-64" />
+        {experience ? (
+          <RoseOpera experience={experience} layout="hero" />
+        ) : (
+          <StationVisual channel={channel} size="hero" className="aspect-[4/3] w-full sm:aspect-auto sm:h-64" />
+        )}
       </div>
-      <p className={cn("mt-6 font-mono text-[11px] uppercase tracking-[0.2em]", skin === "glaum" ? "glaum-kicker" : "text-gold")}>
-        {channel.category}
-        {tags[0] ? ` · ${tags[0]}` : ""}
-      </p>
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <h1 className={cn("font-display text-4xl font-semibold tracking-tight", skin === "glaum" && "glaum-title")}>{channel.name}</h1>
-        <ModePill kind={channel.kind} mode={channel.mode} enabled={channel.enabled} nsfw={channel.nsfw} />
-      </div>
-      <p className="mt-3 max-w-prose text-muted">{channel.description}</p>
+      {experience ? null : (
+        <>
+          <p className={cn("mt-6 font-mono text-[11px] uppercase tracking-[0.2em]", skin === "glaum" ? "glaum-kicker" : "text-gold")}>
+            {channel.category}
+            {tags[0] ? ` · ${tags[0]}` : ""}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <h1 className={cn("font-display text-4xl font-semibold tracking-tight", skin === "glaum" && "glaum-title")}>{channel.name}</h1>
+            <ModePill kind={channel.kind} mode={channel.mode} enabled={channel.enabled} nsfw={channel.nsfw} />
+          </div>
+          <p className="mt-3 max-w-prose text-muted">{channel.description}</p>
+        </>
+      )}
       {skin === "glaum" ? <p className="glaum-sponsor mt-2 font-mono text-[10px] uppercase">Sponsored by Shrimp™</p> : null}
       {channel.glaumules ? (
         <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-glaum">
@@ -82,6 +97,15 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
         >
           Tune in
         </button>
+        {experience ? (
+          <Link
+            to="/experiences/$slug"
+            params={{ slug: experience.slug }}
+            className="inline-flex h-12 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
+          >
+            Enter the opera
+          </Link>
+        ) : null}
         <ShuffleToggle channel={channel} compact />
         <ShareLink path={sharePath || stationPath(channel)} title={channel.name} compact />
       </div>
@@ -89,7 +113,11 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
         <NowPlayingCard channel={channel} track={now ?? null} statusLabel={statusLabel} />
       </div>
       {skin === "glaum" ? <GlaumWordBooth nextPath={sharePath || stationPath(channel)} /> : null}
-      <StationPlaylist channel={channel} />
+      <StationPlaylist
+        channel={channel}
+        locked={Boolean(experience) && !unlocked}
+        onUnlock={experience ? () => void tuneIn(channel.slug, { forcePlay: true, fromStart: true }) : undefined}
+      />
       <StationChat slug={channel.slug} />
       <ClaimBooth channel={channel} />
       <FoldSection title="About this frequency" hint="Open">

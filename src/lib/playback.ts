@@ -5,6 +5,24 @@ const DUR_KEY = "radio.durations.v1";
 const measured = new Map<string, number>();
 let persistTimer: number | null = null;
 let hydrated = false;
+let durationGen = 0;
+const durationListeners = new Set<() => void>();
+
+export function subscribeDurations(listener: () => void) {
+  durationListeners.add(listener);
+  return () => {
+    durationListeners.delete(listener);
+  };
+}
+
+export function durationGeneration() {
+  return durationGen;
+}
+
+function emitDurations() {
+  durationGen += 1;
+  durationListeners.forEach((listener) => listener());
+}
 
 function hydrateDurations() {
   if (hydrated || typeof window === "undefined") return;
@@ -43,7 +61,13 @@ export function rememberDuration(trackId: string, seconds: number) {
   const prev = measured.get(trackId);
   if (prev && Math.abs(prev - seconds) < 0.05) return;
   measured.set(trackId, seconds);
+  emitDurations();
   schedulePersist();
+}
+
+export function hasMeasuredDuration(trackId: string): boolean {
+  hydrateDurations();
+  return measured.has(trackId);
 }
 
 export function durationOf(track: Track): number {

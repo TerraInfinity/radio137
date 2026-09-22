@@ -235,6 +235,12 @@ export function Atmosphere({ skin = "none" }: { skin?: string }) {
         </>
       ) : null}
       {skin === "waheguru" ? <div className="atmosphere-wahe" /> : null}
+      {skin === "rose" ? (
+        <>
+          <div className="atmosphere-rose" />
+          <div className="atmosphere-rose-dust" />
+        </>
+      ) : null}
       <div className="atmosphere-vignette" />
     </div>
   );

@@ -344,6 +344,7 @@ export const importR2Tracks = createServerFn({ method: "POST" })
               key: z.string().min(1),
               url: z.string().min(8),
               title: z.string().optional(),
+              durationSec: z.number().optional(),
             }),
           )
           .min(1),
@@ -370,6 +371,7 @@ export const importR2Tracks = createServerFn({ method: "POST" })
             audioUrl: item.url,
             coverUrl: dest.cover,
             r2Key: item.key,
+            durationSec: item.durationSec,
           });
           added += 1;
         } catch (error) {
@@ -565,6 +567,7 @@ export const completeDeskUpload = createServerFn({ method: "POST" })
         coverUrl: z.string().optional(),
         trackId: z.string().optional(),
         contentType: z.string().optional(),
+        durationSec: z.number().optional(),
       })
       .parse(input),
   )
@@ -586,6 +589,7 @@ export const completeDeskUpload = createServerFn({ method: "POST" })
             trackId: data.trackId,
             audioUrl: url,
             coverUrl: data.coverUrl,
+            durationSec: data.durationSec,
           })
         : await addTrack(context.user, {
             channelSlug: data.slug,
@@ -593,6 +597,7 @@ export const completeDeskUpload = createServerFn({ method: "POST" })
             audioUrl: url,
             coverUrl: data.coverUrl,
             r2Key: key,
+            durationSec: data.durationSec,
           });
       return { ok: true as const, object: { key, url }, kind: "audio" as const, edit, ...(await snapshot()) };
     }

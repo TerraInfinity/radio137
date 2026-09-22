@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { useMemo } from "react";
 import { CoverArt } from "@/components/cover-art";
 import { formatClock } from "@/lib/cn";
+import { durationOf } from "@/lib/playback";
 import { searchDial } from "@/lib/search";
 import { songKey } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
@@ -92,7 +93,7 @@ export function DialSearch({
                       </span>
                     ) : null}
                   </Link>
-                  <span className="hidden font-mono text-[11px] text-subtle sm:inline">{formatClock(track.durationSec)}</span>
+                  <span className="hidden font-mono text-[11px] tabular-nums text-subtle sm:inline">{formatClock(durationOf(track))}</span>
                   <button
                     type="button"
                     onClick={() => void cueTrack(channel.slug, track.id)}

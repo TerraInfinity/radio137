@@ -19,6 +19,7 @@ import {
 import { applyCatalogEdits, type CatalogEdit, type StationEdit } from "@/lib/catalog-edits";
 import { getSeedCatalog, kindHint, kindLabel, normalizeKind } from "@/lib/catalog";
 import { cn, formatClock, slugify } from "@/lib/cn";
+import { durationOf } from "@/lib/playback";
 import { fileLocationLabel, r2KeyFromAudioUrl } from "@/lib/file-path";
 import { songKey } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
@@ -459,7 +460,7 @@ function Playlist({ channel, others, r2Configured }: { channel: Channel; others:
   const nowId = usePlayerStore((s) => (s.channelSlug === channel.slug ? s.track?.id : null));
   const live = channel.tracks.filter((track) => track.enabled !== false);
   const hidden = channel.tracks.filter((track) => track.enabled === false);
-  const totalSec = live.reduce((sum, track) => sum + (track.durationSec || 0), 0);
+  const totalSec = live.reduce((sum, track) => sum + durationOf(track), 0);
   const visible = useMemo(() => {
     const source = showHidden ? channel.tracks : live;
     const q = filter.trim().toLowerCase();
@@ -648,7 +649,7 @@ function DeskTrackRow({
             {alsoOn > 0 ? ` · also ${alsoOn}` : ""}
           </span>
         </span>
-        <span className="font-mono text-[11px] tabular-nums text-subtle">{formatClock(track.durationSec)}</span>
+        <span className="font-mono text-[11px] tabular-nums text-subtle">{formatClock(durationOf(track))}</span>
       </div>
       <div className="mt-2 flex flex-wrap gap-1">
         <button

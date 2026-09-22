@@ -124,8 +124,10 @@ export function applyCatalogEdits(
           }),
         ),
     );
-    const ordered = sortPlaylistTracks(tracks, orderMap(bag?.values()));
     const kind = station?.kind ? normalizeKind(station.kind) : normalizeKind(channel.kind || channel.mode);
+    const order = orderMap(bag?.values());
+    const keepSeedOrder = kind === "fixed" && ![...order.values()].some((n) => n != null);
+    const ordered = keepSeedOrder ? tracks : sortPlaylistTracks(tracks, order);
     return {
       ...channel,
       name: station?.name || channel.name,

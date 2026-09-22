@@ -32,10 +32,12 @@ function Scrubber({
   currentTime,
   duration,
   compact = false,
+  health = false,
 }: {
   currentTime: number;
   duration: number;
   compact?: boolean;
+  health?: boolean;
 }) {
   const seek = usePlayerStore((s) => s.seek);
   const hitRef = useRef<HTMLDivElement>(null);
@@ -103,7 +105,7 @@ function Scrubber({
   }
 
   return (
-    <div className={cn("deck-scrub", compact && "deck-scrub-dock")}>
+    <div className={cn("deck-scrub", compact && "deck-scrub-dock", health && "deck-scrub-hp")}>
       <div
         ref={hitRef}
         role="slider"
@@ -111,7 +113,7 @@ function Scrubber({
         aria-valuemin={0}
         aria-valuemax={Math.round(max)}
         aria-valuenow={Math.round(shown)}
-        aria-label="Seek"
+        aria-label={health ? "Song health" : "Seek"}
         className="deck-scrub-hit"
         onPointerDown={onPointerDown}
         onKeyDown={(event) => {
@@ -136,14 +138,14 @@ function Scrubber({
         <span className="deck-scrub-thumb" style={{ left: `${progress}%` }} aria-hidden />
         {preview !== null ? (
           <span className="deck-scrub-tip" style={{ left: `${progress}%` }} aria-hidden>
-            {formatClock(preview)}
+            {formatClock(preview, { floor: true })}
           </span>
         ) : null}
       </div>
       <div className="deck-scrub-times">
-        <span>{formatClock(shown)}</span>
+        <span>{formatClock(shown, { floor: true })}</span>
         <span>
-          {compact ? formatClock(max) : `-${formatClock(remaining)}`}
+          {compact ? formatClock(max) : `-${formatClock(remaining, { floor: true })}`}
         </span>
       </div>
     </div>
@@ -329,6 +331,17 @@ function TransportButtons({
   );
 }
 
+function RoseRiteOrnament() {
+  return (
+    <span className="player-rose-ornament" aria-hidden>
+      <img className="player-rose-antlers" src="/experiences/rose/antlers.jpg" alt="" />
+      <img className="player-rose-sword is-left" src="/experiences/rose/elven-sword.jpg" alt="" />
+      <img className="player-rose-sword is-right" src="/experiences/rose/elven-sword.jpg" alt="" />
+      <span className="player-rose-sand" />
+    </span>
+  );
+}
+
 export function MiniPlayer() {
   const track = usePlayerStore((s) => s.track);
   const status = usePlayerStore((s) => s.status);
@@ -339,6 +352,7 @@ export function MiniPlayer() {
   const hidden = usePlayerStore((s) => s.playerHidden);
   const buffering = usePlayerStore((s) => s.buffering);
   const deckHint = usePlayerStore((s) => s.deckHint);
+  const elsewhere = usePlayerStore((s) => s.elsewhere);
   const listenMode = usePlayerStore((s) => s.listenModeSession ?? s.listenMode);
   const setPlayerCollapsed = usePlayerStore((s) => s.setPlayerCollapsed);
   const setPlayerHidden = usePlayerStore((s) => s.setPlayerHidden);
@@ -373,10 +387,24 @@ export function MiniPlayer() {
   const deskKind = normalizeKind(channel.kind || channel.mode);
   const liveSync = listenMode === "stream" && deskKind === "live" && !overlay;
   const art = visualSrc(track, channel);
-  const statusLine = status === "loading" ? "Tuning…" : buffering ? "Buffering…" : deckHint ? deckHint : overlay ? "On demand" : liveSync ? "Live" : playing ? "Playing" : "Paused";
+  const statusLine = status === "loading"
+    ? "Tuning…"
+    : buffering
+      ? "Buffering…"
+      : elsewhere
+        ? "Playing in another tab"
+        : deckHint
+          ? deckHint
+          : overlay
+            ? "On demand"
+            : liveSync
+              ? "Live"
+              : playing
+                ? "Playing"
+                : "Paused";
   const skipHint = liveSync ? "Leaves streaming" : undefined;
   const progress = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
-  const shell = cn(skin === "glaum" && "player-shell-glaum", skin === "waheguru" && "player-shell-wahe");
+  const shell = cn(skin === "glaum" && "player-shell-glaum", skin === "waheguru" && "player-shell-wahe", skin === "rose" && "player-shell-rose");
 
   const extras = (
     <div className="player-stage-extras">
@@ -432,6 +460,7 @@ export function MiniPlayer() {
   if (!collapsed) {
     return (
       <div className={cn("player-stage", shell)} role="dialog" aria-label="Now playing">
+        {skin === "rose" ? <RoseRiteOrnament /> : null}
         <div className="player-stage-chrome">
           <button
             type="button"
@@ -483,7 +512,7 @@ export function MiniPlayer() {
               {isAdmin && renaming ? (
                 <RenameCutForm slug={channel.slug} track={track} appearance="title" onClose={() => setRenaming(false)} />
               ) : (
-                <p className={cn("min-w-0 font-display text-2xl font-semibold leading-tight sm:text-3xl", skin === "glaum" && "glaum-title")}>
+                <p className={cn("min-w-0 font-display text-2xl font-semibold leading-tight sm:text-3xl", skin === "glaum" && "glaum-title", skin === "rose" && "rose-title")}>
                   <MarqueeTitle text={track.title} />
                 </p>
               )}
@@ -496,7 +525,7 @@ export function MiniPlayer() {
               <VuMeter playing={playing} skin={skin} />
             </div>
             <TransportButtons playing={playing} skipHint={skipHint} large />
-            <Scrubber currentTime={currentTime} duration={duration} />
+            <Scrubber currentTime={currentTime} duration={duration} health={skin === "rose"} />
             {!ios ? <VolumeControl className="w-full max-w-sm md:max-w-none" /> : null}
             {extras}
             <p className="player-stage-desk text-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle md:text-left">
@@ -511,6 +540,7 @@ export function MiniPlayer() {
 
   return (
     <div className={cn("player-dock fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur-sm", shell)}>
+      {skin === "rose" ? <RoseRiteOrnament /> : null}
       <div className="mx-auto max-w-6xl px-3 pt-1 sm:px-4">
         <div className="flex items-center gap-1">
           <button
@@ -523,7 +553,7 @@ export function MiniPlayer() {
             <ChevronUp className="size-5" />
           </button>
           <div className="min-w-0 flex-1">
-            <Scrubber currentTime={currentTime} duration={duration} compact />
+            <Scrubber currentTime={currentTime} duration={duration} compact health={skin === "rose"} />
           </div>
           <button
             type="button"
@@ -546,7 +576,7 @@ export function MiniPlayer() {
             <span className="min-w-0 flex-1 overflow-hidden">
               <MarqueeTitle
                 text={track.title}
-                className={cn("min-w-0 w-full font-display text-base leading-tight", skin === "glaum" && "glaum-title")}
+                className={cn("min-w-0 w-full font-display text-base leading-tight", skin === "glaum" && "glaum-title", skin === "rose" && "rose-title")}
               />
               <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
                 {track.artist ? `${track.artist} · ` : ""}

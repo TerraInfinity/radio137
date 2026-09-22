@@ -19,7 +19,7 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
   const [shuffle, setShuffle] = useState<ShuffleMode>(normalizeShuffle(channel.shuffle));
   const [category, setCategory] = useState(channel.category ?? "");
   const [energy, setEnergy] = useState(channel.energy ?? "");
-  const [tags, setTags] = useState(channel.tags.join(", "));
+  const [tags, setTags] = useState(channel.tags.filter((tag) => !tag.startsWith("look.v1.") && !tag.startsWith("xp.v1.")).join(", "));
   const [cover, setCover] = useState(channel.cover ?? "");
   const [motion, setMotion] = useState(channel.videoUrl || channel.animationUrl || "");
   const [publicSlug, setPublicSlug] = useState(channel.publicSlug ?? "");
@@ -44,7 +44,10 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
             shuffle,
             category: category.trim() || undefined,
             energy: energy.trim() || undefined,
-            tags: tags.trim() || undefined,
+            tags: [
+              ...channel.tags.filter((tag) => tag.startsWith("look.v1.") || tag.startsWith("xp.v1.")),
+              ...tags.split(/[,;]+/).map((item) => item.trim()).filter((item) => item && !item.startsWith("look.v1.") && !item.startsWith("xp.v1.")),
+            ].join(", ") || undefined,
             cover: cover.trim() || undefined,
             animationUrl: motion.trim() || undefined,
             videoUrl: motion.trim() || undefined,

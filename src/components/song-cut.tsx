@@ -12,6 +12,7 @@ import { TrackActions } from "@/components/track-actions";
 import { getPlayableTracks, stationsForSong } from "@/lib/catalog";
 import { formatClock } from "@/lib/cn";
 import { durationOf } from "@/lib/playback";
+import { useDurationClock } from "@/lib/duration-probe";
 import { useRadioUser } from "@/lib/radio-user";
 import { aliasPath, songKey, songPath } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
@@ -35,6 +36,7 @@ export function SongCut({
   const ready = usePlayerStore((s) => s.ready);
   const catalogReady = usePlayerStore((s) => s.catalogReady);
   const { isAdmin } = useRadioUser();
+  useDurationClock([track]);
 
   useEffect(() => {
     if (!ready || !catalogReady || locked) return;
@@ -77,7 +79,7 @@ export function SongCut({
         <div className="min-w-0">
           <h1 className="font-display text-4xl font-semibold tracking-tight">{track.title}</h1>
           <p className="mt-2 text-muted">{track.artist}</p>
-          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">{formatClock(track.durationSec)}</p>
+          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">{formatClock(durationOf(track))}</p>
           {tags.length > 0 ? <SongTags tags={tags} /> : null}
           <TrackActions trackId={track.id} />
         </div>
@@ -140,16 +142,22 @@ export function SongCut({
         <FoldSection title={`More on ${channel.name}`} hint="Open">
           <ol className="divide-y divide-line">
             {more.map((item, index) => (
-              <li key={item.id} className="flex items-center gap-2 py-2">
+              <li key={item.id} className="playlist-row px-0">
                 <span className="w-7 shrink-0 text-center font-mono text-[10px] tabular-nums text-subtle">
                   {String((hereIndex < 0 ? index : (hereIndex + 1 + index) % playable.length) + 1).padStart(2, "0")}
                 </span>
-                <Link to="/player/$id" params={{ id: songKey(item) }} className="min-w-0 flex-1 truncate text-sm">
-                  {item.title}
+                <Link to="/player/$id" params={{ id: songKey(item) }} className="flex min-w-0 flex-1 items-center gap-2.5 py-1">
+                  <span className="size-10 shrink-0 overflow-hidden rounded-sm bg-bg">
+                    <CoverArt src={item.coverUrl && !item.coverUrl.match(/\.(mp4|webm|mov|m4v)$/i) ? item.coverUrl : channel.cover} alt="" className="size-full" motion="still" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm">{item.title}</span>
+                    <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.1em] text-subtle">{item.artist || "Unknown"}</span>
+                  </span>
+                  <span className="min-w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-subtle">
+                    {formatClock(durationOf(item))}
+                  </span>
                 </Link>
-                <span className="w-10 shrink-0 text-right font-mono text-[10px] tabular-nums text-subtle">
-                  {formatClock(durationOf(item))}
-                </span>
                 <button
                   type="button"
                   onClick={() => void cueTrack(channel.slug, item.id)}

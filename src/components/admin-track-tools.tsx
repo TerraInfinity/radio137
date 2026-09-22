@@ -30,7 +30,7 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
   const [busy, setBusy] = useState<"hide" | "r2" | "save" | "file" | "rename" | null>(null);
   const [title, setTitle] = useState(track.title);
   const [artist, setArtist] = useState(track.artist);
-  const [tags, setTags] = useState((track.tags ?? []).join(", "));
+  const [tags, setTags] = useState((track.tags ?? []).filter((tag) => !tag.startsWith("scene.v1.")).join(", "));
   const [publicSlug, setPublicSlug] = useState(track.slug ?? "");
   const [aliases, setAliases] = useState((track.aliases ?? []).join(", "));
   const [audioUrl, setAudioUrl] = useState(track.audioUrl);
@@ -84,7 +84,7 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
           trackId: track.id,
           title: title.trim() || track.title,
           artist: artist.trim() || track.artist,
-          tags: parseTags(tags).join(", "),
+          tags: [...(track.tags ?? []).filter((tag) => tag.startsWith("scene.v1.")), ...parseTags(tags).filter((tag) => !tag.startsWith("scene.v1."))].join(", "),
           slug: slugify(publicSlug).slice(0, 80),
           aliases,
           audioUrl: audioUrl.trim() || track.audioUrl,

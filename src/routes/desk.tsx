@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DeskStations } from "@/components/desk-stations";
 import { DeskDirectory } from "@/components/desk-directory";
 import { DeskReview } from "@/components/desk-review";
+import { DeskExperiences } from "@/components/desk-experiences";
 import {
   deleteR2Object,
   importR2Tracks,
@@ -30,7 +31,7 @@ function applySnapshot(tracks: CatalogEdit[], stations: StationEdit[]) {
   usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), tracks, stations));
 }
 
-const DESK_TABS = ["stations", "directory", "review", "r2", "services"] as const;
+const DESK_TABS = ["stations", "experiences", "directory", "review", "r2", "services"] as const;
 type DeskTab = (typeof DESK_TABS)[number];
 
 function readDeskTab(): DeskTab {
@@ -109,6 +110,7 @@ function DeskPage() {
         {(
           [
             ["stations", "Stations"],
+            ["experiences", "Experiences"],
             ["directory", "Directory"],
             ["review", reviewOpen ? `Review (${reviewOpen})` : "Review"],
             ["r2", "R2"],
@@ -129,6 +131,7 @@ function DeskPage() {
         ))}
       </div>
       {tab === "stations" ? <DeskStations channels={channels} r2Configured={r2Configured} /> : null}
+      {tab === "experiences" ? <DeskExperiences channels={channels} /> : null}
       {tab === "directory" ? <DeskDirectory catalog={catalog.channels.length ? catalog : getCatalog()} /> : null}
       {tab === "review" ? <DeskReview /> : null}
       {tab === "r2" ? <R2Board channels={channels} r2Configured={r2Configured} /> : null}

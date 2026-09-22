@@ -1,16 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowUpDown, ChevronRight, CircleAlert, GripVertical } from "lucide-react";
+import {
+  ArrowUpDown,
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  GripVertical,
+  Lock,
+  MoreHorizontal,
+  Search,
+  Shuffle,
+} from "lucide-react";
 import { AdminRename } from "@/components/admin-rename";
 import { AdminTrackTools } from "@/components/admin-track-tools";
+import { CoverArt } from "@/components/cover-art";
 import { MarqueeTitle } from "@/components/marquee-title";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
-import { getPlayableTracks, getSeedCatalog, normalizeShuffle } from "@/lib/catalog";
+import { getPlayableTracks, getSeedCatalog, normalizeShuffle, shuffleActive } from "@/lib/catalog";
 import { cn, formatClock } from "@/lib/cn";
 import { stationCopies } from "@/lib/cuts";
 import { listCutSkips, reorderStationTracks, saveStation } from "@/lib/desk-api";
 import { effectiveKind } from "@/lib/listen-mode";
+import { isLoopingVisual } from "@/lib/media";
 import { durationOf } from "@/lib/playback";
+import { useDurationClock } from "@/lib/duration-probe";
 import { playlistDuplicateHints } from "@/lib/similar-cuts";
 import { useRadioUser } from "@/lib/radio-user";
 import { songKey } from "@/lib/song-url";
@@ -58,23 +71,45 @@ function upcomingFrom(tracks: Track[], nowId: string | null, wrap: boolean): Tra
   return wrap ? rest.concat(tracks.slice(0, index)) : rest;
 }
 
-export function StationPlaylist({ channel }: { channel: Channel }) {
+function stillCover(track: Track, channel: Channel): string {
+  const song = track.coverUrl || "";
+  if (song && !isLoopingVisual(song)) return song;
+  const station = channel.cover || "";
+  if (station && !isLoopingVisual(station)) return station;
+  return song || station;
+}
+
+export function StationPlaylist({
+  channel,
+  locked = false,
+  onUnlock,
+}: {
+  channel: Channel;
+  locked?: boolean;
+  onUnlock?: () => void;
+}) {
   const { isAdmin } = useRadioUser();
+  const sealed = Boolean(locked && !isAdmin);
   const cueTrack = usePlayerStore((s) => s.cueTrack);
   const nowId = usePlayerStore((s) => (s.channelSlug === channel.slug ? s.track?.id : null));
+  const playing = usePlayerStore((s) => s.channelSlug === channel.slug && s.status === "playing");
   const listenMode = usePlayerStore((s) => s.listenModeSession ?? s.listenMode);
+  const shufflePref = usePlayerStore((s) => Boolean(s.shuffleBySlug[channel.slug]));
   const cutGroups = usePlayerStore((s) => s.cutGroups);
   const tracks = getPlayableTracks(channel);
+  const mixing = shuffleActive(channel, shufflePref);
   const [busy, setBusy] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [arrange, setArrange] = useState(false);
   const [filter, setFilter] = useState("");
   const [open, setOpen] = useState(false);
+  const [toolId, setToolId] = useState<string | null>(null);
   const [span, setSpan] = useState<{ mode: SpanMode; custom: number }>({ mode: "5", custom: 8 });
   const [skipKeys, setSkipKeys] = useState<string[]>([]);
   const wrap = effectiveKind(channel, listenMode) !== "fixed";
   const upcoming = useMemo(() => upcomingFrom(tracks, nowId ?? null, wrap), [tracks, nowId, wrap]);
   const totalSec = tracks.reduce((sum, track) => sum + durationOf(track), 0);
+  const remainSec = upcoming.reduce((sum, track) => sum + durationOf(track), 0);
   const dupes = useMemo(() => {
     if (!isAdmin) return new Map<string, string>();
     return playlistDuplicateHints(stationCopies(channel), cutGroups, skipKeys);
@@ -95,6 +130,7 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
     setOpen(false);
     setArrange(false);
     setFilter("");
+    setToolId(null);
   }, [channel.slug]);
 
   function pickSpan(mode: SpanMode, custom = span.custom) {
@@ -105,20 +141,22 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
   }
 
   const needle = filter.trim().toLowerCase();
-  const showAll = open && span.mode === "all";
+  const browse = open && (span.mode === "all" || mixing);
+  const showAll = browse;
   const limit = !open
     ? 1
     : span.mode === "all"
       ? tracks.length
       : span.mode === "custom"
-        ? Math.min(Math.max(1, span.custom), upcoming.length || tracks.length)
-        : Math.min(Number(span.mode), upcoming.length || tracks.length);
+        ? Math.min(Math.max(1, span.custom), tracks.length)
+        : Math.min(Number(span.mode), tracks.length);
   const source = showAll ? tracks : upcoming;
   const filtered = useMemo(() => {
     if (!showAll || !needle) return source;
     return source.filter((track) => `${track.title} ${track.artist}`.toLowerCase().includes(needle));
   }, [needle, showAll, source]);
-  const visible = showAll ? filtered : source.slice(0, Math.max(0, limit));
+  const visible = showAll ? filtered.slice(0, span.mode === "all" || needle ? filtered.length : limit) : source.slice(0, Math.max(0, limit));
+  const hiddenCount = showAll && !needle && span.mode !== "all" ? Math.max(0, filtered.length - visible.length) : !showAll && open ? Math.max(0, upcoming.length - visible.length) : 0;
 
   async function persist(ids: string[]) {
     const hidden = channel.tracks.filter((track) => track.enabled === false).map((track) => track.id);
@@ -159,25 +197,69 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
     void persist(ids);
   }
 
-  const canArrange = Boolean(isAdmin && open && showAll && !needle);
-  const nextTrack = upcoming[0];
+  const canArrange = Boolean(isAdmin && open && span.mode === "all" && !needle);
+  const nextTrack = mixing ? null : upcoming[0];
+  useDurationClock(open ? visible : nextTrack ? [nextTrack] : []);
+
+  if (sealed) {
+    return (
+      <section className="mt-6 overflow-hidden rounded-xl bg-bg-elevated shadow-[var(--shadow-border)]">
+        <div className="rose-desk-lock">
+          <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-gold">
+            <Lock className="size-3.5" />
+            Desk sealed
+          </p>
+          <p className="font-display text-xl text-fg">Begin the rite to open the playlist.</p>
+          <p className="text-sm text-muted">Play unlocks the desk so you can pick the next song. The stage stays the picture.</p>
+          {onUnlock ? (
+            <button type="button" onClick={onUnlock} className="mt-2 inline-flex h-12 min-w-36 items-center justify-center rounded-md bg-fg px-5 font-mono text-[12px] uppercase tracking-[0.16em] text-bg">
+              Begin the rite
+            </button>
+          ) : null}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="mt-6 overflow-hidden rounded-xl bg-bg-elevated shadow-[var(--shadow-border)]">
       <div className="flex items-center gap-2 px-3 py-1">
-        <h2 className="min-w-0 flex-1 truncate py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
-          {open ? "Playlist" : "Up next"}
-          {open
-            ? ` · ${tracks.length}${tracks.length ? ` · ${formatClock(totalSec)}` : ""}`
-            : nextTrack
-              ? ` · ${upcoming.length} remain`
-              : ""}
-          {open && !showAll ? ` · ${visible.length} shown` : ""}
-          {open && needle ? ` · ${visible.length} match` : ""}
-          {isAdmin && open && dupes.size > 0 ? ` · ${dupes.size} possible duplicates` : ""}
-          {busy ? " · Saving…" : ""}
-        </h2>
-        {isAdmin && open && showAll ? (
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
+              {open ? "Playlist" : mixing ? "Up next · mixed" : "Up next"}
+            </span>
+            <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
+              {busy
+                ? "Saving…"
+                : open
+                  ? [
+                      `${tracks.length} song${tracks.length === 1 ? "" : "s"}`,
+                      tracks.length ? formatClock(totalSec) : null,
+                      mixing ? "mix on" : null,
+                      !showAll && upcoming.length ? `${visible.length} next` : null,
+                      needle ? `${visible.length} match` : null,
+                      isAdmin && dupes.size > 0 ? `${dupes.size} possible duplicates` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : mixing
+                    ? `${tracks.length} in the mix`
+                    : nextTrack
+                      ? `${upcoming.length} left · ${formatClock(remainSec)}`
+                      : tracks.length
+                        ? "Last song on the desk"
+                        : "Empty desk"}
+            </span>
+          </span>
+          <ChevronDown className={cn("size-4 shrink-0 text-gold transition-transform duration-200", open && "rotate-180")} />
+        </button>
+        {isAdmin && open && span.mode === "all" ? (
           <button
             type="button"
             onClick={() => setArrange((value) => !value)}
@@ -188,96 +270,132 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
             {arrange ? "Done" : "Arrange"}
           </button>
         ) : null}
-        <button
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          aria-expanded={open}
-          className="inline-flex h-11 shrink-0 items-center font-mono text-[10px] uppercase tracking-[0.14em] text-gold"
-        >
-          {open ? "Close" : "Open"}
-        </button>
       </div>
       {open ? (
-        <div className="flex flex-wrap items-center gap-1 px-3 pb-2">
-          {PRESETS.map((n) => (
+        <div className="flex flex-wrap items-center gap-2 px-3 pb-2">
+          <div className="playlist-span" role="group" aria-label="How many songs to show">
+            {PRESETS.map((n) => (
+              <button
+                key={n}
+                type="button"
+                aria-pressed={span.mode === String(n)}
+                onClick={() => pickSpan(String(n) as SpanMode)}
+                className="inline-flex h-11 min-w-11 items-center justify-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+              >
+                {n}
+              </button>
+            ))}
             <button
-              key={n}
               type="button"
-              onClick={() => pickSpan(String(n) as SpanMode)}
-              className={cn(
-                "inline-flex h-11 min-w-11 items-center justify-center px-3 font-mono text-[10px] uppercase tracking-[0.12em]",
-                span.mode === String(n) ? "bg-fg text-bg" : "text-gold",
-              )}
+              aria-pressed={span.mode === "all"}
+              onClick={() => pickSpan("all")}
+              className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
             >
-              {n}
+              All
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => pickSpan("all")}
-            className={cn(
-              "inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em]",
-              span.mode === "all" ? "bg-fg text-bg" : "text-gold",
-            )}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            onClick={() => pickSpan("custom")}
-            className={cn(
-              "inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em]",
-              span.mode === "custom" ? "bg-fg text-bg" : "text-gold",
-            )}
-          >
-            Custom
-          </button>
+            <button
+              type="button"
+              aria-pressed={span.mode === "custom"}
+              onClick={() => pickSpan("custom")}
+              className="inline-flex h-11 items-center px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+            >
+              Custom
+            </button>
+          </div>
           {span.mode === "custom" ? (
-            <input
-              className="input h-11 w-16 px-2 text-center"
-              type="number"
-              min={1}
-              max={99}
-              value={span.custom}
-              aria-label="Custom playlist length"
-              onChange={(event) => {
-                const n = Math.min(99, Math.max(1, Number(event.target.value) || 1));
-                pickSpan("custom", n);
-              }}
-            />
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="inline-flex size-11 items-center justify-center font-mono text-gold"
+                aria-label="Fewer songs"
+                onClick={() => pickSpan("custom", Math.max(1, span.custom - 1))}
+              >
+                −
+              </button>
+              <input
+                className="input h-11 w-14 px-2 text-center"
+                type="number"
+                min={1}
+                max={99}
+                value={span.custom}
+                aria-label="Custom playlist length"
+                onChange={(event) => {
+                  const n = Math.min(99, Math.max(1, Number(event.target.value) || 1));
+                  pickSpan("custom", n);
+                }}
+              />
+              <button
+                type="button"
+                className="inline-flex size-11 items-center justify-center font-mono text-gold"
+                aria-label="More songs"
+                onClick={() => pickSpan("custom", Math.min(99, span.custom + 1))}
+              >
+                +
+              </button>
+            </div>
           ) : null}
         </div>
       ) : null}
-      {open && showAll && tracks.length > 8 ? (
+      {open && showAll && tracks.length > 6 ? (
         <div className="px-3 pb-2">
-          <input
-            className="input"
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            placeholder="Filter this playlist"
-          />
+          <label className="relative block">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-subtle" />
+            <input
+              className="input pl-9"
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+              placeholder="Find a song"
+              type="search"
+              aria-label="Find a song in this playlist"
+            />
+          </label>
         </div>
       ) : null}
       {canArrange && arrange ? <AdminShufflePolicy channel={channel} /> : null}
       {tracks.length === 0 ? (
-        <p className="px-3 pb-3 text-sm text-muted">Empty desk.</p>
+        <p className="px-3 pb-3 text-sm text-muted">Nothing on this desk yet.</p>
+      ) : !open && mixing ? (
+        <button type="button" onClick={() => setOpen(true)} className="playlist-next text-left">
+          <span className="grid size-12 shrink-0 place-items-center rounded-md bg-bg text-gold">
+            <Shuffle className="size-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-base font-semibold text-fg">Next song is mixed</span>
+            <span className="mt-0.5 block text-sm text-muted">Open the playlist to browse or pick one.</span>
+          </span>
+        </button>
+      ) : !open && nextTrack ? (
+        <button type="button" onClick={() => void cueTrack(channel.slug, nextTrack.id)} className="playlist-next">
+          <span className="size-12 shrink-0 overflow-hidden rounded-md bg-bg">
+            <CoverArt src={stillCover(nextTrack, channel)} alt="" className="size-full" motion="still" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <MarqueeTitle text={nextTrack.title} className="font-display text-base font-semibold text-fg" />
+            <span className="mt-0.5 block truncate text-sm text-muted">
+              {nextTrack.artist || "Unknown"} · {formatClock(durationOf(nextTrack))}
+            </span>
+          </span>
+          <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-gold">Play</span>
+        </button>
       ) : !open && !nextTrack ? (
-        <p className="px-3 pb-3 text-sm text-muted">Last song on the desk.</p>
+        <p className="px-3 pb-3 text-sm text-muted">Last song on the desk. Open the playlist to go back through the list.</p>
       ) : visible.length === 0 ? (
-        <p className="px-3 pb-3 text-sm text-muted">{needle ? "No songs match." : "Last song on the desk."}</p>
+        <p className="px-3 pb-3 text-sm text-muted">{needle ? "No songs match that name." : "Last song on the desk."}</p>
       ) : (
-        <ol className="border-t border-line px-2 py-1">
-          {visible.map((track) => {
+        <ol className={cn("border-t border-line px-2 py-1", visible.length > 7 && "playlist-scroller")}>
+          {visible.map((track, queueIndex) => {
             const index = tracks.findIndex((item) => item.id === track.id);
             return (
               <PlaylistRow
                 key={track.id}
-                slug={channel.slug}
+                channel={channel}
                 track={track}
-                index={index}
+                index={showAll ? index : queueIndex}
                 current={nowId === track.id}
+                playing={playing && nowId === track.id}
                 admin={Boolean(isAdmin)}
                 arrange={canArrange && arrange}
+                tools={Boolean(isAdmin && (arrange || toolId === track.id))}
                 dragging={dragId === track.id}
                 onCue={() => void cueTrack(channel.slug, track.id)}
                 onUp={() => move(index, -1)}
@@ -285,24 +403,35 @@ export function StationPlaylist({ channel }: { channel: Channel }) {
                 onDragStart={() => setDragId(track.id)}
                 onDrop={() => dropOn(track.id)}
                 onDragEnd={() => setDragId(null)}
+                onTools={() => setToolId((id) => (id === track.id ? null : track.id))}
                 duplicate={isAdmin ? dupes.get(track.id) : undefined}
               />
             );
           })}
         </ol>
       )}
+      {open && hiddenCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => pickSpan("all")}
+          className="flex h-11 w-full items-center justify-center border-t border-line font-mono text-[10px] uppercase tracking-[0.14em] text-gold"
+        >
+          +{hiddenCount} more
+        </button>
+      ) : null}
     </section>
   );
 }
 
-
 function PlaylistRow({
-  slug,
+  channel,
   track,
   index,
   current,
+  playing,
   admin,
   arrange,
+  tools,
   dragging,
   onCue,
   onUp,
@@ -310,14 +439,17 @@ function PlaylistRow({
   onDragStart,
   onDrop,
   onDragEnd,
+  onTools,
   duplicate,
 }: {
-  slug: string;
+  channel: Channel;
   track: Track;
   index: number;
   current: boolean;
+  playing: boolean;
   admin: boolean;
   arrange: boolean;
+  tools: boolean;
   dragging: boolean;
   onCue: () => void;
   onUp: () => void;
@@ -325,11 +457,13 @@ function PlaylistRow({
   onDragStart: () => void;
   onDrop: () => void;
   onDragEnd: () => void;
+  onTools: () => void;
   duplicate?: string;
 }) {
   return (
     <li
-      className={cn("flex flex-wrap items-center gap-x-1 rounded-md px-1", current && "bg-bg", dragging && "opacity-40")}
+      className={cn("playlist-row", current && "playlist-row-now", dragging && "opacity-40")}
+      aria-current={current ? "true" : undefined}
       onDragOver={(event) => {
         if (!admin || !arrange) return;
         event.preventDefault();
@@ -355,35 +489,55 @@ function PlaylistRow({
         >
           <GripVertical className="size-4" />
         </button>
+      ) : playing ? (
+        <span className="vu-meter vu-meter-on w-7 shrink-0 justify-center" aria-hidden>
+          <span />
+          <span />
+          <span />
+        </span>
       ) : (
         <span className="w-7 shrink-0 text-center font-mono text-[10px] tabular-nums text-subtle">{String(index + 1).padStart(2, "0")}</span>
       )}
-      <button
-        type="button"
-        onClick={onCue}
-        className="flex min-w-0 flex-1 basis-0 items-center gap-2 overflow-hidden py-2 text-left"
-      >
-        {admin && duplicate ? (
-          <span
-            className="playlist-dupe inline-flex size-7 shrink-0 items-center justify-center"
-            title={`Possible duplicate · ${duplicate}`}
-            aria-label={`Possible duplicate: ${duplicate}`}
-          >
-            <CircleAlert className="size-4" />
+      <button type="button" onClick={onCue} className="flex min-w-0 flex-1 basis-40 items-center gap-2.5 overflow-hidden py-1 text-left">
+        <span className="relative size-10 shrink-0 overflow-hidden rounded-sm bg-bg">
+          <CoverArt src={stillCover(track, channel)} alt="" className="size-full" motion="still" />
+          {admin && duplicate ? (
+            <span
+              className="playlist-dupe absolute top-0.5 right-0.5 inline-flex size-4 items-center justify-center rounded-full bg-bg"
+              title={`Possible duplicate · ${duplicate}`}
+              aria-label={`Possible duplicate: ${duplicate}`}
+            >
+              <CircleAlert className="size-3.5" />
+            </span>
+          ) : null}
+        </span>
+        <span className="min-w-0 flex-1">
+          <MarqueeTitle text={track.title} className={cn("text-sm", current && "text-gold")} />
+          <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.1em] text-subtle">
+            {track.artist || "Unknown"}
           </span>
-        ) : null}
-        <MarqueeTitle text={track.title} className={cn("min-w-0 w-0 flex-1 text-sm", current && "text-gold")} />
-        <span className="w-10 shrink-0 text-right font-mono text-[10px] tabular-nums text-subtle">{formatClock(durationOf(track))}</span>
+        </span>
+        <span className="min-w-12 shrink-0 text-right font-mono text-[10px] tabular-nums text-subtle">{formatClock(durationOf(track))}</span>
       </button>
       <Link
         to="/player/$id"
         params={{ id: songKey(track) }}
         aria-label={`Open ${track.title}`}
-        className="inline-flex h-11 w-11 shrink-0 items-center justify-center font-mono text-[10px] uppercase tracking-[0.12em] text-gold sm:w-auto sm:px-2"
+        className="inline-flex size-11 shrink-0 items-center justify-center text-gold"
       >
-        <span className="hidden sm:inline">Open</span>
-        <ChevronRight className="size-4 sm:hidden" />
+        <ChevronRight className="size-4" />
       </Link>
+      {admin && !arrange ? (
+        <button
+          type="button"
+          onClick={onTools}
+          aria-expanded={tools}
+          aria-label="Song tools"
+          className="inline-flex size-11 shrink-0 items-center justify-center text-gold"
+        >
+          <MoreHorizontal className="size-4" />
+        </button>
+      ) : null}
       {admin && arrange ? (
         <>
           <button type="button" onClick={onUp} className="inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
@@ -394,8 +548,12 @@ function PlaylistRow({
           </button>
         </>
       ) : null}
-      {admin && !arrange ? <AdminRename slug={slug} track={track} compact={!current} /> : null}
-      {admin ? <AdminTrackTools slug={slug} track={track} compact /> : null}
+      {admin && tools ? (
+        <div className="flex w-full flex-wrap items-center justify-end gap-1 pb-1">
+          <AdminRename slug={channel.slug} track={track} compact />
+          <AdminTrackTools slug={channel.slug} track={track} compact />
+        </div>
+      ) : null}
     </li>
   );
 }

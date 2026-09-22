@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { buildDeskKeyIndex, desksForKey, formatBytes, isAudioKey, titleFromR2Key } from "@/lib/file-path";
 import { addStationTrack, importR2Tracks, listStationR2, placeStationTrack } from "@/lib/desk-api";
 import { directDeskUpload } from "@/lib/direct-upload";
+import { probeAudioDuration } from "@/lib/duration-probe";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel, Track } from "@/lib/types";
 
@@ -177,8 +178,9 @@ export function AddSongsPanel({
     setBusyKey(hit.key);
     setHint("Adding…");
     try {
+      const durationSec = await probeAudioDuration(hit.url).catch(() => undefined);
       const result = await importR2Tracks({
-        data: { channelSlugs: [channel.slug], items: [{ key: hit.key, url: hit.url, title: name }] },
+        data: { channelSlugs: [channel.slug], items: [{ key: hit.key, url: hit.url, title: name, durationSec }] },
       });
       applySnapshot(result.tracks, result.stations);
       r2Cache.clear();
@@ -217,8 +219,9 @@ export function AddSongsPanel({
     setUrlBusy(true);
     setHint("Adding…");
     try {
+      const durationSec = await probeAudioDuration(url).catch(() => undefined);
       const result = await addStationTrack({
-        data: { channelSlug: channel.slug, title: nextTitle, audioUrl: url, coverUrl: channel.cover },
+        data: { channelSlug: channel.slug, title: nextTitle, audioUrl: url, coverUrl: channel.cover, durationSec },
       });
       applySnapshot(result.tracks, result.stations);
       setTitle("");
@@ -243,12 +246,14 @@ export function AddSongsPanel({
       const file = audio[i];
       setHint(`Uploading ${file.name}…`);
       try {
+        const durationSec = await probeAudioDuration(file).catch(() => undefined);
         const result = await directDeskUpload({
           kind: "audio",
           slug: channel.slug,
           file,
           title: titleFromR2Key(file.name),
           coverUrl: channel.cover,
+          durationSec,
         });
         if (result.tracks) applySnapshot(result.tracks, result.stations ?? []);
         r2Cache.clear();

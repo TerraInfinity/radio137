@@ -9,7 +9,7 @@ const seedCatalog: Catalog = {
   ...rawSeed,
   channels: rawSeed.channels.map((channel) => ({
     ...channel,
-    tracks: sortPlaylistTracks(channel.tracks),
+    tracks: normalizeKind(channel.kind || channel.mode) === "fixed" ? channel.tracks : sortPlaylistTracks(channel.tracks),
   })),
 };
 let catalog = seedCatalog;
@@ -177,7 +177,8 @@ export function stationsForSong(id: string): Channel[] {
   return catalog.channels.filter((channel) => channel.enabled && channel.tracks.some((track) => track.id === id && track.enabled !== false));
 }
 
-export function stationSkin(channel: Channel): "glaum" | "waheguru" | "buzz" | "none" {
+export function stationSkin(channel: Channel): "glaum" | "waheguru" | "buzz" | "rose" | "none" {
+  if (channel.skin === "rose" || channel.slug === "rose" || /bad.?wolf|rose opera/i.test(`${channel.slug} ${channel.name}`)) return "rose";
   if (channel.skin === "glaum" || channel.glaumules || /glaum|glåüm|glaom/i.test(channel.slug + channel.name)) return "glaum";
   if (channel.skin === "waheguru" || /waheguru/i.test(channel.slug + channel.name)) return "waheguru";
   return "none";

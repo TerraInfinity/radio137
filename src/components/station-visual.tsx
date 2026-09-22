@@ -35,6 +35,7 @@ export function StationVisual({
         </>
       ) : null}
       {skin === "waheguru" ? <div className="station-wahe pointer-events-none absolute inset-0" /> : null}
+      {skin === "rose" ? <div className="station-rose pointer-events-none absolute inset-0" /> : null}
     </div>
   );
 }

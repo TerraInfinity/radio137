@@ -5,11 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatClock(seconds: number): string {
+export function formatClock(seconds: number, opts?: { floor?: boolean }): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
-  const s = Math.floor(seconds);
-  const m = Math.floor(s / 60);
+  const s = opts?.floor ? Math.floor(seconds) : Math.round(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
   const r = s % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${r.toString().padStart(2, "0")}`;
   return `${m}:${r.toString().padStart(2, "0")}`;
 }
 

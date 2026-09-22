@@ -18,6 +18,7 @@ export async function directDeskUpload(input: {
   trackId?: string;
   title?: string;
   coverUrl?: string;
+  durationSec?: number;
 }) {
   const minted = await mintDeskUpload({
     data: {
@@ -39,6 +40,7 @@ export async function directDeskUpload(input: {
       coverUrl: input.coverUrl,
       trackId: input.trackId,
       contentType: minted.contentType,
+      durationSec: input.durationSec,
     },
   });
 }
