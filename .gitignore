@@ -1,0 +1,29 @@
+# deps + builds
+node_modules/
+dist/
+.output/
+.nitro/
+.tanstack/
+.vercel/
+.vercel/output/
+
+# env + logs
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+
+# local artifacts
+coverage/
+playwright-report/
+test-results/
+radio-source.zip
+screenshots/
+artifacts/
+attachments/

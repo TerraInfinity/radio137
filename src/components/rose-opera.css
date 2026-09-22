@@ -1,0 +1,1468 @@
+.rose-opera {
+  --rose-energy: 0.2;
+  --rose-kick: 0;
+  --rose-fly: 0.1;
+  --rose-petal: #fbf7f3;
+  --rose-vein: #c45c6a;
+  --rose-blush: #e8a8b0;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #07030a;
+  color: var(--rose-petal);
+}
+.rose-opera-full {
+  min-height: calc(100dvh - 3.5rem);
+}
+.rose-opera.is-cinema.rose-opera-full {
+  min-height: 100dvh;
+}
+.rose-opera:not(.rose-opera-full) {
+  min-height: 22rem;
+}
+.rose-opera:not(.rose-opera-full) .rose-opera-copy {
+  min-height: 22rem;
+  padding-bottom: 1.5rem;
+}
+.rose-opera-copy {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: inherit;
+  padding: 2rem 1.25rem 1.5rem;
+  transition: opacity 400ms var(--ease-out-smooth), transform 400ms var(--ease-out-smooth);
+}
+.rose-opera-full .rose-opera-copy {
+  min-height: calc(100dvh - 3.5rem);
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+}
+.rose-opera.is-cinema .rose-opera-copy {
+  min-height: 100dvh;
+  padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+}
+.rose-opera.is-drifting .rose-opera-copy {
+  opacity: 0.14;
+  transform: translateY(10px);
+  transition: opacity 2.2s ease, transform 2.2s ease;
+}
+.rose-opera-copy.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(12px);
+}
+body:has(.rose-opera-full) header.sticky {
+  transition: transform 700ms var(--ease-out-smooth), opacity 700ms var(--ease-out-smooth);
+}
+body.rose-drift-on header.sticky {
+  transform: translateY(-22%);
+  opacity: 0.35;
+  transition: transform 2.2s ease, opacity 2.2s ease;
+}
+body.rose-drift-on .player-dock {
+  opacity: 0.28;
+  transition: opacity 2.2s ease;
+}
+.rose-opera-stage {
+  position: absolute;
+  inset: 0;
+}
+.rose-opera-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  background: transparent;
+}
+.rose-storm-bed {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.34;
+  mix-blend-mode: screen;
+}
+.rose-opera[data-phenomenon="vortex"] .rose-storm-bed,
+.rose-opera[data-phenomenon="arrival"] .rose-storm-bed,
+.rose-opera.is-stage .rose-storm-bed {
+  opacity: 1;
+  mix-blend-mode: normal;
+}
+.rose-opera-stills {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: var(--rose-stills, 0.72);
+}
+.rose-opera-still,
+.rose-opera-loop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.rose-opera-still {
+  opacity: 0;
+  transform: scale(1.06);
+  animation: rose-ken 48s var(--ease-out-smooth) infinite;
+}
+.rose-opera-still-0 { animation-delay: 0s; }
+.rose-opera-still-1 { animation-delay: -12s; }
+.rose-opera-still-2 { animation-delay: -24s; }
+.rose-opera-still-3 { animation-delay: -36s; }
+.rose-opera-loop {
+  z-index: 1;
+  opacity: calc(var(--rose-loop, 0.55) * (0.55 + var(--rose-energy) * 0.45));
+  mix-blend-mode: screen;
+  transform: scale(calc(1.02 + var(--rose-kick) * 0.04));
+}
+.rose-opera-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at 50% 38%, color-mix(in oklab, var(--rose-petal) 16%, transparent) 0%, transparent 42%),
+    radial-gradient(ellipse at 18% 72%, color-mix(in oklab, var(--rose-blush) 10%, transparent), transparent 36%),
+    radial-gradient(ellipse at 50% 42%, transparent 18%, #07030acc 74%),
+    linear-gradient(180deg, #07030a22, #07030ae6);
+}
+.rose-opera-air {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+.rose-opera-air span {
+  position: absolute;
+  top: -12%;
+  width: 1.7rem;
+  height: 2.2rem;
+  background: url("/experiences/rose/petal-face.png") center / contain no-repeat;
+  filter: drop-shadow(0 0 8px color-mix(in oklab, var(--rose-petal) 28%, transparent));
+  opacity: 0.28;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  animation: rose-twirl 24s linear infinite;
+}
+.rose-opera-air span:nth-child(1) { left: 8%; animation-duration: 26s; animation-delay: -4s; }
+.rose-opera-air span:nth-child(2) { left: 58%; width: 1.25rem; height: 1.7rem; animation-duration: 21s; animation-delay: -11s; background-image: url("/experiences/rose/petal-edge.png"); }
+.rose-opera-air span:nth-child(3) { left: 78%; width: 1.45rem; height: 1.9rem; animation-duration: 29s; animation-delay: -18s; }
+.rose-opera-fields {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+.rose-field-hedge,
+.rose-field-ground,
+.rose-field-bloom {
+  position: absolute;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.rose-field-hedge {
+  top: 4%;
+  bottom: 0;
+  width: min(28vw, 18rem);
+  object-fit: cover;
+  opacity: 0.38;
+  animation: rose-field-breathe 22s ease-in-out infinite;
+}
+.rose-field-hedge.is-left {
+  left: 0;
+  mask-image: linear-gradient(90deg, #000 28%, transparent 96%);
+}
+.rose-field-hedge.is-right {
+  right: 0;
+  transform: scaleX(-1);
+  mask-image: linear-gradient(270deg, #000 28%, transparent 96%);
+  animation-delay: -9s;
+}
+.rose-field-ground {
+  left: -4%;
+  right: -4%;
+  bottom: 0;
+  height: 42%;
+  object-fit: cover;
+  object-position: 50% 62%;
+  opacity: 0.34;
+  mask-image: linear-gradient(to top, #000 12%, transparent 88%);
+  animation: rose-field-drift 48s ease-in-out infinite;
+}
+.rose-field-bloom {
+  width: min(22vw, 13rem);
+  height: min(22vw, 13rem);
+  object-fit: cover;
+  opacity: 0.22;
+  border-radius: 50%;
+  filter: blur(0.2px);
+}
+.rose-field-bloom.is-a {
+  left: 2%;
+  top: 10%;
+  animation: rose-field-breathe 18s ease-in-out infinite;
+}
+.rose-field-bloom.is-b {
+  right: 3%;
+  top: 16%;
+  width: min(16vw, 9.5rem);
+  height: min(16vw, 9.5rem);
+  opacity: 0.16;
+  animation: rose-field-breathe 26s ease-in-out infinite reverse;
+}
+.rose-glitter {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background:
+    linear-gradient(currentColor, currentColor) center / 1px 100% no-repeat,
+    linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat;
+  color: color-mix(in oklab, var(--rose-petal) 70%, var(--color-gold));
+  opacity: 0;
+  filter: drop-shadow(0 0 4px color-mix(in oklab, var(--color-gold) 55%, transparent));
+  animation: rose-glint 7.5s ease-in-out infinite;
+}
+.rose-glitter:nth-child(6) { left: 12%; top: 22%; animation-delay: -1.2s; }
+.rose-glitter:nth-child(7) { left: 28%; top: 58%; animation-delay: -2.8s; color: var(--rose-blush); }
+.rose-glitter:nth-child(8) { left: 48%; top: 16%; animation-delay: -4.1s; }
+.rose-glitter:nth-child(9) { left: 63%; top: 44%; animation-delay: -0.6s; color: var(--rose-vein); }
+.rose-glitter:nth-child(10) { left: 78%; top: 28%; animation-delay: -3.4s; }
+.rose-glitter:nth-child(11) { left: 86%; top: 62%; animation-delay: -5.2s; }
+.rose-glitter:nth-child(12) { left: 18%; top: 74%; animation-delay: -6.1s; }
+.rose-glitter:nth-child(13) { left: 72%; top: 12%; animation-delay: -2.1s; color: var(--rose-blush); }
+.rose-opera-fields::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 8% 88%, color-mix(in oklab, var(--rose-vein) 16%, transparent), transparent 32%),
+    radial-gradient(ellipse at 92% 86%, color-mix(in oklab, var(--rose-blush) 14%, transparent), transparent 30%);
+  mix-blend-mode: screen;
+  opacity: 0.55;
+}
+.rose-opera[data-phenomenon="remember"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 42%, color-mix(in oklab, #c9a36a 16%, transparent) 0%, transparent 44%),
+    radial-gradient(ellipse at 50% 58%, transparent 30%, #140806cc 86%),
+    linear-gradient(180deg, #2a140818, #0c0604e8);
+}
+.rose-opera[data-phenomenon="firewall"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 40%, color-mix(in oklab, #7ee7ff 14%, transparent) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 58%, color-mix(in oklab, #ff5070 10%, transparent) 0%, transparent 46%),
+    radial-gradient(ellipse at 50% 62%, transparent 32%, #060a10cc 88%),
+    linear-gradient(180deg, #10202818, #04080ce8);
+}
+.rose-opera[data-phenomenon="allocate"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 38%, color-mix(in oklab, #ffd56a 16%, transparent) 0%, transparent 44%),
+    radial-gradient(ellipse at 72% 28%, color-mix(in oklab, #ff5080 10%, transparent) 0%, transparent 40%),
+    radial-gradient(ellipse at 28% 70%, color-mix(in oklab, #7ee7ff 10%, transparent) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 78%, transparent 28%, #120808cc 88%),
+    linear-gradient(180deg, #2a181018, #0c0608e8);
+}
+.rose-opera[data-phenomenon="prom"] .rose-opera-fields,
+.rose-opera[data-phenomenon="twist"] .rose-opera-fields,
+.rose-opera[data-phenomenon="remember"] .rose-opera-fields,
+.rose-opera[data-phenomenon="firewall"] .rose-opera-fields,
+.rose-opera[data-phenomenon="wolf"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 40%, color-mix(in oklab, #ff2040 16%, transparent) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 18%, color-mix(in oklab, #ffffff 8%, transparent) 0%, transparent 36%),
+    radial-gradient(ellipse at 50% 72%, transparent 28%, #080204d0 88%),
+    linear-gradient(180deg, #14080818, #040002ee);
+}
+.rose-opera[data-phenomenon="allocate"] .rose-opera-fields,
+.rose-opera[data-phenomenon="current"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 38%, color-mix(in oklab, #7ee7ff 12%, transparent) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 62%, color-mix(in oklab, #ff40a0 12%, transparent) 0%, transparent 46%),
+    radial-gradient(ellipse at 50% 78%, transparent 28%, #06040cd0 88%),
+    linear-gradient(180deg, #10081818, #040208ee);
+}
+.rose-opera[data-phenomenon="wolf"] .rose-opera-fields,
+.rose-opera[data-phenomenon="sweetie"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 36%, color-mix(in oklab, #ffd56a 14%, transparent) 0%, transparent 44%),
+    radial-gradient(ellipse at 50% 58%, color-mix(in oklab, #7ee7ff 10%, transparent) 0%, transparent 46%),
+    radial-gradient(ellipse at 50% 78%, transparent 28%, #0c0808cc 88%),
+    linear-gradient(180deg, #1a101018, #080406ee);
+}
+.rose-opera[data-phenomenon="current"] .rose-opera-fields,
+.rose-opera[data-phenomenon="halo"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 32%, color-mix(in oklab, #7ee7ff 16%, transparent) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 18%, color-mix(in oklab, #ffffff 10%, transparent) 0%, transparent 34%),
+    radial-gradient(ellipse at 50% 78%, transparent 28%, #040810d0 88%),
+    linear-gradient(180deg, #08101818, #02060cee);
+}
+.rose-opera[data-phenomenon="sweetie"] .rose-opera-fields,
+.rose-opera[data-phenomenon="choir"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 34%, color-mix(in oklab, #ff6a3a 16%, transparent) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 18%, color-mix(in oklab, #ffd56a 10%, transparent) 0%, transparent 34%),
+    radial-gradient(ellipse at 50% 78%, transparent 28%, #140404d0 88%),
+    linear-gradient(180deg, #1a080818, #080202ee);
+}
+.rose-opera[data-phenomenon="halo"] .rose-opera-fields,
+.rose-opera[data-phenomenon="badend"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 28%, color-mix(in oklab, #ff4020 16%, transparent) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 16%, color-mix(in oklab, #ffd56a 8%, transparent) 0%, transparent 32%),
+    radial-gradient(ellipse at 50% 78%, transparent 28%, #0a0204d4 88%),
+    linear-gradient(180deg, #14080818, #060002ee);
+}
+.rose-opera[data-phenomenon="choir"] .rose-opera-fields,
+.rose-opera[data-phenomenon="recall"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 32%, color-mix(in oklab, #7ee7ff 14%, transparent) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 18%, color-mix(in oklab, #c9a36a 10%, transparent) 0%, transparent 34%),
+    radial-gradient(ellipse at 50% 78%, transparent 28%, #060a10d0 88%),
+    linear-gradient(180deg, #0a101818, #04060cee);
+}
+.rose-opera[data-phenomenon="badend"] .rose-opera-fields,
+.rose-opera[data-phenomenon="obay"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 30%, color-mix(in oklab, #ff2a5a 16%, transparent) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 16%, color-mix(in oklab, #ffd56a 8%, transparent) 0%, transparent 32%),
+    radial-gradient(ellipse at 50% 78%, transparent 28%, #0a0206d4 88%),
+    linear-gradient(180deg, #14080818, #060003ee);
+}
+.rose-opera[data-phenomenon="recall"] .rose-opera-fields,
+.rose-opera[data-phenomenon="copter"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 28%, color-mix(in oklab, #ff8a4a 14%, transparent) 0%, transparent 40%),
+    radial-gradient(ellipse at 70% 22%, color-mix(in oklab, #7ee7ff 10%, transparent) 0%, transparent 34%),
+    radial-gradient(ellipse at 50% 78%, transparent 28%, #08121cd0 88%),
+    linear-gradient(180deg, #10202818, #040c12ee);
+}
+.rose-opera[data-phenomenon="stillhot"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 22%, color-mix(in oklab, #7ee7ff 12%, transparent) 0%, transparent 38%),
+    radial-gradient(ellipse at 50% 78%, color-mix(in oklab, #ff6a3a 18%, transparent) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 86%, transparent 22%, #2a0806c8 90%),
+    linear-gradient(180deg, #08101818, #1a0604ee);
+}
+.rose-opera[data-phenomenon="obay"] .rose-opera-fields,
+.rose-opera[data-phenomenon="copter"] .rose-opera-fields {
+  opacity: 0.2;
+}
+.rose-opera[data-phenomenon="stillhot"] .rose-opera-fields {
+  opacity: 0.12;
+}
+.rose-opera[data-phenomenon="prom"] .rose-opera-caption,
+.rose-opera[data-phenomenon="twist"] .rose-opera-caption,
+.rose-opera[data-phenomenon="remember"] .rose-opera-caption,
+.rose-opera[data-phenomenon="firewall"] .rose-opera-caption,
+.rose-opera[data-phenomenon="allocate"] .rose-opera-caption,
+.rose-opera[data-phenomenon="wolf"] .rose-opera-caption,
+.rose-opera[data-phenomenon="current"] .rose-opera-caption,
+.rose-opera[data-phenomenon="sweetie"] .rose-opera-caption,
+.rose-opera[data-phenomenon="halo"] .rose-opera-caption,
+.rose-opera[data-phenomenon="choir"] .rose-opera-caption,
+.rose-opera[data-phenomenon="badend"] .rose-opera-caption,
+.rose-opera[data-phenomenon="recall"] .rose-opera-caption,
+.rose-opera[data-phenomenon="obay"] .rose-opera-caption,
+.rose-opera[data-phenomenon="copter"] .rose-opera-caption,
+.rose-opera[data-phenomenon="stillhot"] .rose-opera-caption,
+.rose-opera[data-phenomenon="vow"] .rose-opera-caption,
+.rose-opera[data-phenomenon="manual"] .rose-opera-caption,
+.rose-opera[data-phenomenon="shiny"] .rose-opera-caption,
+.rose-opera[data-phenomenon="timeshare"] .rose-opera-caption,
+.rose-opera[data-phenomenon="elevate"] .rose-opera-caption,
+.rose-opera[data-phenomenon="shell"] .rose-opera-caption {
+  display: none;
+}
+.rose-opera[data-phenomenon="prom"] .rose-opera-air {
+  opacity: 0.45;
+}
+.rose-opera[data-phenomenon="twist"] .rose-opera-air {
+  opacity: 0.55;
+}
+.rose-opera-vortex,
+.rose-opera-vortex span {
+  display: none;
+}
+.rose-opera-vortex {
+  width: min(78vw, 42rem);
+  height: min(78vw, 42rem);
+  left: 50%;
+  top: 38%;
+  translate: -50% -50%;
+  animation: rose-spin 64s linear infinite;
+  opacity: calc(0.35 + var(--rose-energy) * 0.5);
+}
+.rose-opera-vortex span:nth-child(1) { inset: 8%; animation: rose-spin 42s linear infinite reverse; }
+.rose-opera-vortex span:nth-child(2) { inset: 18%; border-color: #6ec8d447; animation: rose-spin 28s linear infinite; }
+.rose-opera-vortex span:nth-child(3) { inset: 30%; border-color: #ff8fa347; animation: rose-spin 18s linear infinite reverse; }
+.rose-opera-lantern {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  z-index: 1;
+  width: 0.7rem;
+  height: 0.7rem;
+  translate: -50% 0;
+  border-radius: 999px;
+  background: #fffacd;
+  box-shadow: 0 0 22px #fffacdf2, 0 0 64px #c9a36acc, 0 0 120px #6ec8d473;
+  transform: scale(calc(0.86 + var(--rose-kick) * 0.7));
+  opacity: calc(0.45 + var(--rose-kick) * 0.55);
+  animation: rose-pulse 2.4s ease-in-out infinite;
+}
+.rose-opera-petals span {
+  position: absolute;
+  z-index: 1;
+  top: -8%;
+  width: 7px;
+  height: 11px;
+  border-radius: 80% 0 80% 0;
+  background: color-mix(in oklab, var(--color-shrimp) 70%, var(--color-gold));
+  opacity: calc(0.2 + var(--rose-energy) * 0.4);
+  animation: rose-fall 18s linear infinite;
+}
+.rose-welcome {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.9rem;
+  max-width: 40rem;
+}
+.rose-welcome-portrait {
+  width: 4.6rem;
+  height: 6.1rem;
+  flex: none;
+  object-fit: cover;
+  border-radius: 0.35rem 1.4rem 0.35rem 1.4rem;
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--rose-petal) 55%, var(--rose-vein)),
+    0 16px 32px #000000a8;
+}
+.rose-welcome-invite {
+  margin: 0 0 0.2rem;
+  font-family: var(--font-glaum);
+  font-style: italic;
+  font-size: clamp(1.05rem, 2.4vw, 1.45rem);
+  letter-spacing: 0.08em;
+  color: var(--rose-petal);
+  -webkit-text-stroke: 0.28px color-mix(in oklab, var(--rose-vein) 70%, transparent);
+  paint-order: stroke fill;
+  text-shadow: 0 8px 22px #000000c0;
+}
+.rose-welcome-invite::after {
+  content: "";
+  display: block;
+  width: 4.5rem;
+  height: 1px;
+  margin-top: 0.45rem;
+  background: linear-gradient(90deg, var(--rose-blush), transparent);
+}
+.rose-welcome-enter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 3rem;
+  padding: 0.28rem 0.85rem 0.28rem 0.28rem;
+  border-radius: 999px;
+  color: var(--rose-petal);
+  background: color-mix(in oklab, #12060c 72%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--rose-petal) 34%, transparent);
+}
+.rose-welcome-enter img {
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: none;
+  border-radius: 999px;
+  object-fit: cover;
+  outline: 1px solid color-mix(in oklab, var(--rose-petal) 55%, var(--rose-vein));
+  outline-offset: -1px;
+}
+.rose-welcome-enter span {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-family: var(--font-glaum);
+  font-size: 0.92rem;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  -webkit-text-stroke: 0.22px color-mix(in oklab, var(--rose-vein) 65%, transparent);
+  paint-order: stroke fill;
+}
+.rose-welcome-enter em {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-style: normal;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--rose-petal) 62%, var(--rose-blush));
+}
+@media (max-width: 520px) {
+  .rose-welcome-portrait {
+    width: 3.4rem;
+    height: 4.5rem;
+  }
+}
+.rose-preview-status {
+  position: absolute;
+  z-index: 5;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: min(26rem, calc(100% - 5.5rem));
+  margin: 0;
+  padding: 0.35rem 0.75rem 0.35rem 0.5rem;
+  border-radius: 999px;
+  color: var(--rose-petal);
+  background: #07030ad4;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--rose-petal) 28%, transparent);
+}
+.rose-preview-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: none;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--rose-petal) 35%, transparent);
+}
+.rose-preview-status.is-live {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--rose-blush) 70%, transparent),
+    0 0 18px color-mix(in oklab, var(--rose-vein) 35%, transparent);
+}
+.rose-preview-status.is-live .rose-preview-dot {
+  background: var(--rose-blush);
+  animation: rose-preview-live 1.6s ease-out infinite;
+}
+.rose-preview-kicker,
+.rose-preview-state {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.rose-preview-state {
+  color: var(--rose-blush);
+}
+.rose-preview-status.is-still .rose-preview-state {
+  color: color-mix(in oklab, var(--rose-petal) 55%, transparent);
+}
+.rose-preview-song {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-glaum);
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@keyframes rose-preview-live {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--rose-blush) 75%, transparent); }
+  100% { box-shadow: 0 0 0 7px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rose-preview-status.is-live .rose-preview-dot {
+    animation: none;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--rose-blush) 45%, transparent);
+  }
+}
+.rose-bad-wolf {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  top: 36%;
+  translate: -50% -50%;
+  opacity: 0;
+  pointer-events: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.9rem 1.7rem 1rem;
+  color: #fff7f4;
+  background: radial-gradient(circle at 50% 35%, #ff5a62, #c40022 58%, #4a0010);
+  box-shadow:
+    0 0 0 3px #2a0008,
+    0 0 0 7px #ff243c,
+    0 20px 48px #000000b0;
+  cursor: pointer;
+  transition: opacity 700ms ease;
+}
+.rose-bad-wolf.is-on {
+  opacity: 1;
+  pointer-events: auto;
+}
+.rose-bad-wolf span {
+  display: block;
+  font-family: Impact, "Arial Narrow", sans-serif;
+  font-size: clamp(2.4rem, 8vw, 4.8rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 0.85;
+  text-transform: uppercase;
+  text-shadow: 0 3px 0 #4a0010, 0 0 22px #ffb0b8;
+}
+.rose-bad-wolf.is-hot span {
+  animation: wolf-pump 0.22s ease;
+}
+.rose-opera.is-rocking .rose-opera-stage {
+  filter: saturate(1.5) contrast(1.12);
+}
+@keyframes wolf-pump {
+  40% { scale: 1.08; }
+  100% { scale: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rose-bad-wolf.is-hot span { animation: none; }
+  .rose-opera.is-rocking .rose-opera-stage { filter: saturate(1.15); }
+}
+.rose-opera-kicker {
+  font-family: var(--font-glaum);
+  font-size: 0.82rem;
+  font-style: italic;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--rose-petal);
+  -webkit-text-stroke: 0.4px var(--rose-vein);
+  paint-order: stroke fill;
+  text-shadow: 0 0 0.4px var(--rose-blush);
+}
+.rose-opera-title {
+  font-family: var(--font-glaum);
+  font-weight: 500;
+  font-size: clamp(3rem, 10vw, 6.5rem);
+  line-height: 0.88;
+  letter-spacing: -0.028em;
+  color: var(--rose-petal);
+  -webkit-text-stroke: 0.75px var(--rose-vein);
+  paint-order: stroke fill;
+  text-shadow:
+    0 0 0.55px var(--rose-vein),
+    0 0 0.9px color-mix(in oklab, var(--rose-blush) 70%, transparent),
+    0 0 22px color-mix(in oklab, var(--rose-petal) 22%, transparent),
+    0 12px 28px #000000b8;
+}
+.rose-opera-line {
+  margin-top: 0.85rem;
+  max-width: 24rem;
+  font-family: var(--font-glaum);
+  font-weight: 500;
+  font-size: clamp(1.15rem, 3vw, 1.7rem);
+  line-height: 1.25;
+  color: var(--rose-petal);
+  -webkit-text-stroke: 0.5px var(--rose-vein);
+  paint-order: stroke fill;
+  text-shadow: 0 0 0.45px var(--rose-blush), 0 8px 18px #00000080;
+}
+.rose-opera-whisper {
+  margin-top: 0.35rem;
+  font-family: var(--font-glaum);
+  font-size: 0.78rem;
+  font-style: italic;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--rose-petal) 82%, var(--rose-blush));
+  -webkit-text-stroke: 0.25px color-mix(in oklab, var(--rose-vein) 70%, transparent);
+  paint-order: stroke fill;
+  animation: rose-whisper 6s ease-in-out infinite;
+}
+.rose-opera-caption {
+  position: absolute;
+  left: 1rem;
+  right: auto;
+  top: auto;
+  bottom: 1.5rem;
+  z-index: 3;
+  max-width: min(32rem, 78vw);
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.45rem;
+  font-family: var(--font-glaum);
+  font-size: clamp(1.05rem, 2.6vw, 1.45rem);
+  font-style: italic;
+  letter-spacing: 0.03em;
+  line-height: 1.25;
+  text-transform: none;
+  text-align: left;
+  color: #fff6f1;
+  background: #07030acc;
+  -webkit-text-stroke: 0.35px #4a1220;
+  paint-order: stroke fill;
+  pointer-events: none;
+  text-shadow: 0 2px 0 #140308, 0 10px 24px #000000e0;
+}
+.rose-opera-full .rose-opera-caption {
+  bottom: calc(6.75rem + env(safe-area-inset-bottom, 0px));
+}
+.rose-opera.is-cinema .rose-opera-caption {
+  bottom: 1.35rem;
+  left: 1rem;
+  max-width: min(28rem, 70vw);
+}
+.rose-opera-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+.rose-opera-begin {
+  display: inline-flex;
+  min-width: 9rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0 1.25rem;
+  border-radius: 0.5rem;
+  border: 0.5px solid var(--rose-vein);
+  background: var(--rose-petal);
+  color: #1a0c10;
+  font-family: var(--font-glaum);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 0 0 0.5px color-mix(in oklab, var(--rose-blush) 70%, transparent);
+}
+.rose-opera-begin:disabled {
+  opacity: 0.6;
+}
+.rose-opera-hint {
+  margin: 0.85rem 0 0;
+  max-width: 36rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  line-height: 1.45;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--rose-petal) 88%, white);
+  text-shadow: 0 1px 0 #140308, 0 8px 18px #000000cc;
+}
+.rose-opera-ghost {
+  display: inline-flex;
+  height: 3rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.75rem;
+  color: var(--rose-petal);
+  font-family: var(--font-glaum);
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  -webkit-text-stroke: 0.22px color-mix(in oklab, var(--rose-vein) 65%, transparent);
+  paint-order: stroke fill;
+}
+.rose-preview-reset {
+  position: relative;
+  display: inline-flex;
+  height: 3rem;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 0.9rem 0 0.7rem;
+  border-radius: 999px;
+  color: var(--rose-petal);
+  font-family: var(--font-glaum);
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  -webkit-text-stroke: 0.22px color-mix(in oklab, var(--rose-vein) 65%, transparent);
+  paint-order: stroke fill;
+  background: color-mix(in oklab, #12060c 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--rose-petal) 22%, transparent);
+}
+.rose-preview-orbit {
+  position: relative;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: none;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--rose-blush) 55%, transparent);
+}
+.rose-preview-orbit i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.28rem;
+  height: 0.38rem;
+  margin: -0.28rem 0 0 -0.14rem;
+  border-radius: 70% 70% 70% 0;
+  background: var(--rose-blush);
+  transform-origin: 50% 0.72rem;
+}
+.rose-preview-orbit i:nth-child(1) { transform: rotate(0deg); }
+.rose-preview-orbit i:nth-child(2) { transform: rotate(120deg); }
+.rose-preview-orbit i:nth-child(3) { transform: rotate(240deg); }
+.rose-preview-reset.is-live {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--rose-blush) 80%, transparent),
+    0 0 18px color-mix(in oklab, var(--rose-vein) 45%, transparent);
+}
+.rose-preview-reset.is-live .rose-preview-orbit {
+  animation: rose-preview-spin 9s linear infinite;
+}
+.rose-preview-reset.is-live .rose-preview-orbit i {
+  animation: rose-preview-petal 1.6s ease-in-out infinite;
+}
+.rose-preview-reset.is-live .rose-preview-orbit i:nth-child(2) { animation-delay: 0.2s; }
+.rose-preview-reset.is-live .rose-preview-orbit i:nth-child(3) { animation-delay: 0.4s; }
+.rose-preview-reset.is-still {
+  color: color-mix(in oklab, var(--rose-petal) 62%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--rose-petal) 16%, transparent);
+}
+.rose-preview-reset.is-still .rose-preview-orbit {
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--rose-petal) 28%, transparent);
+}
+.rose-preview-reset.is-still .rose-preview-orbit i {
+  background: color-mix(in oklab, var(--rose-petal) 35%, transparent);
+  opacity: 0.7;
+}
+@keyframes rose-preview-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes rose-preview-petal {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rose-preview-reset.is-live .rose-preview-orbit,
+  .rose-preview-reset.is-live .rose-preview-orbit i {
+    animation: none;
+  }
+  .rose-preview-reset.is-live .rose-preview-orbit {
+    box-shadow: inset 0 0 0 2px var(--rose-blush);
+  }
+}
+.rose-opera-exit {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 4;
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  color: var(--color-prom);
+  background: #07030a73;
+  border-radius: 999px;
+}
+.rose-look-cycle {
+  position: absolute;
+  top: 1.25rem;
+  right: 1rem;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.75rem;
+  padding: 0.2rem 0.65rem 0.2rem 0.2rem;
+  border-radius: 999px;
+  color: var(--rose-petal);
+  background: color-mix(in oklab, #12060c 84%, var(--rose-petal));
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--rose-petal) 34%, transparent),
+    0 12px 28px #000000b8;
+  backdrop-filter: blur(14px);
+}
+.rose-look-cycle img {
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: none;
+  border-radius: 999px;
+  object-fit: cover;
+  outline: 1px solid color-mix(in oklab, var(--rose-petal) 55%, var(--rose-vein));
+  outline-offset: -1px;
+}
+.rose-look-cycle span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+  text-align: left;
+}
+.rose-look-cycle em {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-style: normal;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--rose-petal) 62%, var(--rose-blush));
+}
+.rose-look-cycle b {
+  font-family: var(--font-glaum);
+  font-weight: 500;
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+  color: var(--rose-petal);
+  -webkit-text-stroke: 0.22px color-mix(in oklab, var(--rose-vein) 65%, transparent);
+  paint-order: stroke fill;
+}
+.rose-look-cycle[aria-pressed="true"] {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--rose-blush) 55%, transparent), var(--shadow-filigree);
+}
+.rose-atelier-mark {
+  position: absolute;
+  top: 4.6rem;
+  right: 1rem;
+  z-index: 4;
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--rose-petal);
+  background: #07030a73;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--rose-petal) 28%, transparent);
+}
+.rose-atelier-mark[aria-pressed="true"] {
+  color: #1a0c10;
+  background: var(--rose-petal);
+}
+.rose-opera:not(.rose-opera-full) .rose-atelier-mark {
+  top: 3.6rem;
+  right: 0.5rem;
+}
+.rose-opera.is-atelier .rose-look-cycle,
+.rose-opera:not(.rose-opera-full) .rose-look-cycle span {
+  display: none;
+}
+.rose-opera:not(.rose-opera-full) .rose-look-cycle {
+  top: 0.5rem;
+  right: 0.5rem;
+  padding-right: 0.45rem;
+}
+@media (max-width: 520px) {
+  .rose-look-cycle span {
+    display: none;
+  }
+  .rose-look-cycle {
+    padding-right: 0.45rem;
+  }
+}
+.rose-desk {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 5;
+  max-height: min(70dvh, 34rem);
+  overflow: auto;
+  padding: 0.5rem;
+  border-radius: 1rem;
+  background: color-mix(in oklab, var(--color-bg) 88%, transparent);
+  box-shadow: var(--shadow-filigree);
+  backdrop-filter: blur(16px);
+}
+.rose-opera-full .rose-desk {
+  bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+}
+.rose-opera.is-cinema .rose-desk {
+  bottom: 1.15rem;
+}
+.rose-desk-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.25rem 0.5rem;
+}
+.rose-desk-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+.rose-playlist-open {
+  display: inline-flex;
+  height: 3rem;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  color: var(--rose-petal);
+  background: color-mix(in oklab, #12060c 78%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--rose-petal) 32%, transparent);
+  font-family: var(--font-glaum);
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  -webkit-text-stroke: 0.22px color-mix(in oklab, var(--rose-vein) 65%, transparent);
+  paint-order: stroke fill;
+}
+.rose-playlist-open[aria-expanded="true"] {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--rose-blush) 70%, transparent);
+  background: color-mix(in oklab, #1a0c12 88%, var(--rose-blush));
+}
+.rose-playlist-count {
+  min-width: 1.35rem;
+  padding: 0.12rem 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--rose-petal) 12%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  -webkit-text-stroke: 0;
+}
+.rose-playlist-station {
+  margin-left: auto;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  color: color-mix(in oklab, var(--rose-petal) 78%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.rose-playlist-station:hover {
+  color: var(--rose-petal);
+  background: color-mix(in oklab, var(--rose-petal) 8%, transparent);
+}
+.rose-desk > section {
+  margin-top: 0;
+  border-radius: 0.75rem;
+  background: transparent;
+  box-shadow: none;
+}
+.rose-desk-admin {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--color-bg-elevated);
+}
+.rose-desk-lock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 1rem 0.85rem 1.1rem;
+}
+.rose-desk-lock p {
+  margin: 0;
+  color: var(--color-muted);
+}
+.rose-atelier {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: min(22rem, calc(100% - 1.5rem));
+  max-height: min(78dvh, 40rem);
+  overflow: auto;
+  padding: 0.65rem 0.75rem 0.9rem;
+  border-radius: 1rem;
+  background: color-mix(in oklab, var(--color-bg) 90%, transparent);
+  box-shadow: var(--shadow-filigree);
+  backdrop-filter: blur(16px);
+}
+.rose-atelier-note,
+.rose-atelier-hint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+.rose-atelier-presets,
+.rose-atelier-toggles,
+.rose-atelier-save {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.rose-atelier-row {
+  display: grid;
+  grid-template-columns: 4.2rem 1fr 2.4rem;
+  gap: 0.4rem;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+.rose-atelier-row em {
+  font-style: normal;
+  text-align: right;
+  color: var(--color-muted);
+}
+.rose-atelier-copy span {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-subtle);
+}
+.rose-opera:not(.rose-opera-full) .rose-atelier {
+  max-height: 18rem;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+.rose-grok {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(24rem, calc(100% - 1.5rem));
+  max-height: min(70dvh, 32rem);
+  overflow: auto;
+  padding: 0.65rem 0.75rem 0.9rem;
+  border-radius: 1rem;
+  background: color-mix(in oklab, var(--color-bg) 90%, transparent);
+  box-shadow: var(--shadow-filigree);
+  backdrop-filter: blur(16px);
+}
+.rose-opera-full .rose-grok {
+  bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+}
+.rose-opera.is-cinema .rose-grok {
+  bottom: 1.15rem;
+}
+.rose-grok-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-height: 7rem;
+  max-height: 12rem;
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+.rose-grok-you,
+.rose-grok-them {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.7rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.rose-grok-you {
+  align-self: flex-end;
+  max-width: 92%;
+  background: color-mix(in oklab, var(--color-gold) 18%, var(--color-bg));
+  color: var(--color-fg);
+}
+.rose-grok-them {
+  align-self: flex-start;
+  max-width: 92%;
+  background: var(--color-bg-elevated);
+  color: var(--color-prom);
+}
+.rose-grok-form {
+  display: grid;
+  gap: 0.4rem;
+}
+.rose-grok-form textarea {
+  width: 100%;
+  min-height: 3.2rem;
+  resize: vertical;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font: inherit;
+}
+.rose-opera:not(.rose-opera-full) .rose-grok {
+  max-height: 16rem;
+  left: 0.5rem;
+  bottom: 0.5rem;
+}
+@media (min-width: 960px) {
+  .rose-opera-full .rose-grok {
+    top: 0.75rem;
+    bottom: auto;
+    left: 0.75rem;
+    max-height: min(78dvh, 40rem);
+  }
+}
+.rose-desk-bar .rose-desk-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.rose-opera.is-hush .rose-opera-still,
+.rose-opera.is-hush .rose-opera-vortex,
+.rose-opera.is-hush .rose-opera-vortex span,
+.rose-opera.is-hush .rose-opera-lantern,
+.rose-opera.is-hush .rose-opera-whisper,
+.rose-opera.is-hush .rose-opera-air span,
+.rose-opera.is-hush .rose-field-hedge,
+.rose-opera.is-hush .rose-field-ground,
+.rose-opera.is-hush .rose-field-bloom,
+.rose-opera.is-hush .rose-glitter {
+  animation-play-state: paused;
+}
+body.rose-cinema-on {
+  overflow: hidden;
+}
+body.rose-cinema-on header.sticky {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 0;
+  transition: transform 320ms var(--ease-out-smooth), opacity 320ms var(--ease-out-smooth);
+}
+body.rose-cinema-on .player-stage {
+  inset: 0;
+}
+body.rose-cinema-on .player-sliver-rail {
+  left: 12%;
+  right: 12%;
+  bottom: 0.7rem;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: color-mix(in oklab, #07030a 58%, var(--color-prom));
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-prom) 30%, transparent),
+    0 0 14px color-mix(in oklab, var(--color-shrimp) 32%, transparent);
+}
+body.rose-cinema-on .player-sliver-fill {
+  opacity: 1;
+  background: linear-gradient(90deg, var(--rose-vein, #c45c6a), var(--color-shrimp), var(--color-prom));
+  box-shadow: 0 0 10px color-mix(in oklab, var(--color-shrimp) 55%, transparent);
+}
+body.rose-cinema-on .player-shell-rose .player-sliver-fill {
+  background: linear-gradient(90deg, var(--rose-vein, #c45c6a), var(--color-shrimp), var(--color-prom));
+}
+body.rose-cinema-on .player-sliver-mark {
+  opacity: 0.38;
+  margin-bottom: 1.15rem;
+}
+body.rose-cinema-on .player-sliver:hover .player-sliver-rail,
+body.rose-cinema-on .player-sliver:focus-visible .player-sliver-rail {
+  height: 5px;
+}
+body.rose-cinema-on .player-sliver:hover .player-sliver-mark,
+body.rose-cinema-on .player-sliver:focus-visible .player-sliver-mark {
+  opacity: 0.95;
+}
+
+/* Compact deck overlays the stage instead of leaving a site-background shelf. */
+body:has(.rose-opera-full) .player-dock.player-shell-rose:not(.player-sliver) {
+  background:
+    linear-gradient(180deg, transparent 0%, #1a120ee6 18%, #16100cf2 56%, #120c0af7 100%);
+  border-top-color: transparent;
+  box-shadow: 0 -28px 48px #07030a66;
+}
+body:has(.player-dock.player-shell-rose:not(.player-sliver)) .rose-opera-full .rose-opera-copy,
+body:has(.player-dock.player-shell-rose:not(.player-sliver)) .rose-opera.is-cinema .rose-opera-copy {
+  padding-bottom: calc(9rem + env(safe-area-inset-bottom, 0px));
+}
+body:has(.player-sliver) .rose-opera-full:not(.is-cinema) .rose-opera-caption {
+  bottom: 2.15rem;
+}
+body:has(.player-sliver) .rose-opera-full:not(.is-cinema) .rose-desk,
+body:has(.player-sliver) .rose-opera-full:not(.is-cinema) .rose-grok {
+  bottom: 1.15rem;
+}
+@media (min-width: 960px) {
+  body:has(.player-sliver) .rose-opera-full:not(.is-cinema) .rose-grok {
+    top: 0.75rem;
+    bottom: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rose-opera-still,
+  .rose-opera-vortex,
+  .rose-opera-vortex span,
+  .rose-opera-lantern,
+  .rose-opera-whisper,
+  .rose-opera-air span,
+  .rose-field-hedge,
+  .rose-field-ground,
+  .rose-field-bloom,
+  .rose-glitter {
+    animation: none;
+  }
+  .rose-opera-still { opacity: 0; }
+  .rose-opera-still-0 { opacity: 1; transform: none; }
+}
+@keyframes rose-ken {
+  0%, 18% { opacity: 0; transform: scale(1.08); }
+  22%, 40% { opacity: 1; transform: scale(1); }
+  48%, 100% { opacity: 0; transform: scale(1.04); }
+}
+@keyframes rose-spin { to { transform: rotate(360deg); } }
+@keyframes rose-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(0.86); }
+  50% { opacity: 1; transform: scale(1.18); }
+}
+@keyframes rose-twirl {
+  0% { transform: translate3d(0, -8%, 0) rotate(-18deg) scale(0.82); opacity: 0; }
+  8% { opacity: 0.3; }
+  42% { transform: translate3d(36px, 46vh, 0) rotate(128deg) scale(1); opacity: 0.32; }
+  100% { transform: translate3d(-22px, 118vh, 0) rotate(300deg) scale(0.74); opacity: 0; }
+}
+@keyframes rose-whisper {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+@keyframes rose-field-breathe {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.46; }
+}
+@keyframes rose-field-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.02); }
+  50% { transform: translate3d(-2.4%, 1.2%, 0) scale(1.06); }
+}
+@keyframes rose-glint {
+  0%, 78%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); }
+  82% { opacity: 0.95; transform: scale(1.15) rotate(18deg); }
+  88% { opacity: 0.35; transform: scale(0.7) rotate(28deg); }
+}
+
+.rose-opera[data-phenomenon="vortex"] .rose-opera-stills {
+  opacity: 0;
+  visibility: hidden;
+}
+.rose-opera[data-phenomenon="vortex"] .rose-opera-loop {
+  opacity: 1;
+  z-index: 1;
+  mix-blend-mode: normal;
+  transform: none;
+  filter: saturate(1.2) contrast(1.12) brightness(1.28);
+}
+.rose-opera[data-phenomenon="vortex"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 46%, transparent 42%, #07030a40 88%),
+    linear-gradient(180deg, #07030a08, #07030a66);
+}
+.rose-opera[data-phenomenon="vortex"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="vortex"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="vortex"] .rose-opera-fields,
+.rose-opera[data-phenomenon="vortex"] .rose-opera-air {
+  opacity: 0;
+  visibility: hidden;
+}
+.rose-opera[data-phenomenon="petals"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="petals"] .rose-opera-lantern {
+  opacity: 0;
+  visibility: hidden;
+}
+.rose-opera[data-phenomenon="void"] .rose-opera-stills,
+.rose-opera[data-phenomenon="void"] .rose-opera-loop {
+  opacity: 0.12;
+}
+.rose-opera[data-phenomenon="still-rite"] .rose-opera-loop {
+  opacity: 0.18;
+}
+.rose-opera[data-phenomenon="glyphs"] .rose-opera-stills {
+  opacity: calc(var(--rose-stills, 0.72) * 0.45);
+}
+.rose-opera[data-phenomenon="prom"] .rose-opera-loop,
+.rose-opera[data-phenomenon="prom"] .rose-opera-stills,
+.rose-opera[data-phenomenon="prom"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="prom"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="twist"] .rose-opera-loop,
+.rose-opera[data-phenomenon="twist"] .rose-opera-stills,
+.rose-opera[data-phenomenon="twist"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="twist"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="remember"] .rose-opera-loop,
+.rose-opera[data-phenomenon="remember"] .rose-opera-stills,
+.rose-opera[data-phenomenon="remember"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="remember"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="firewall"] .rose-opera-loop,
+.rose-opera[data-phenomenon="firewall"] .rose-opera-stills,
+.rose-opera[data-phenomenon="firewall"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="firewall"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="allocate"] .rose-opera-loop,
+.rose-opera[data-phenomenon="allocate"] .rose-opera-stills,
+.rose-opera[data-phenomenon="allocate"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="allocate"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="wolf"] .rose-opera-loop,
+.rose-opera[data-phenomenon="wolf"] .rose-opera-stills,
+.rose-opera[data-phenomenon="wolf"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="wolf"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="current"] .rose-opera-loop,
+.rose-opera[data-phenomenon="current"] .rose-opera-stills,
+.rose-opera[data-phenomenon="current"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="current"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="sweetie"] .rose-opera-loop,
+.rose-opera[data-phenomenon="sweetie"] .rose-opera-stills,
+.rose-opera[data-phenomenon="sweetie"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="sweetie"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="halo"] .rose-opera-loop,
+.rose-opera[data-phenomenon="halo"] .rose-opera-stills,
+.rose-opera[data-phenomenon="halo"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="halo"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="choir"] .rose-opera-loop,
+.rose-opera[data-phenomenon="choir"] .rose-opera-stills,
+.rose-opera[data-phenomenon="choir"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="choir"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="badend"] .rose-opera-loop,
+.rose-opera[data-phenomenon="badend"] .rose-opera-stills,
+.rose-opera[data-phenomenon="badend"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="badend"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="recall"] .rose-opera-loop,
+.rose-opera[data-phenomenon="recall"] .rose-opera-stills,
+.rose-opera[data-phenomenon="recall"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="recall"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="obay"] .rose-opera-loop,
+.rose-opera[data-phenomenon="obay"] .rose-opera-stills,
+.rose-opera[data-phenomenon="obay"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="obay"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="copter"] .rose-opera-loop,
+.rose-opera[data-phenomenon="copter"] .rose-opera-stills,
+.rose-opera[data-phenomenon="copter"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="copter"] .rose-opera-lantern {
+  opacity: 0 !important;
+  visibility: hidden;
+}
+.rose-opera[data-phenomenon="prom"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 48%, transparent 26%, #120608d6 80%),
+    linear-gradient(180deg, #1a0c1030, #0a0408ee);
+}
+.rose-opera[data-phenomenon="twist"] .rose-opera-veil {
+  background:
+    radial-gradient(ellipse at 50% 38%, color-mix(in oklab, #5aff9a 14%, transparent) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 42%, color-mix(in oklab, #ff5ab4 10%, transparent) 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 52%, transparent 34%, #08140eb8 88%),
+    linear-gradient(180deg, #10241818, #040e08d0);
+}
+.rose-opera[data-phenomenon="prom"] .rose-opera-caption,
+.rose-opera[data-phenomenon="twist"] .rose-opera-caption,
+.rose-opera[data-phenomenon="remember"] .rose-opera-caption,
+.rose-opera[data-phenomenon="firewall"] .rose-opera-caption,
+.rose-opera[data-phenomenon="allocate"] .rose-opera-caption,
+.rose-opera[data-phenomenon="wolf"] .rose-opera-caption,
+.rose-opera[data-phenomenon="current"] .rose-opera-caption,
+.rose-opera[data-phenomenon="sweetie"] .rose-opera-caption,
+.rose-opera[data-phenomenon="halo"] .rose-opera-caption,
+.rose-opera[data-phenomenon="choir"] .rose-opera-caption,
+.rose-opera[data-phenomenon="badend"] .rose-opera-caption,
+.rose-opera[data-phenomenon="recall"] .rose-opera-caption,
+.rose-opera[data-phenomenon="obay"] .rose-opera-caption,
+.rose-opera[data-phenomenon="copter"] .rose-opera-caption,
+.rose-opera[data-phenomenon="stillhot"] .rose-opera-caption,
+.rose-opera[data-phenomenon="vow"] .rose-opera-caption,
+.rose-opera[data-phenomenon="manual"] .rose-opera-caption,
+.rose-opera[data-phenomenon="shiny"] .rose-opera-caption,
+.rose-opera[data-phenomenon="timeshare"] .rose-opera-caption,
+.rose-opera[data-phenomenon="elevate"] .rose-opera-caption,
+.rose-opera[data-phenomenon="shell"] .rose-opera-caption {
+  display: none;
+}
+.rose-atelier-presets button[aria-pressed="true"] {
+  color: var(--color-bg);
+  background: var(--color-fg);
+}
+
