@@ -21,6 +21,7 @@ export type Persisted = {
   favorites: string[];
   shuffleBySlug: Record<string, boolean>;
   listenMode: ListenMode;
+  roseRite: boolean;
 };
 
 const defaults: Persisted = {
@@ -40,6 +41,7 @@ const defaults: Persisted = {
   favorites: [],
   shuffleBySlug: {},
   listenMode: "ondemand",
+  roseRite: false,
 };
 
 export function loadPersisted(): Persisted {
@@ -64,6 +66,7 @@ export function loadPersisted(): Persisted {
       muted: Boolean(parsed.muted),
       playerHidden: Boolean(parsed.playerHidden),
       listenMode: parseListenMode(parsed.listenMode) ?? "ondemand",
+      roseRite: parsed.roseRite === true,
     };
   } catch {
     return defaults;

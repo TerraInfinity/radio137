@@ -40,12 +40,17 @@ function ExperiencePage() {
     if (!ready || !catalogReady || !stationSlug || !experience) return;
     const state = usePlayerStore.getState();
     if (experience.slug === "rose") {
-      if (state.roseRite) return;
+      if (state.channelSlug === stationSlug && state.track) return;
+      if (state.roseRite && state.lastSlug === stationSlug && state.lastTrackId) {
+        void tuneIn(stationSlug, { play: false });
+        return;
+      }
       const channel = catalog.channels.find((item) => item.slug === stationSlug);
       const preview = previewTrackOf(getPlayableTracks(channel));
       if (!preview) return;
       if (state.channelSlug === stationSlug && state.track?.id === preview.id) return;
-      void cueTrack(stationSlug, preview.id, { play: false, hold: true });
+      const offset = state.lastSlug === stationSlug && state.lastTrackId === preview.id ? state.lastOffsetSec : 0;
+      void cueTrack(stationSlug, preview.id, { play: false, hold: true, offsetSec: offset });
       return;
     }
     if (arrived.current) return;

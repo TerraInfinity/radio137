@@ -70,7 +70,7 @@ export function RoseOpera({
   const [cinema, setCinema] = useState<"off" | "auto" | "manual">("off");
   const [drift, setDrift] = useState(false);
   const [arming, setArming] = useState(false);
-  const [holdingPreview, setHoldingPreview] = useState(experience.slug === "rose");
+  const [holdingPreview, setHoldingPreview] = useState(() => experience.slug === "rose" && !usePlayerStore.getState().roseRite);
   const [atelierOpen, setAtelierOpen] = useState(false);
   const [chrome, setChrome] = useState(true);
   const [crossing, setCrossing] = useState(false);
@@ -273,6 +273,10 @@ export function RoseOpera({
     setRocking(true);
     setWolfPop(rock.hits);
   }
+
+  useEffect(() => {
+    if (roseRite) setHoldingPreview(false);
+  }, [roseRite]);
 
   useEffect(() => {
     setOverrideId(null);
@@ -558,7 +562,9 @@ export function RoseOpera({
     if (now - riteAt.current < 400) return;
     riteAt.current = now;
     const state = usePlayerStore.getState();
-    const stopping = !holdingPreview && (state.status === "playing" || (arming && state.status === "loading"));
+    const snap = radioEngine.snapshot();
+    const stalled = snap.buffering || snap.paused || snap.readyState < 2 || snap.needsRecover;
+    const stopping = !holdingPreview && !stalled && (state.status === "playing" || (arming && state.status === "loading"));
     if (stopping) {
       setArming(false);
       setChrome(true);

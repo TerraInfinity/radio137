@@ -20,7 +20,7 @@ import { experienceSlugFromPath, pageCuesPlayback, shouldHoldRosePreview } from 
 import { getExperience } from "@/lib/experiences";
 import { previewTrackOf } from "@/lib/phenomena";
 import { bindMediaSession, flushMediaSession, ignoreHidePause, rebindMediaSession, syncMediaSession } from "@/lib/media-session";
-import { claimPlaybackSession, displayAsleep } from "@/lib/display-rest";
+import { claimPlaybackSession, deckIsStalled, displayAsleep } from "@/lib/display-rest";
 import { forgetCachedAudio, hasCachedAudio, pinCachedAudio, playableSrc, rememberAudio, shouldHoldAutoAdvance, dataSaverOn, warmTrackSrc } from "@/lib/audio-cache";
 import { mediaUrl } from "@/lib/media";
 import { loadPersisted, savePersisted } from "@/lib/storage";
@@ -69,7 +69,7 @@ type PlayerState = {
   hydrate: () => void;
   enterGate: () => void;
   tuneIn: (slug: string, opts?: { forcePlay?: boolean; fromStart?: boolean; play?: boolean }) => Promise<void>;
-  cueTrack: (slug: string, trackId: string, opts?: { play?: boolean; hold?: boolean }) => Promise<void>;
+  cueTrack: (slug: string, trackId: string, opts?: { play?: boolean; hold?: boolean; offsetSec?: number }) => Promise<void>;
   togglePlay: () => Promise<void>;
   halt: () => void;
   next: (reason?: "user" | "ended" | "error") => Promise<void>;
@@ -126,6 +126,7 @@ function persist() {
     favorites: s.favorites,
     shuffleBySlug: s.shuffleBySlug,
     listenMode: s.listenMode,
+    roseRite: s.roseRite,
   });
 }
 
@@ -219,6 +220,30 @@ function bindPlaybackLock() {
   });
 }
 
+let savedAt = 0;
+
+async function wakeDeck() {
+  const s = usePlayerStore.getState();
+  if (userPaused || !s.track) {
+    usePlayerStore.setState({ buffering: false });
+    return;
+  }
+  const snap = radioEngine.snapshot();
+  const stalled = deckIsStalled({ paused: snap.paused, readyState: snap.readyState, buffering: snap.buffering || s.buffering });
+  if (!stalled && !snap.needsRecover && s.status === "playing") return;
+  radioEngine.want(true);
+  const ok = await radioEngine.recover();
+  const heard = radioEngine.snapshot().currentTime;
+  usePlayerStore.setState({
+    status: ok ? "playing" : "paused",
+    buffering: false,
+    currentTime: heard > 0 ? heard : s.currentTime,
+  });
+  if (ok) radioEngine.want(true);
+  persist();
+  flushMediaSession();
+}
+
 function bindEngine() {
   if (engineBound || typeof window === "undefined") return;
   engineBound = true;
@@ -233,6 +258,11 @@ function bindEngine() {
         currentTime,
         duration: duration > 0 ? duration : usePlayerStore.getState().duration,
       });
+      const now = Date.now();
+      if (now - savedAt > 8000) {
+        savedAt = now;
+        persist();
+      }
       syncMediaSession();
     },
     onEnded: (measured, fileDuration) => {
@@ -250,12 +280,25 @@ function bindEngine() {
       void usePlayerStore.getState().next("ended");
     },
     onError: () => {
+      if (displayAsleep()) return;
+      const heard = radioEngine.snapshot().currentTime;
+      if (heard > 1) {
+        void radioEngine.recover().then((ok) => {
+          if (ok) {
+            radioEngine.want(true);
+            usePlayerStore.setState({ status: "playing", buffering: false });
+            return;
+          }
+          void usePlayerStore.getState().next("error");
+        });
+        return;
+      }
       void usePlayerStore.getState().next("error");
     },
     onPause: () => {
       if (displayAsleep() && !userPaused) return;
       const s = usePlayerStore.getState();
-      if (s.status === "playing") usePlayerStore.setState({ status: "paused" });
+      if (s.status === "playing") usePlayerStore.setState({ status: "paused", buffering: false });
       if (s.track && s.duration > 20) {
         rememberAudio(s.track, { listenedRatio: s.currentTime / Math.max(s.duration, 1) });
       }
@@ -265,8 +308,10 @@ function bindEngine() {
       const s = usePlayerStore.getState();
       if (userPaused) {
         radioEngine.pause();
+        radioEngine.want(false);
         return;
       }
+      radioEngine.want(true);
       takeSpeaker();
       if (s.status === "paused" || s.status === "loading") {
         usePlayerStore.setState({ status: "playing", buffering: false, elsewhere: null });
@@ -315,14 +360,11 @@ function bindEngine() {
   window.addEventListener("pagehide", persist);
   window.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
+      radioEngine.releaseWarm();
       persist();
       return;
     }
-    const s = usePlayerStore.getState();
-    if (userPaused || !s.track) return;
-    if ((s.status === "playing" || s.status === "loading") && radioEngine.snapshot().paused) {
-      void radioEngine.resume();
-    }
+    void wakeDeck();
   });
   window.addEventListener("pageshow", () => {
     rebindMediaSession();
@@ -344,7 +386,7 @@ function bindEngine() {
       {
         play: () => {
           const s = usePlayerStore.getState();
-          if (s.status === "playing") void radioEngine.resume();
+          if (s.status === "playing") void radioEngine.recover();
           else void s.togglePlay();
         },
         pause: () => {
@@ -357,6 +399,7 @@ function bindEngine() {
       },
     );
     syncMediaSession();
+    void wakeDeck();
   });
 }
 
@@ -609,6 +652,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       shuffleBySlug: p.shuffleBySlug,
       listenMode: p.listenMode,
       listenModeSession: typeof window !== "undefined" ? listenModeFromLocation(window.location.search, window.location.hash) : null,
+      roseRite: p.roseRite,
     });
     radioEngine.setGain(p.volume, p.muted);
     if (visited && !p.visited) persist();
@@ -818,7 +862,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       holdAtEnd = Boolean(opts?.hold);
       if (play) userPaused = false;
       else userPaused = true;
-      await loadTrack(slug, track, 0, play, set, 0, "flow", false, Boolean(opts?.hold));
+      await loadTrack(slug, track, Math.max(0, opts?.offsetSec ?? 0), play, set, 0, "flow", false, Boolean(opts?.hold));
       if (opts?.hold && get().roseRite) return;
       set({ lastSlug: slug, visited: true, gateOpen: false });
       persist();
@@ -829,6 +873,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   halt: () => {
     userPaused = true;
+    radioEngine.want(false);
     radioEngine.pause();
     playbackLock.release();
     set({ status: "paused", elsewhere: null, buffering: false });
@@ -837,15 +882,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   togglePlay: async () => {
     const state = get();
-    if (state.status === "playing") {
+    const snap = radioEngine.snapshot();
+    const stalled = deckIsStalled({
+      paused: snap.paused,
+      readyState: snap.readyState,
+      buffering: snap.buffering || state.buffering,
+    });
+    if (state.status === "playing" && !stalled && !snap.needsRecover) {
       userPaused = true;
+      radioEngine.want(false);
       radioEngine.pause();
       playbackLock.release();
-      set({ status: "paused", elsewhere: null });
+      set({ status: "paused", elsewhere: null, buffering: false });
       flushMediaSession();
       return;
     }
     userPaused = false;
+    radioEngine.want(true);
     takeSpeaker();
     if (rosePreviewHeld(state.channelSlug)) {
       const channel = channelOf(state.channelSlug);
@@ -865,8 +918,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         await loadTrack(state.channelSlug, state.track, state.currentTime, true, set, 0, "flow");
         return;
       }
-      const ok = await radioEngine.resume();
-      set({ status: ok ? "playing" : "paused", elsewhere: ok ? null : get().elsewhere });
+      const ok = await radioEngine.recover();
+      const heard = radioEngine.snapshot().currentTime;
+      set({
+        status: ok ? "playing" : "paused",
+        buffering: false,
+        currentTime: heard > 0 ? heard : state.currentTime,
+        elsewhere: ok ? null : get().elsewhere,
+      });
       flushMediaSession();
       return;
     }

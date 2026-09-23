@@ -16,7 +16,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/sso.test.ts src/lib/similar-cuts.test.ts src/lib/catalog-edits.test.ts src/lib/media.test.ts src/lib/audio-cache.test.ts src/lib/cn.test.ts src/lib/duration-probe.test.ts src/lib/rose-pulse.test.ts src/lib/rose-look.test.ts src/lib/playback-lock.test.ts src/lib/phenomena.test.ts src/lib/experiences.test.ts src/lib/rose-grok.test.ts src/lib/experience-unlock.test.ts src/lib/rose-air.test.ts src/lib/rose-rite.test.ts src/lib/rose-feed.test.ts src/lib/audio-transcode.test.ts src/lib/experience-preload.test.ts src/lib/desk-performance.test.ts",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/sso.test.ts src/lib/similar-cuts.test.ts src/lib/catalog-edits.test.ts src/lib/media.test.ts src/lib/audio-cache.test.ts src/lib/cn.test.ts src/lib/duration-probe.test.ts src/lib/rose-pulse.test.ts src/lib/rose-look.test.ts src/lib/playback-lock.test.ts src/lib/phenomena.test.ts src/lib/experiences.test.ts src/lib/rose-grok.test.ts src/lib/experience-unlock.test.ts src/lib/rose-air.test.ts src/lib/rose-rite.test.ts src/lib/rose-feed.test.ts src/lib/display-rest.test.ts src/lib/audio-transcode.test.ts src/lib/experience-preload.test.ts src/lib/desk-performance.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

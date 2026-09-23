@@ -67,6 +67,9 @@ export class RadioEngine {
   private hangTimer: number | null = null;
   private startedAt = 0;
   private darkAt = 0;
+  private darkNudgeAt = 0;
+  private wantsPlay = false;
+  private needsRecover = false;
 
   attach(handlers: Handlers) {
     this.handlers = handlers;
@@ -90,6 +93,7 @@ export class RadioEngine {
       paused: el?.paused ?? true,
       src: el?.currentSrc || el?.src || "",
       readyState: el?.readyState ?? 0,
+      needsRecover: this.needsRecover || Boolean(el?.error),
       buffered: el
         ? { length: el.buffered.length, end: (index: number) => el.buffered.end(index) }
         : { length: 0, end: () => 0 },
@@ -140,6 +144,120 @@ export class RadioEngine {
     if (!el) return;
     el.volume = muted ? 0 : volume;
     el.muted = muted;
+  }
+
+  /** The listener still wants this song. A dark screen may pause the element; we may nudge it back. */
+  want(play: boolean) {
+    this.wantsPlay = play;
+    if (!play) this.needsRecover = false;
+  }
+
+  /** Drop the prefetch element so it cannot steal the song's bandwidth. */
+  releaseWarm() {
+    this.warmUrl = "";
+    const warm = this.warmer;
+    if (!warm) return;
+    try {
+      warm.pause();
+      warm.removeAttribute("src");
+      warm.load();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private async nudge(): Promise<boolean> {
+    const el = this.ensure();
+    if (!el?.src || el.error) return false;
+    try {
+      await el.play();
+      this.buffering = false;
+      this.needsRecover = false;
+      this.lastAdvanceAt = performance.now();
+      this.armWatchdog();
+      this.handlers?.onBuffering?.(false);
+      return !el.paused;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Start the same file again at the heard position.
+   * Never jumps back to 0:00 just because the buffer died.
+   */
+  async recover(): Promise<boolean> {
+    const el = this.ensure();
+    if (!el || this.loading) return false;
+    const src = el.currentSrc || el.src;
+    if (!src) return false;
+    const at = Math.max(this.highWater, el.currentTime || 0);
+    this.needsRecover = false;
+    if (!el.error && (el.paused || this.buffering || el.readyState < 2)) {
+      const nudged = await this.nudge();
+      if (nudged && el.readyState >= 2 && !el.error) return true;
+    } else if (!el.paused && el.readyState >= 2 && !el.error) {
+      return true;
+    }
+    this.loading = true;
+    this.buffering = true;
+    this.handlers?.onBuffering?.(true);
+    const gen = this.gen;
+    try {
+      el.pause();
+    } catch {
+      /* ignore */
+    }
+    try {
+      el.src = src;
+      el.load();
+    } catch {
+      this.loading = false;
+      this.buffering = false;
+      this.handlers?.onBuffering?.(false);
+      return false;
+    }
+    const ready = await waitFor(el, "canplay", gen, 8000, () => this.gen);
+    if (gen !== this.gen) {
+      this.loading = false;
+      return false;
+    }
+    if (ready === "error" || ready === "stale") {
+      this.loading = false;
+      this.buffering = false;
+      this.handlers?.onBuffering?.(false);
+      return false;
+    }
+    if (at > 0.35) {
+      try {
+        el.currentTime = at;
+      } catch {
+        /* seek when the browser allows it */
+      }
+      await waitFor(el, "seeked", gen, 1200, () => this.gen);
+    }
+    if (gen !== this.gen) {
+      this.loading = false;
+      return false;
+    }
+    try {
+      await el.play();
+    } catch {
+      this.loading = false;
+      this.buffering = false;
+      this.highWater = Math.max(this.highWater, at);
+      this.handlers?.onBuffering?.(false);
+      return false;
+    }
+    this.loading = false;
+    this.buffering = false;
+    this.highWater = Math.max(at, el.currentTime || 0);
+    this.lastAdvanceAt = performance.now();
+    this.startedAt = performance.now() - (el.currentTime || 0) * 1000;
+    this.armWatchdog();
+    this.handlers?.onBuffering?.(false);
+    this.handlers?.onTime?.(el.currentTime || at, Number.isFinite(el.duration) ? el.duration : 0);
+    return !el.paused;
   }
 
   /** True when the song already has a cushion, so a prefetch cannot steal its bandwidth. */
@@ -338,6 +456,10 @@ export class RadioEngine {
     });
     el.addEventListener("error", () => {
       if (this.ending || this.loading) return;
+      if (displayAsleep()) {
+        this.needsRecover = true;
+        return;
+      }
       this.handlers?.onError();
     });
     el.addEventListener("waiting", () => {
@@ -374,6 +496,7 @@ export class RadioEngine {
     const duration = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 0;
     const t = el.currentTime || 0;
     if (displayAsleep()) {
+      if (t > this.highWater) this.highWater = t;
       this.lastAdvanceAt = performance.now();
       const now = performance.now();
       if (now - this.darkAt > 4000) {
@@ -407,11 +530,19 @@ export class RadioEngine {
   private tick(gen: number) {
     if (gen !== this.gen || this.ending || this.loading) return;
     const el = this.el;
-    if (!el || el.paused) return;
+    if (!el) return;
     if (displayAsleep()) {
+      const t = el.currentTime || 0;
+      if (t > this.highWater) this.highWater = t;
       this.lastAdvanceAt = performance.now();
+      const now = performance.now();
+      if (this.wantsPlay && el.paused && now - this.darkNudgeAt > 5000) {
+        this.darkNudgeAt = now;
+        void el.play().catch(() => undefined);
+      }
       return;
     }
+    if (el.paused) return;
     const t = el.currentTime || 0;
     const duration = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 0;
     const now = performance.now();

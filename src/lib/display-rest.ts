@@ -17,7 +17,10 @@ export function onDisplayRest(rest: () => void, wake: () => void): () => void {
   };
 }
 
-/** Ask the browser to treat this tab as music, so a dark screen does not drop the song. */
+/** The deck looks busy but is not actually playing. A tap should wake it, not pause it. */
+export function deckIsStalled(snap: { paused: boolean; readyState: number; buffering: boolean }): boolean {
+  return snap.buffering || snap.paused || snap.readyState < 2;
+}
 export function claimPlaybackSession() {
   if (typeof navigator === "undefined") return;
   const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
