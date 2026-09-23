@@ -29,24 +29,24 @@ export function FeatureBoard({ rows }: { rows: DialRow[] }) {
 function FeatureFace({ row, large, onPlay }: { row: DialRow; large?: boolean; onPlay: () => void }) {
   return (
     <article className="group relative isolate min-h-52 overflow-hidden rounded-2xl bg-bg-elevated shadow-[var(--shadow-filigree)]">
-      {row.channel ? (
-        <StationVisual channel={row.channel} size={large ? "hero" : "card"} className="absolute inset-0 size-full" />
-      ) : (
-        <img src={row.cover} alt="" className="absolute inset-0 size-full object-cover" />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
-      <div className="relative flex h-full min-h-52 flex-col justify-end p-5 sm:p-6">
+      <Link to={row.href} params={{ slug: row.slug }} aria-label={`Open ${row.title}`} className="absolute inset-0 z-0">
+        {row.channel ? (
+          <StationVisual channel={row.channel} size={large ? "hero" : "card"} className="absolute inset-0 size-full" />
+        ) : (
+          <img src={row.cover} alt="" className="absolute inset-0 size-full object-cover" />
+        )}
+        <span className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+      </Link>
+      <div className="pointer-events-none relative z-10 flex h-full min-h-52 flex-col justify-end p-5 sm:p-6">
         <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold">
           {row.kind === "experience" ? "Experience" : "Station"}
           {row.kicker ? ` · ${row.kicker}` : ""}
         </p>
         <h2 className={large ? "mt-2 font-display text-4xl font-semibold tracking-tight text-white sm:text-5xl" : "mt-1 font-display text-2xl font-semibold text-white"}>
-          <Link to={row.href} params={{ slug: row.slug }}>
-            {row.title}
-          </Link>
+          {row.title}
         </h2>
         {row.line ? <p className="mt-1 max-w-prose font-glaum text-lg text-gold">{row.line}</p> : null}
-        <div className="mt-4 flex gap-2">
+        <div className="pointer-events-auto mt-4 flex gap-2">
           <button
             type="button"
             onClick={onPlay}

@@ -70,9 +70,16 @@ function OnAir() {
     <section className="mt-10 overflow-hidden rounded-2xl bg-bg-elevated shadow-[var(--shadow-filigree)]">
       <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
         <div className="size-24 shrink-0 overflow-hidden rounded-xl sm:size-28">
-          {channel && track ? (
+        {channel && track ? (
+          <Link
+            to={experience ? "/experiences/$slug" : "/channel/$slug"}
+            params={{ slug: experience ? experience.slug : channel.slug }}
+            className="block size-full"
+            aria-label={`Open ${experience ? experience.title : channel.name}`}
+          >
             <CoverArt src={visualSrc(track, channel)} alt="" className="size-full" motion="loop" />
-          ) : (
+          </Link>
+        ) : (
             <div className="size-full bg-black/40" />
           )}
         </div>
