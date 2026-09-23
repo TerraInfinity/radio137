@@ -52,6 +52,7 @@ export function RoseOpera({
   const halt = usePlayerStore((s) => s.halt);
   const track = usePlayerStore((s) => (s.channelSlug === experience.stationSlug ? s.track : null));
   const currentTime = usePlayerStore((s) => (s.channelSlug === experience.stationSlug ? s.currentTime : 0));
+  const duration = usePlayerStore((s) => (s.channelSlug === experience.stationSlug ? s.duration : 0));
   const status = usePlayerStore((s) => (s.channelSlug === experience.stationSlug ? s.status : "idle"));
   const playing = status === "playing";
   const here = usePlayerStore((s) => s.channelSlug === experience.stationSlug);
@@ -85,7 +86,8 @@ export function RoseOpera({
   const loopPoster = stormLoop || rawLoop.includes("tardis-loop") ? "/experiences/rose/vortex-tunnel.jpg?v=5" : stills[0];
   const portrait = (holdingPreview ? null : songPortrait(track, channel)) || "/experiences/rose/white-rose.png";
   const previewLive = holdingPreview && (playing || status === "loading");
-  const previewEnded = holdingPreview && !previewLive && currentTime > 1.5;
+  const previewEnded = holdingPreview && !previewLive && duration > 3 && currentTime >= duration - 1.25;
+  const previewLabel = previewLive ? "Pause the preview" : previewEnded ? "Reset the preview" : currentTime > 0.4 ? "Resume the preview" : "Play the preview";
   const previewState = previewLive ? "Playing" : previewEnded ? "Ended" : "Ready";
   const previewNotice = previewLive
     ? `Preview playing. ${track?.title ?? "Arrival"}`
@@ -603,6 +605,18 @@ export function RoseOpera({
     await cueTrack(experience.stationSlug, preview.id, { play, hold: true });
   }
 
+  async function onPreviewControl() {
+    if (previewLive) {
+      halt();
+      return;
+    }
+    if (!previewEnded) {
+      await togglePlay();
+      return;
+    }
+    await resetPreview();
+  }
+
   function leaveOpera() {
     setDrift(false);
     setCinema("off");
@@ -786,7 +800,7 @@ export function RoseOpera({
           {holdingPreview && layout === "full" ? (
             <button
               type="button"
-              onClick={() => void resetPreview()}
+              onClick={() => void onPreviewControl()}
               className={cn("rose-preview-reset", previewLive ? "is-live" : "is-still")}
             >
               <span className="rose-preview-orbit" aria-hidden>
@@ -794,8 +808,8 @@ export function RoseOpera({
                 <i />
                 <i />
               </span>
-              <RotateCw className="size-3.5" />
-              Reset the preview
+              {previewLive ? <Pause className="size-3.5" /> : previewEnded ? <RotateCw className="size-3.5" /> : <Play className="size-3.5" />}
+              {previewLabel}
             </button>
           ) : null}
           {layout === "full" ? (
