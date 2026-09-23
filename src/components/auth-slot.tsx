@@ -18,12 +18,12 @@ export function AuthSlot() {
 
   if (!user) {
     if (gateSession) {
-      return <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Signed in</span>;
+      return <span className="hidden font-mono text-[10px] uppercase tracking-[0.12em] text-subtle sm:inline">Signed in</span>;
     }
     return (
       <a
         href={`/login?next=${encodeURIComponent(next)}`}
-        className="inline-flex h-11 shrink-0 items-center px-2 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
+        className="hidden h-11 shrink-0 items-center px-2 font-mono text-[11px] uppercase tracking-[0.14em] text-gold sm:inline-flex"
       >
         Sign in
       </a>
@@ -49,7 +49,7 @@ export function AuthSlot() {
         {label}
       </span>
       {gateSession ? null : (
-        <a href="/logout" className="hidden h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle hover:text-fg sm:inline-flex">
+        <a href="/logout" className="hidden h-11 items-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle hover:text-fg xl:inline-flex">
           Sign out
         </a>
       )}

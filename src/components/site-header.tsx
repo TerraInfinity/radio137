@@ -12,7 +12,6 @@ import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 
 const links = [
-  { href: "/", label: "Home", match: (path: string) => path === "/" },
   { href: "/stations", label: "Stations", match: (path: string) => path === "/stations" || path.startsWith("/channel/") },
   { href: "/player", label: "Songs", match: (path: string) => path === "/player" || path.startsWith("/player/") || path === "/library" },
   { href: "/experiences", label: "Experiences", match: (path: string) => path.startsWith("/experiences") },
@@ -60,7 +59,7 @@ export function SiteHeader() {
               to={link.href}
               onClick={onPick}
               className={cn(
-                "inline-flex h-11 shrink-0 items-center px-2.5 font-mono text-[11px] uppercase tracking-[0.14em]",
+                "inline-flex h-11 shrink-0 items-center px-2 font-mono text-[11px] uppercase tracking-[0.12em]",
                 active ? gold : "text-muted hover:text-fg",
               )}
             >
@@ -73,7 +72,7 @@ export function SiteHeader() {
             to="/desk"
             onClick={onPick}
             className={cn(
-              "inline-flex h-11 shrink-0 items-center px-2.5 font-mono text-[11px] uppercase tracking-[0.14em]",
+              "inline-flex h-11 shrink-0 items-center px-2 font-mono text-[11px] uppercase tracking-[0.12em]",
               pathname.startsWith("/desk") ? "text-gold" : "text-muted hover:text-fg",
             )}
           >
@@ -86,23 +85,23 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-sm">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-3 sm:px-4">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-1.5 px-3 sm:gap-2 sm:px-4">
         <div className="flex min-w-0 shrink-0 items-center gap-2">
-          <TiNetworkMark />
-          <Link to="/" className="min-w-0" onClick={() => setOpen(false)}>
-            <p className={cn("mark-radio font-display text-base font-semibold leading-none tracking-[0.28em] sm:text-lg", gold)}>
+          <TiNetworkMark size={36} />
+          <Link to="/" className="min-w-0" onClick={() => setOpen(false)} aria-label="Radio home">
+            <p className={cn("mark-radio font-display text-base font-semibold leading-none tracking-[0.22em] sm:text-lg sm:tracking-[0.28em]", gold)}>
               Radio
             </p>
           </Link>
         </div>
-        <nav className="ml-2 hidden min-w-0 items-center md:flex">
+        <nav className="ml-1 hidden min-w-0 items-center xl:flex">
           <NavLinks />
         </nav>
-        <div className="flex-1" />
-        <form onSubmit={goSearch} className="relative hidden min-w-0 max-w-52 flex-1 lg:block">
+        <div className="min-w-0 flex-1" />
+        <form onSubmit={goSearch} className="relative hidden min-w-0 w-40 xl:block 2xl:w-52">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-subtle" />
           <input
-            className="input h-10 pl-8 text-sm"
+            className="input h-10 w-full pl-8 text-sm"
             value={q}
             onChange={(event) => setQ(event.target.value)}
             placeholder="Search"
@@ -111,7 +110,7 @@ export function SiteHeader() {
           />
         </form>
         {ready && visited ? (
-          <p className="hidden shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle xl:block">
+          <p className="hidden shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle 2xl:block">
             {points} pts{onGlaum || glaumules > 0 ? ` · ${glaumules} glåümules` : ""}
           </p>
         ) : null}
@@ -120,7 +119,7 @@ export function SiteHeader() {
         <AuthSlot />
         <button
           type="button"
-          className="inline-flex size-11 shrink-0 items-center justify-center text-gold md:hidden"
+          className="inline-flex size-11 shrink-0 items-center justify-center text-gold xl:hidden"
           aria-expanded={open}
           aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((value) => !value)}
@@ -129,7 +128,7 @@ export function SiteHeader() {
         </button>
       </div>
       {open ? (
-        <div className="border-t border-line bg-bg px-3 py-3 md:hidden">
+        <div className="max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-t border-line bg-bg px-3 py-3 xl:hidden">
           <nav className="flex flex-col">
             <NavLinks onPick={() => setOpen(false)} />
           </nav>
