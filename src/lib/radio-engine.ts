@@ -1,5 +1,6 @@
 /** Single HTMLAudioElement radio deck. Never seek before metadata. Watch for end-loops. */
 import { mediaUrl } from "@/lib/media";
+import { claimPlaybackSession, displayAsleep } from "@/lib/display-rest";
 
 export type EngineLoad = {
   url: string;
@@ -65,6 +66,7 @@ export class RadioEngine {
   private warmUrl = "";
   private hangTimer: number | null = null;
   private startedAt = 0;
+  private darkAt = 0;
 
   attach(handlers: Handlers) {
     this.handlers = handlers;
@@ -140,8 +142,26 @@ export class RadioEngine {
     el.muted = muted;
   }
 
+  /** True when the song already has a cushion, so a prefetch cannot steal its bandwidth. */
+  readyToWarm(): boolean {
+    if (displayAsleep()) return false;
+    const el = this.el;
+    if (!el || el.paused || this.loading || this.buffering) return false;
+    if (el.readyState < 3) return false;
+    const duration = Number.isFinite(el.duration) ? el.duration : 0;
+    let ahead = 0;
+    try {
+      if (el.buffered.length) ahead = el.buffered.end(el.buffered.length - 1) - el.currentTime;
+    } catch {
+      return false;
+    }
+    if (duration > 0 && ahead >= duration - el.currentTime - 0.4) return true;
+    return ahead >= 15;
+  }
+
   /** Decode the next cut in the background so the handoff starts at 0:00, not mid-file. */
   warm(url: string) {
+    if (!this.readyToWarm()) return;
     const src = mediaUrl(url);
     if (typeof window === "undefined" || !src || src === this.warmUrl) return;
     this.warmUrl = src;
@@ -305,6 +325,7 @@ export class RadioEngine {
 
   private ensure(): HTMLAudioElement | null {
     if (typeof window === "undefined") return null;
+    claimPlaybackSession();
     if (this.el) return this.el;
     const el = new Audio();
     el.preload = "auto";
@@ -352,6 +373,15 @@ export class RadioEngine {
     if (!el || this.ending || this.loading) return;
     const duration = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 0;
     const t = el.currentTime || 0;
+    if (displayAsleep()) {
+      this.lastAdvanceAt = performance.now();
+      const now = performance.now();
+      if (now - this.darkAt > 4000) {
+        this.darkAt = now;
+        this.handlers?.onTime(t, duration);
+      }
+      return;
+    }
     this.handlers?.onTime(t, duration);
     if (el.paused) return;
     if (t > this.highWater + 0.02) {
@@ -378,6 +408,10 @@ export class RadioEngine {
     if (gen !== this.gen || this.ending || this.loading) return;
     const el = this.el;
     if (!el || el.paused) return;
+    if (displayAsleep()) {
+      this.lastAdvanceAt = performance.now();
+      return;
+    }
     const t = el.currentTime || 0;
     const duration = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 0;
     const now = performance.now();

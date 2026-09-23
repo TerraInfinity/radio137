@@ -20,6 +20,7 @@ import { experienceSlugFromPath, pageCuesPlayback, shouldHoldRosePreview } from 
 import { getExperience } from "@/lib/experiences";
 import { previewTrackOf } from "@/lib/phenomena";
 import { bindMediaSession, flushMediaSession, ignoreHidePause, rebindMediaSession, syncMediaSession } from "@/lib/media-session";
+import { claimPlaybackSession, displayAsleep } from "@/lib/display-rest";
 import { forgetCachedAudio, hasCachedAudio, pinCachedAudio, playableSrc, rememberAudio, shouldHoldAutoAdvance, dataSaverOn, warmTrackSrc } from "@/lib/audio-cache";
 import { mediaUrl } from "@/lib/media";
 import { loadPersisted, savePersisted } from "@/lib/storage";
@@ -223,6 +224,7 @@ function bindEngine() {
   engineBound = true;
   bindPlaybackLock();
   ignoreHidePause();
+  claimPlaybackSession();
   radioEngine.attach({
     onTime: (currentTime, duration) => {
       const status = usePlayerStore.getState().status;
@@ -251,6 +253,7 @@ function bindEngine() {
       void usePlayerStore.getState().next("error");
     },
     onPause: () => {
+      if (displayAsleep() && !userPaused) return;
       const s = usePlayerStore.getState();
       if (s.status === "playing") usePlayerStore.setState({ status: "paused" });
       if (s.track && s.duration > 20) {
@@ -311,7 +314,15 @@ function bindEngine() {
   );
   window.addEventListener("pagehide", persist);
   window.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") persist();
+    if (document.visibilityState === "hidden") {
+      persist();
+      return;
+    }
+    const s = usePlayerStore.getState();
+    if (userPaused || !s.track) return;
+    if ((s.status === "playing" || s.status === "loading") && radioEngine.snapshot().paused) {
+      void radioEngine.resume();
+    }
   });
   window.addEventListener("pageshow", () => {
     rebindMediaSession();
@@ -510,9 +521,24 @@ async function loadTrack(
       ? playable[(Math.max(0, playable.findIndex((item) => item.id === track.id)) + 1) % Math.max(playable.length, 1)]
       : pickNext(channel, playable, track.id);
   if (nxt?.audioUrl && nxt.id !== track.id) {
-    void warmTrackSrc(nxt).then((warm) => {
-      if (warm) radioEngine.warm(warm);
-    });
+    const afterId = track.id;
+    let tries = 0;
+    const attempt = () => {
+      if (usePlayerStore.getState().track?.id !== afterId) return;
+      if (displayAsleep() || !radioEngine.readyToWarm()) {
+        if (tries < 8) {
+          tries += 1;
+          window.setTimeout(attempt, 3000);
+        }
+        return;
+      }
+      void warmTrackSrc(nxt).then((warm) => {
+        if (!warm || usePlayerStore.getState().track?.id !== afterId) return;
+        if (displayAsleep() || !radioEngine.readyToWarm()) return;
+        radioEngine.warm(warm);
+      });
+    };
+    window.setTimeout(attempt, 2500);
   }
   flushMediaSession();
 }

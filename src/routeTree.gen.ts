@@ -20,6 +20,7 @@ import { Route as LogoutRouteImport } from './routes/logout'
 import { Route as ChannelSlugRouteImport } from './routes/channel/$slug'
 import { Route as ExperiencesIndexRouteImport } from './routes/experiences/index'
 import { Route as ExperiencesSlugRouteImport } from './routes/experiences/$slug'
+import { Route as FeedsRoseDotxmlRouteImport } from './routes/feeds/rose[.]xml'
 import { Route as PlayerIndexRouteImport } from './routes/player/index'
 import { Route as PlayerIdRouteImport } from './routes/player/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -86,6 +87,11 @@ const ExperiencesSlugRoute = ExperiencesSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => ExperiencesRoute,
 } as any)
+const FeedsRoseDotxmlRoute = FeedsRoseDotxmlRouteImport.update({
+  id: '/feeds/rose.xml',
+  path: '/feeds/rose.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlayerIndexRoute = PlayerIndexRouteImport.update({
   id: '/player/',
   path: '/player/',
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/logout': typeof LogoutRoute
   '/channel/$slug': typeof ChannelSlugRoute
   '/experiences/$slug': typeof ExperiencesSlugRoute
+  '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
   '/player/$id': typeof PlayerIdRoute
   '/experiences/': typeof ExperiencesIndexRoute
   '/player/': typeof PlayerIndexRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByTo {
   '/logout': typeof LogoutRoute
   '/channel/$slug': typeof ChannelSlugRoute
   '/experiences/$slug': typeof ExperiencesSlugRoute
+  '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
   '/player/$id': typeof PlayerIdRoute
   '/experiences': typeof ExperiencesIndexRoute
   '/player': typeof PlayerIndexRoute
@@ -194,6 +202,7 @@ export interface FileRoutesById {
   '/logout': typeof LogoutRoute
   '/channel/$slug': typeof ChannelSlugRoute
   '/experiences/$slug': typeof ExperiencesSlugRoute
+  '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
   '/player/$id': typeof PlayerIdRoute
   '/experiences/': typeof ExperiencesIndexRoute
   '/player/': typeof PlayerIndexRoute
@@ -219,6 +228,7 @@ export interface FileRouteTypes {
     | '/logout'
     | '/channel/$slug'
     | '/experiences/$slug'
+    | '/feeds/rose.xml'
     | '/player/$id'
     | '/experiences/'
     | '/player/'
@@ -241,6 +251,7 @@ export interface FileRouteTypes {
     | '/logout'
     | '/channel/$slug'
     | '/experiences/$slug'
+    | '/feeds/rose.xml'
     | '/player/$id'
     | '/experiences'
     | '/player'
@@ -264,6 +275,7 @@ export interface FileRouteTypes {
     | '/logout'
     | '/channel/$slug'
     | '/experiences/$slug'
+    | '/feeds/rose.xml'
     | '/player/$id'
     | '/experiences/'
     | '/player/'
@@ -287,6 +299,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   LogoutRoute: typeof LogoutRoute
   ChannelSlugRoute: typeof ChannelSlugRoute
+  FeedsRoseDotxmlRoute: typeof FeedsRoseDotxmlRoute
   PlayerIdRoute: typeof PlayerIdRoute
   PlayerIndexRoute: typeof PlayerIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -377,6 +390,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/experiences/$slug'
       preLoaderRoute: typeof ExperiencesSlugRouteImport
       parentRoute: typeof ExperiencesRoute
+    }
+    '/feeds/rose.xml': {
+      id: '/feeds/rose.xml'
+      path: '/feeds/rose.xml'
+      fullPath: '/feeds/rose.xml'
+      preLoaderRoute: typeof FeedsRoseDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/player/': {
       id: '/player/'
@@ -475,6 +495,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   LogoutRoute: LogoutRoute,
   ChannelSlugRoute: ChannelSlugRoute,
+  FeedsRoseDotxmlRoute: FeedsRoseDotxmlRoute,
   PlayerIdRoute: PlayerIdRoute,
   PlayerIndexRoute: PlayerIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

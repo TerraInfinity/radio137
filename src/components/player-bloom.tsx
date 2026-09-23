@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { displayAsleep, onDisplayRest } from "@/lib/display-rest";
 
 type Petal = {
   x: number;
@@ -145,6 +146,10 @@ export function PlayerBloom({
     };
 
     const draw = (now: number) => {
+      if (displayAsleep()) {
+        raf = 0;
+        return;
+      }
       const t = reduce ? 0 : now / 1000;
       const clock = timeRef.current;
       const live = playingRef.current && !reduce;
@@ -213,7 +218,17 @@ export function PlayerBloom({
     const ro = new ResizeObserver(fit);
     ro.observe(parent);
     raf = requestAnimationFrame(draw);
+    const unlisten = onDisplayRest(
+      () => {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      },
+      () => {
+        if (!raf && !reduce) raf = requestAnimationFrame(draw);
+      },
+    );
     return () => {
+      unlisten();
       cancelAnimationFrame(raf);
       ro.disconnect();
     };

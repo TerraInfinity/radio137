@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { RoseLook } from "@/lib/rose-look";
 import { captionsForPhenomenon, type PhenomenonId } from "@/lib/phenomena";
 import { actSlot, overlayAlpha, type RosePulse } from "@/lib/rose-pulse";
+import { displayAsleep, onDisplayRest } from "@/lib/display-rest";
 import { petalFacing, petalFade, spawnAirPetal, stepAirPetal, type AirPetal } from "@/lib/rose-air";
 
 type Star = { a: number; r: number; z: number; len: number };
@@ -3884,6 +3885,13 @@ export function RoseVortex({
     ro.observe(canvas);
 
     const draw = (now: number) => {
+      if (displayAsleep()) {
+        raf = 0;
+        for (const video of chaosFilms) {
+          if (!video.paused) video.pause();
+        }
+        return;
+      }
       raf = requestAnimationFrame(draw);
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
@@ -4538,7 +4546,22 @@ export function RoseVortex({
     };
 
     raf = requestAnimationFrame(draw);
+    const unlisten = onDisplayRest(
+      () => {
+        cancelAnimationFrame(raf);
+        raf = 0;
+        for (const video of chaosFilms) {
+          if (!video.paused) video.pause();
+        }
+      },
+      () => {
+        if (raf) return;
+        last = performance.now();
+        raf = requestAnimationFrame(draw);
+      },
+    );
     return () => {
+      unlisten();
       cancelAnimationFrame(raf);
       ro.disconnect();
       for (const video of chaosFilms) {

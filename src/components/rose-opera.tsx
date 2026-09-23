@@ -3,11 +3,14 @@ import { Link } from "@tanstack/react-router";
 import { Maximize, Minimize, Palette, Pause, Play, RotateCw, X } from "lucide-react";
 import "./rose-opera.css";
 import { RoseAtelier } from "@/components/rose-atelier";
+import { RoseApple } from "@/components/rose-apple";
 import { RoseVortex, type RoseRock } from "@/components/rose-vortex";
 import { ExperienceGate, previewDeckProgress } from "@/components/experience-gate";
 import { cn } from "@/lib/cn";
 import { ritePrimary } from "@/lib/rite-primary";
 import { radioEngine } from "@/lib/radio-engine";
+import { displayAsleep, onDisplayRest } from "@/lib/display-rest";
+import { dataSaverOn } from "@/lib/audio-cache";
 import { useExperienceUnlock } from "@/lib/experience-unlock";
 import { CUE_SETTLE_MS, cueProgress, openingPlates, plateProgress, scenePlates, songAudioProgress, upcomingFrom, warmAhead } from "@/lib/experience-preload";
 import type { RadioExperience } from "@/lib/experiences";
@@ -205,15 +208,11 @@ export function RoseOpera({
       });
       const pictures = plateProgress(plates);
       const progress = cueProgress(audio, pictures);
-      if (progress >= 0.995) {
-        release(true);
+      if (progress >= 0.995 || displayAsleep()) {
+        release(false);
         return;
       }
       setSongCue(progress);
-      if (pictures < 0.995 && !snap.loading && snap.readyState >= 2 && snap.currentTime < 1.2 && cueHold.current !== id) {
-        radioEngine.pause();
-        cueHold.current = id;
-      }
     };
     const arm = window.setTimeout(() => {
       if (!alive) return;
@@ -236,8 +235,17 @@ export function RoseOpera({
   useEffect(() => {
     if (layout !== "full" || opening || !channel || shuffled) return;
     let alive = true;
-    const timer = window.setTimeout(() => {
+    let tries = 0;
+    let timer = 0;
+    const run = () => {
       if (!alive) return;
+      if (displayAsleep() || dataSaverOn() || !radioEngine.readyToWarm()) {
+        if (tries < 6) {
+          tries += 1;
+          timer = window.setTimeout(run, 4000);
+        }
+        return;
+      }
       const playable = getPlayableTracks(channel);
       const ahead = holdingPreview ? playable.slice(0, 2) : upcomingFrom(playable, track?.id, 2);
       const urls: string[] = [];
@@ -245,13 +253,11 @@ export function RoseOpera({
         const at = Math.max(0, playable.findIndex((row) => row.id === item.id));
         const nextLook = lookForTrack(savedLook, item, at);
         urls.push(...scenePlates(experience.slug, nextLook.phenomenon));
-        if (nextLook.phenomenon === "manual" && look.phenomenon !== "manual") {
-          urls.push("/experiences/rose/chaos-sweetie.mp4", "/experiences/rose/chaos-spiral.mp4", "/experiences/rose/chaos-book.mp4");
-        }
         if (index === 0 && item.audioUrl && item.id !== track?.id) radioEngine.warm(item.audioUrl);
       });
       warmAhead(urls);
-    }, holdingPreview ? 1400 : 800);
+    };
+    timer = window.setTimeout(run, 2500);
     return () => {
       alive = false;
       window.clearTimeout(timer);
@@ -287,35 +293,44 @@ export function RoseOpera({
   }, []);
 
   useEffect(() => {
+    const root = stageRef.current;
+    if (!root) return;
+    const rest = () => root.classList.add("is-asleep");
+    const wake = () => root.classList.remove("is-asleep");
+    if (displayAsleep()) rest();
+    return onDisplayRest(rest, wake);
+  }, []);
+
+  useEffect(() => {
     originRef.current = performance.now() - currentTime * 1000;
   }, [currentTime, playing]);
 
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    if (reduce) {
-      el.pause();
-      return;
-    }
-    if (!liveVisual && look.phenomenon !== "vortex") {
-      el.pause();
-      return;
-    }
-    void el.play().catch(() => undefined);
+    const sync = () => {
+      if (reduce || displayAsleep() || (!liveVisual && look.phenomenon !== "vortex")) {
+        el.pause();
+        return;
+      }
+      void el.play().catch(() => undefined);
+    };
+    sync();
+    return onDisplayRest(sync, sync);
   }, [liveVisual, look.phenomenon, loopSrc, reduce]);
 
   useEffect(() => {
     const el = stormRef.current;
     if (!el) return;
-    if (reduce) {
-      el.pause();
-      return;
-    }
-    if (!liveVisual && look.phenomenon !== "vortex") {
-      el.pause();
-      return;
-    }
-    void el.play().catch(() => undefined);
+    const sync = () => {
+      if (reduce || displayAsleep() || (!liveVisual && look.phenomenon !== "vortex")) {
+        el.pause();
+        return;
+      }
+      void el.play().catch(() => undefined);
+    };
+    sync();
+    return onDisplayRest(sync, sync);
   }, [liveVisual, look.phenomenon, reduce]);
 
   useEffect(() => {
@@ -328,6 +343,10 @@ export function RoseOpera({
   useEffect(() => {
     let raf = 0;
     const tick = () => {
+      if (displayAsleep()) {
+        raf = 0;
+        return;
+      }
       raf = requestAnimationFrame(tick);
       const alive = playing || holdingPreview;
       const t = playing
@@ -350,7 +369,19 @@ export function RoseOpera({
       }
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    const unlisten = onDisplayRest(
+      () => {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      },
+      () => {
+        if (!raf) raf = requestAnimationFrame(tick);
+      },
+    );
+    return () => {
+      unlisten();
+      cancelAnimationFrame(raf);
+    };
   }, [bpm, currentTime, experience.captions, holdingPreview, playing]);
 
   useEffect(() => {
@@ -771,6 +802,7 @@ export function RoseOpera({
                 {cinema === "manual" ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
                 {cinema === "manual" ? "Exit cinema" : "Cinema"}
               </button>
+              {experience.slug === "rose" && cinema === "off" ? <RoseApple /> : null}
             </>
           ) : (
             <>
