@@ -61,14 +61,6 @@ export function experienceRows(channels: Channel[], views: Record<string, number
     .sort((a, b) => b.weight - a.weight || a.title.localeCompare(b.title));
 }
 
-export function mixedRows(channels: Channel[], views: Record<string, number>): DialRow[] {
-  return [...stationRows(channels, views), ...experienceRows(channels, views)].sort(
-    (a, b) => b.weight - a.weight || a.title.localeCompare(b.title),
-  );
-}
-
-export function featuredFaces(rows: DialRow[]): DialRow[] {
-  const marked = rows.filter((row) => row.featured);
-  const pool = marked.length ? marked : rows;
-  return pool.slice(0, 3);
+export function homeFeatured(channels: Channel[], views: Record<string, number>): DialRow[] {
+  return experienceRows(channels, views).filter((row) => row.featured).slice(0, 3);
 }
