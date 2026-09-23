@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { DeskGrok } from "@/components/desk-grok";
+import { DeskPerformance } from "@/components/desk-performance";
 import { DeskStations } from "@/components/desk-stations";
 import { DeskDirectory } from "@/components/desk-directory";
 import { DeskReview } from "@/components/desk-review";
@@ -31,7 +33,7 @@ function applySnapshot(tracks: CatalogEdit[], stations: StationEdit[]) {
   usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), tracks, stations));
 }
 
-const DESK_TABS = ["stations", "experiences", "directory", "review", "r2", "services"] as const;
+const DESK_TABS = ["stations", "experiences", "grok", "directory", "review", "r2", "services"] as const;
 type DeskTab = (typeof DESK_TABS)[number];
 
 function readDeskTab(): DeskTab {
@@ -106,11 +108,13 @@ function DeskPage() {
         Pick a station, add songs, keep the rest folded. R2 scans in the background so the desk stays light.
       </p>
       <DeskOverview channels={channels} reviewOpen={reviewOpen} />
+      <DeskPerformance channels={channels} />
       <div className="mt-6 flex flex-wrap gap-1">
         {(
           [
             ["stations", "Stations"],
             ["experiences", "Experiences"],
+            ["grok", "Grok"],
             ["directory", "Directory"],
             ["review", reviewOpen ? `Review (${reviewOpen})` : "Review"],
             ["r2", "R2"],
@@ -132,6 +136,7 @@ function DeskPage() {
       </div>
       {tab === "stations" ? <DeskStations channels={channels} r2Configured={r2Configured} /> : null}
       {tab === "experiences" ? <DeskExperiences channels={channels} /> : null}
+      {tab === "grok" ? <DeskGrok channels={channels} /> : null}
       {tab === "directory" ? <DeskDirectory catalog={catalog.channels.length ? catalog : getCatalog()} /> : null}
       {tab === "review" ? <DeskReview /> : null}
       {tab === "r2" ? <R2Board channels={channels} r2Configured={r2Configured} /> : null}

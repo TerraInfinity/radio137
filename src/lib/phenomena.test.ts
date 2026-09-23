@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { encodeSceneTag, isBigBadWolf, isPrettyAvatar, isRoseRemembers, isRoseRemembers2, isShakeBootie, isSwooningProm, isSweetie, isTwistIntro, isVoiceC, isVoiceCheck, isVoiceCo, isVoiceCoc, isVoiceCocy, isVoiceNo, isVoiceOn, lookForPhenomenon, lookForTrack, phenomenonAt, phenomenonFromTitle, PHENOMENA, previewTrackOf, sceneFromTags, stepPhenomenon } from "./phenomena.ts";
+import { defaultRitePhenomenon, encodeSceneTag, isBigBadWolf, isPrettyAvatar, isRoseRemembers, isRoseRemembers2, isShakeBootie, isSwooningProm, isSweetie, isTwistIntro, isVoiceC, isVoiceCheck, isVoiceCo, isVoiceCoc, isVoiceCocy, isVoiceNo, isVoiceOn, lookForPhenomenon, lookForTrack, phenomenonAt, phenomenonFromTitle, PHENOMENA, previewTrackOf, sceneFromTags, stepPhenomenon } from "./phenomena.ts";
+import { ROSE_RITE } from "./rose-rite.ts";
 import { ROSE_LOOK_DEFAULT } from "./rose-look.ts";
 
 describe("phenomena", () => {
@@ -328,5 +329,42 @@ describe("phenomena", () => {
       { title: "Elf Magic Shrimp Kitty Future Nostalgia", tags: ["bpm:122"] },
     ]);
     assert.equal(preview?.title, "Elf Magic Shrimp Kitty Future Nostalgia");
+  });
+
+  it("pairs each rite song with its own default graphic", () => {
+    const scenes = [
+      "prom",
+      "manual",
+      "shiny",
+      "vow",
+      "twist",
+      "remember",
+      "firewall",
+      "allocate",
+      "wolf",
+      "current",
+      "sweetie",
+      "halo",
+      "choir",
+      "badend",
+      "recall",
+      "obay",
+      "timeshare",
+      "copter",
+      "stillhot",
+      "elevate",
+      "shell",
+      "arrival",
+    ];
+    assert.deepEqual(
+      ROSE_RITE.map((title) => defaultRitePhenomenon(title)),
+      scenes,
+    );
+    const pinned = lookForTrack(
+      ROSE_LOOK_DEFAULT,
+      { id: "x", title: ROSE_RITE[10], artist: "", durationSec: 1, audioUrl: "/a.mp3", tags: [encodeSceneTag({ phenomenon: "vortex" })] },
+      10,
+    );
+    assert.equal(pinned.phenomenon, "vortex");
   });
 });

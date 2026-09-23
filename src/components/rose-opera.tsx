@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Maximize, MessageSquare, Minimize, Palette, Pause, Play, RotateCw, X } from "lucide-react";
+import { Maximize, Minimize, Palette, Pause, Play, RotateCw, X } from "lucide-react";
 import "./rose-opera.css";
 import { RoseAtelier } from "@/components/rose-atelier";
-import { RoseGrokChat } from "@/components/rose-grok-chat";
 import { RoseVortex, type RoseRock } from "@/components/rose-vortex";
+import { ExperienceGate, previewDeckProgress } from "@/components/experience-gate";
 import { cn } from "@/lib/cn";
 import { ritePrimary } from "@/lib/rite-primary";
 import { radioEngine } from "@/lib/radio-engine";
 import { useExperienceUnlock } from "@/lib/experience-unlock";
+import { CUE_SETTLE_MS, cueProgress, openingPlates, plateProgress, scenePlates, songAudioProgress, upcomingFrom, warmAhead } from "@/lib/experience-preload";
 import type { RadioExperience } from "@/lib/experiences";
 import { lookFromStation, type RoseLook } from "@/lib/rose-look";
 import { lookForPhenomenon, lookForTrack, isStageOwned, phenomenonMeta, previewTrackOf, stepPhenomenon, type PhenomenonId } from "@/lib/phenomena";
@@ -18,7 +19,6 @@ import { bpmFromTags, captionForPulse, pulseAt, type RosePulse } from "@/lib/ros
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 
-const IDLE_CHROME_MS = 3200;
 const IDLE_OPERA_MS = 15_000;
 const DRIFT_MS = 2400;
 
@@ -69,9 +69,8 @@ export function RoseOpera({
   const [arming, setArming] = useState(false);
   const [holdingPreview, setHoldingPreview] = useState(experience.slug === "rose");
   const [atelierOpen, setAtelierOpen] = useState(false);
-  const [grokOpen, setGrokOpen] = useState(false);
-  const grokPersist = useRef(false);
   const [chrome, setChrome] = useState(true);
+  const [crossing, setCrossing] = useState(false);
   const [caption, setCaption] = useState(savedLook.captions[0] ?? experience.whisper);
   const liveVisual = playing || holdingPreview || (layout === "full" && !unlocked);
   const bpm = look.bpm > 0 ? look.bpm : bpmFromTags(track?.tags, experience.bpm);
@@ -98,6 +97,19 @@ export function RoseOpera({
   });
   const cinemaDockRef = useRef<{ hidden: boolean; collapsed: boolean } | null>(null);
   const rockRef = useRef<RoseRock>({ charge: 0, hits: 0, burst: 0 });
+  const roseRite = usePlayerStore((s) => s.roseRite);
+  const catalogReady = usePlayerStore((s) => s.catalogReady);
+  const [opening, setOpening] = useState(layout === "full");
+  const [songCue, setSongCue] = useState<number | null>(null);
+  const cueHold = useRef<string | null>(null);
+  const gateOn = useRef(layout === "full");
+  const [stormEl, setStormEl] = useState<HTMLVideoElement | null>(null);
+  const plates = useMemo(
+    () => openingPlates(experience.slug, experience.cover, experience.stills.map((item) => item.src)),
+    [experience.cover, experience.slug, experience.stills],
+  );
+  const previewCut = useMemo(() => previewTrackOf(getPlayableTracks(channel)), [channel]);
+  const [deck, setDeck] = useState(0);
   const [wolfOn, setWolfOn] = useState(false);
   const [rocking, setRocking] = useState(false);
   const [wolfPop, setWolfPop] = useState(0);
@@ -131,6 +143,121 @@ export function RoseOpera({
     };
   }, [layout]);
 
+  useEffect(() => {
+    if (!opening) return;
+    const tick = () => setDeck(roseRite ? 1 : previewDeckProgress(catalogReady, previewCut?.audioUrl ?? null, status));
+    tick();
+    const id = window.setInterval(tick, 180);
+    return () => window.clearInterval(id);
+  }, [catalogReady, opening, previewCut?.audioUrl, roseRite, status]);
+
+  useEffect(() => {
+    if (!opening || !gateOn.current) return;
+    if (status === "playing") radioEngine.pause();
+  }, [opening, status]);
+
+  const openPreview = useCallback(() => {
+    gateOn.current = false;
+    setOpening(false);
+    if (experience.slug !== "rose") return;
+    if (usePlayerStore.getState().roseRite) return;
+    const preview = previewTrackOf(getPlayableTracks(channel));
+    if (!preview) return;
+    radioEngine.prime();
+    void cueTrack(experience.stationSlug, preview.id, { play: true, hold: true });
+  }, [channel, cueTrack, experience.slug, experience.stationSlug]);
+
+  useEffect(() => {
+    if (layout !== "full" || opening || holdingPreview) {
+      setSongCue(null);
+      return;
+    }
+    const id = track?.id;
+    const audioUrl = track?.audioUrl ?? null;
+    if (!id) {
+      setSongCue(null);
+      return;
+    }
+    let alive = true;
+    let closed = false;
+    const timers = { poll: 0, stall: 0 };
+    const plates = scenePlates(experience.slug, look.phenomenon);
+    const release = (resume: boolean) => {
+      if (closed) return;
+      closed = true;
+      window.clearInterval(timers.poll);
+      window.clearTimeout(timers.stall);
+      if (cueHold.current === id && resume && usePlayerStore.getState().track?.id === id) radioEngine.prime();
+      if (cueHold.current === id) cueHold.current = null;
+      if (alive) setSongCue(null);
+    };
+    const tick = () => {
+      if (!alive || closed) return;
+      const snap = radioEngine.snapshot();
+      const audio = songAudioProgress({
+        audioUrl,
+        status: usePlayerStore.getState().status,
+        src: snap.src,
+        readyState: snap.readyState,
+        duration: snap.duration,
+        buffered: snap.buffered,
+        loading: snap.loading,
+      });
+      const pictures = plateProgress(plates);
+      const progress = cueProgress(audio, pictures);
+      if (progress >= 0.995) {
+        release(true);
+        return;
+      }
+      setSongCue(progress);
+      if (pictures < 0.995 && !snap.loading && snap.readyState >= 2 && snap.currentTime < 1.2 && cueHold.current !== id) {
+        radioEngine.pause();
+        cueHold.current = id;
+      }
+    };
+    const arm = window.setTimeout(() => {
+      if (!alive) return;
+      timers.stall = window.setTimeout(() => release(true), 7000);
+      tick();
+      timers.poll = window.setInterval(tick, 160);
+    }, CUE_SETTLE_MS);
+    return () => {
+      alive = false;
+      window.clearTimeout(arm);
+      window.clearInterval(timers.poll);
+      window.clearTimeout(timers.stall);
+      const same = usePlayerStore.getState().track?.id === id;
+      if (cueHold.current === id && same) radioEngine.prime();
+      if (cueHold.current === id) cueHold.current = null;
+    };
+  }, [experience.slug, holdingPreview, layout, look.phenomenon, opening, track?.audioUrl, track?.id]);
+
+  const shuffled = usePlayerStore((s) => Boolean(s.shuffleBySlug[experience.stationSlug]));
+  useEffect(() => {
+    if (layout !== "full" || opening || !channel || shuffled) return;
+    let alive = true;
+    const timer = window.setTimeout(() => {
+      if (!alive) return;
+      const playable = getPlayableTracks(channel);
+      const ahead = holdingPreview ? playable.slice(0, 2) : upcomingFrom(playable, track?.id, 2);
+      const urls: string[] = [];
+      ahead.forEach((item, index) => {
+        const at = Math.max(0, playable.findIndex((row) => row.id === item.id));
+        const nextLook = lookForTrack(savedLook, item, at);
+        urls.push(...scenePlates(experience.slug, nextLook.phenomenon));
+        if (nextLook.phenomenon === "manual" && look.phenomenon !== "manual") {
+          urls.push("/experiences/rose/chaos-sweetie.mp4", "/experiences/rose/chaos-spiral.mp4", "/experiences/rose/chaos-book.mp4");
+        }
+        if (index === 0 && item.audioUrl && item.id !== track?.id) radioEngine.warm(item.audioUrl);
+      });
+      warmAhead(urls);
+    }, holdingPreview ? 1400 : 800);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [channel, experience.slug, holdingPreview, layout, look.phenomenon, opening, savedLook, shuffled, track?.id]);
+
   function howl() {
     const rock = rockRef.current;
     rock.charge = Math.min(1, rock.charge + 0.42);
@@ -146,35 +273,18 @@ export function RoseOpera({
   }, [track?.id]);
 
   useEffect(() => {
-    if ((atelierOpen || grokOpen) && tweaked.current) return;
+    if (atelierOpen && tweaked.current) return;
     if (overrideId) {
       setLook(lookForPhenomenon(savedLook, overrideId));
       return;
     }
     tweaked.current = false;
     setLook(holdingPreview ? lookForPhenomenon(savedLook, "vortex") : trackLook);
-  }, [atelierOpen, grokOpen, holdingPreview, overrideId, savedLook, trackLook]);
+  }, [atelierOpen, holdingPreview, overrideId, savedLook, trackLook]);
 
   useEffect(() => {
     setReduce(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    try {
-      setGrokOpen(window.localStorage.getItem("radio.rose.grok.open.v1") === "1");
-    } catch {
-      /* private mode */
-    }
   }, []);
-
-  useEffect(() => {
-    if (!grokPersist.current) {
-      grokPersist.current = true;
-      return;
-    }
-    try {
-      window.localStorage.setItem("radio.rose.grok.open.v1", grokOpen ? "1" : "0");
-    } catch {
-      /* private mode */
-    }
-  }, [grokOpen]);
 
   useEffect(() => {
     originRef.current = performance.now() - currentTime * 1000;
@@ -244,17 +354,27 @@ export function RoseOpera({
   }, [bpm, currentTime, experience.captions, holdingPreview, playing]);
 
   useEffect(() => {
-    if (cinema === "off" || atelierOpen || grokOpen) {
+    if (layout !== "full") return;
+    if (atelierOpen || opening || holdingPreview) {
       setChrome(true);
       return;
     }
-    setChrome(false);
-    let timer = window.setTimeout(() => setChrome(false), IDLE_CHROME_MS);
-    const poke = () => {
-      if (cinema === "auto") return;
+    const resting = here && started && status !== "playing" && status !== "loading";
+    if (resting) {
+      setChrome(true);
+      return;
+    }
+    const dwell = cinema !== "off" ? 2400 : 6400;
+    setChrome(true);
+    let timer = window.setTimeout(() => setChrome(false), dwell);
+    const poke = (event: Event) => {
+      if (cinema !== "off" && event.type === "pointermove" && "movementX" in event) {
+        const point = event as PointerEvent;
+        if (Math.abs(point.movementX) < 4 && Math.abs(point.movementY) < 4) return;
+      }
       setChrome(true);
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => setChrome(false), IDLE_CHROME_MS);
+      timer = window.setTimeout(() => setChrome(false), dwell);
     };
     window.addEventListener("pointermove", poke);
     window.addEventListener("pointerdown", poke);
@@ -265,7 +385,7 @@ export function RoseOpera({
       window.removeEventListener("pointerdown", poke);
       window.removeEventListener("keydown", poke);
     };
-  }, [atelierOpen, cinema, grokOpen]);
+  }, [atelierOpen, cinema, here, holdingPreview, layout, opening, started, status]);
 
   const opera = cinema !== "off" && layout === "full";
 
@@ -298,7 +418,7 @@ export function RoseOpera({
   }, [cinema, drift, layout]);
 
   useEffect(() => {
-    if (layout !== "full" || cinema !== "off" || drift || atelierOpen || grokOpen || reduce) return;
+    if (layout !== "full" || cinema !== "off" || drift || atelierOpen || reduce || holdingPreview || opening) return;
     let timer = window.setTimeout(() => setDrift(true), IDLE_OPERA_MS);
     let lastX = -1;
     let lastY = -1;
@@ -323,7 +443,7 @@ export function RoseOpera({
       window.removeEventListener("touchstart", poke);
       window.removeEventListener("keydown", poke);
     };
-  }, [atelierOpen, cinema, drift, grokOpen, layout, reduce]);
+  }, [atelierOpen, cinema, drift, holdingPreview, layout, opening, reduce]);
 
   useEffect(() => {
     if (!drift || cinema !== "off") return;
@@ -382,6 +502,25 @@ export function RoseOpera({
   }, []);
 
   const riteAt = useRef(0);
+  const crossAt = useRef(0);
+
+  function crossIn() {
+    setCrossing(true);
+    window.clearTimeout(crossAt.current);
+    crossAt.current = window.setTimeout(() => setCrossing(false), 900);
+  }
+
+  useEffect(() => () => window.clearTimeout(crossAt.current), []);
+
+  function armCinema() {
+    setDrift(false);
+    setCinema("manual");
+    try {
+      if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.();
+    } catch {
+      /* the stage still fills the page */
+    }
+  }
 
   async function begin() {
     const now = performance.now();
@@ -391,19 +530,31 @@ export function RoseOpera({
     const stopping = !holdingPreview && (state.status === "playing" || (arming && state.status === "loading"));
     if (stopping) {
       setArming(false);
+      setChrome(true);
       halt();
       return;
     }
     const resume = !holdingPreview && here && started && state.channelSlug === experience.stationSlug && Boolean(state.track);
     if (resume) {
+      setChrome(true);
       setArming(true);
-      await togglePlay();
+      try {
+        await togglePlay();
+      } finally {
+        setArming(false);
+      }
       return;
     }
+    armCinema();
+    crossIn();
     setHoldingPreview(false);
     setArming(true);
     radioEngine.prime();
-    await tuneIn(experience.stationSlug, { forcePlay: true, fromStart: true });
+    try {
+      await tuneIn(experience.stationSlug, { forcePlay: true, fromStart: true });
+    } finally {
+      setArming(false);
+    }
   }
 
   async function resetPreview() {
@@ -433,7 +584,7 @@ export function RoseOpera({
     }
   }
 
-  const showCopy = layout === "hero" || chrome || atelierOpen || grokOpen;
+  const showCopy = layout === "hero" || chrome || atelierOpen;
 
   function applyLook(next: RoseLook) {
     tweaked.current = true;
@@ -459,6 +610,7 @@ export function RoseOpera({
         "rose-opera",
         layout === "full" && "rose-opera-full",
         cinema !== "off" && "is-cinema",
+        crossing && "is-crossing",
         drift && "is-drifting",
         rocking && "is-rocking",
         !liveVisual && "is-hush",
@@ -482,14 +634,17 @@ export function RoseOpera({
           </div>
         )}
         <video
-          ref={stormRef}
+          ref={(node) => {
+            stormRef.current = node;
+            setStormEl(node);
+          }}
           className={cn("rose-storm-bed", look.phenomenon === "vortex" && "is-full")}
           src={stormSrc}
           poster="/experiences/rose/vortex-tunnel.jpg?v=5"
           muted
           loop
           playsInline
-          preload="metadata"
+          preload={opening ? "auto" : "metadata"}
         />
         {reduce || isStageOwned(look.phenomenon) || loopSrc.includes("vortex-storm") ? null : (
           <video
@@ -516,6 +671,7 @@ export function RoseOpera({
           </>
         )}
         <div className="rose-opera-veil" />
+        <div className="rose-cross" aria-hidden />
         <div className="rose-opera-fields" aria-hidden>
           <img className="rose-field-hedge is-left" src="/experiences/rose/rose-hedge.jpg" alt="" />
           <img className="rose-field-hedge is-right" src="/experiences/rose/rose-hedge.jpg" alt="" />
@@ -537,7 +693,7 @@ export function RoseOpera({
           <span />
         </div>
       </div>
-      <p className="rose-opera-caption">{playing ? caption : experience.whisper}</p>
+      <p className="rose-opera-caption">{layout === "full" ? (playing || holdingPreview ? caption : "") : playing ? caption : experience.whisper}</p>
       {layout === "full" ? (
         <button
           type="button"
@@ -551,16 +707,8 @@ export function RoseOpera({
         </button>
       ) : null}
       {holdingPreview && layout === "full" ? (
-        <p
-          className={cn("rose-preview-status", previewLive ? "is-live" : "is-still")}
-          role="status"
-          aria-live="polite"
-          aria-label={previewNotice}
-        >
-          <span className="rose-preview-dot" aria-hidden />
-          <span className="rose-preview-kicker">Preview</span>
-          <span className="rose-preview-state">{previewState}</span>
-          {track?.title ? <span className="rose-preview-song">{track.title}</span> : null}
+        <p className="sr-only" role="status" aria-live="polite">
+          {previewNotice}
         </p>
       ) : null}
       <LookCycle current={look.phenomenon} songDefault={trackLook.phenomenon} onCycle={cycleLook} />
@@ -577,23 +725,15 @@ export function RoseOpera({
       ) : null}
       <div className={cn("rose-opera-copy", !showCopy && "is-hidden")}>
         {layout === "full" ? (
-          <div className="rose-welcome">
-            <img className="rose-welcome-portrait" src={portrait} alt="" />
-            <div className="min-w-0">
-              <p className="rose-welcome-invite">Welcome to the opera</p>
-              <p className="rose-opera-kicker">{experience.kicker}</p>
-              <h1 className="rose-opera-title">{experience.title}</h1>
-              <p className="rose-opera-line">{experience.line}</p>
-            </div>
-          </div>
+          <h1 className="sr-only">{experience.title}</h1>
         ) : (
           <>
             <p className="rose-opera-kicker">{experience.kicker}</p>
             <h1 className="rose-opera-title">{experience.title}</h1>
             <p className="rose-opera-line">{experience.line}</p>
+            <p className="rose-opera-whisper">{experience.whisper}</p>
           </>
         )}
-        <p className="rose-opera-whisper">{experience.whisper}</p>
         <div className="rose-opera-actions">
           <button
             type="button"
@@ -631,12 +771,6 @@ export function RoseOpera({
                 {cinema === "manual" ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
                 {cinema === "manual" ? "Exit cinema" : "Cinema"}
               </button>
-              {isAdmin ? (
-                <button type="button" className="rose-opera-ghost" aria-pressed={grokOpen} onClick={() => setGrokOpen((value) => !value)}>
-                  <MessageSquare className="size-3.5" />
-                  Grok
-                </button>
-              ) : null}
             </>
           ) : (
             <>
@@ -647,20 +781,9 @@ export function RoseOpera({
                   Welcome to the opera
                 </span>
               </Link>
-              {isAdmin ? (
-                <button type="button" className="rose-opera-ghost" aria-pressed={grokOpen} onClick={() => setGrokOpen((value) => !value)}>
-                  <MessageSquare className="size-3.5" />
-                  Grok
-                </button>
-              ) : null}
             </>
           )}
         </div>
-        {layout === "full" ? (
-          <p className="rose-opera-hint">
-            The preview stays on the time vortex until you begin the rite. That always starts at the first song, from the top.
-          </p>
-        ) : null}
       </div>
       {layout === "full" && cinema === "manual" ? (
         <button type="button" className="rose-opera-exit" onClick={() => void leaveOpera()} aria-label="Exit cinema">
@@ -677,14 +800,28 @@ export function RoseOpera({
           onClose={() => setAtelierOpen(false)}
         />
       ) : null}
-      {grokOpen && isAdmin && channel ? (
-        <RoseGrokChat
-          channel={channel}
-          track={track}
-          look={look}
-          onLook={applyLook}
-          onClose={() => setGrokOpen(false)}
+      {opening && layout === "full" ? (
+        <ExperienceGate
+          kicker={experience.kicker}
+          title={experience.title}
+          catalogReady={catalogReady}
+          audioReady={deck}
+          video={stormEl}
+          plates={plates}
+          onReady={openPreview}
         />
+      ) : null}
+      {songCue != null && layout === "full" ? (
+        <div
+          className="song-cue"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(songCue * 100)}
+          aria-label="Loading song"
+        >
+          <span style={{ width: `${Math.round(songCue * 100)}%` }} />
+        </div>
       ) : null}
     </section>
   );

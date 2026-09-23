@@ -313,6 +313,11 @@ export function phenomenonFromTitle(title?: string | null): PhenomenonId | null 
   return null;
 }
 
+/** The graphic a rite song opens on when the desk has not pinned one. */
+export function defaultRitePhenomenon(title?: string | null): PhenomenonId | null {
+  return phenomenonFromTitle(title) || (isElfMagicPreview(title) ? "arrival" : null);
+}
+
 export const VORTEX_CAPTIONS = [
   "The box is waiting",
   "Pretty eyes, pretty eyes",
@@ -872,9 +877,8 @@ export function lookForPhenomenon(base: RoseLook, id: PhenomenonId): RoseLook {
 
 export function lookForTrack(base: RoseLook, track: Track | null | undefined, index: number): RoseLook {
   const scene = sceneFromTags(track?.tags);
-  const titled = phenomenonFromTitle(track?.title);
-  const preview = isElfMagicPreview(track?.title) || (track?.tags ?? []).some(isPreviewTag);
-  const phenomenon = scene?.phenomenon || titled || (preview ? "vortex" : phenomenonAt(index, base.phenomenon));
+  const titled = defaultRitePhenomenon(track?.title);
+  const phenomenon = scene?.phenomenon || titled || phenomenonAt(index, base.phenomenon);
   const next = lookForPhenomenon(base, phenomenon);
   const stock = captionsForPhenomenon(phenomenon) ?? [];
   const sceneLines = scene?.captions ?? [];

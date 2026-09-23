@@ -478,6 +478,7 @@ export function MiniPlayer() {
         aria-label="Open player"
         title="Open player"
       >
+        <span className={cn("player-sliver-title", skin === "rose" && "rose-title", skin === "glaum" && "glaum-title")}>{track.title}</span>
         <span className="player-sliver-rail" aria-hidden>
           <span className="player-sliver-fill" style={{ width: `${progress}%` }} />
         </span>
@@ -613,10 +614,6 @@ export function MiniPlayer() {
           >
             <CoverArt src={songPortrait(track, channel) || art} alt="" className="size-12 shrink-0 overflow-hidden rounded-md" motion="still" />
             <span className="min-w-0 flex-1 overflow-hidden">
-              <MarqueeTitle
-                text={track.title}
-                className={cn("min-w-0 w-full font-display text-base leading-tight", skin === "glaum" && "glaum-title", skin === "rose" && "rose-title")}
-              />
               <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
                 {track.artist ? `${track.artist} · ` : ""}
                 {statusLine}
@@ -637,6 +634,7 @@ export function MiniPlayer() {
           <TransportButtons playing={playing} skipHint={skipHint} />
           {!ios ? <VolumeControl compact /> : null}
         </div>
+        <p className={cn("player-collapsed-name", skin === "rose" && "rose-title", skin === "glaum" && "glaum-title")}>{track.title}</p>
       </div>
       {artSheet}
     </div>

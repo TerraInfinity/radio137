@@ -88,6 +88,9 @@ export class RadioEngine {
       paused: el?.paused ?? true,
       src: el?.currentSrc || el?.src || "",
       readyState: el?.readyState ?? 0,
+      buffered: el
+        ? { length: el.buffered.length, end: (index: number) => el.buffered.end(index) }
+        : { length: 0, end: () => 0 },
     };
   }
 

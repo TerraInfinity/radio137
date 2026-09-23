@@ -14,7 +14,7 @@ import {
   xpFromTags,
   type ExperienceDraft,
 } from "@/lib/experiences";
-import { lookForTrack, mergeSceneTags, PHENOMENA, parsePhenomenon, phenomenonAt, sceneFromTags, type PhenomenonId } from "@/lib/phenomena";
+import { defaultRitePhenomenon, lookForTrack, mergeSceneTags, PHENOMENA, parsePhenomenon, sceneFromTags, type PhenomenonId } from "@/lib/phenomena";
 import { LYRICS_HAND, lyricsSourceFromTags } from "@/lib/stage-lines";
 import { ghostDropIds } from "@/lib/playlist-ghosts";
 import { lookFromStation } from "@/lib/rose-look";
@@ -404,22 +404,23 @@ function TrackScenes({
     <div className="xp-card">
       <p className="xp-kicker">Score · {tracks.length} songs</p>
       <p className="mt-1 text-sm text-muted">
-        This is the rite in order. Remove drops a row from this playlist only — it does not delete the R2 file. Ghost
+        This is the rite in order. Each song opens on its own default graphic. A pin replaces that default for this row only. Remove drops a row from this playlist only — it does not delete the R2 file. Ghost
         copies are extra rows added when a scene was painted; keep the real cut.
       </p>
       {tracks.length === 0 ? <p className="mt-3 text-sm text-muted">Empty score. Add songs from the Stations tab.</p> : null}
       <ol className="xp-score">
         {tracks.map((track, index) => {
           const scene = sceneFromTags(track.tags);
-          const phenomenon = scene?.phenomenon || phenomenonAt(index, stationPhenomenon);
+          const phenomenon = lookForTrack(base, track, index).phenomenon;
           const ghost = ghosts.has(track.id);
+          const mark = scene?.phenomenon ? "pinned" : defaultRitePhenomenon(track.title) ? "default" : "cycles";
           return (
             <li key={track.id} className={cn("xp-score-row", ghost && "is-ghost")}>
               <span className="xp-score-index">{String(index + 1).padStart(2, "0")}</span>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{track.title}</p>
                 <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-                  {formatClock(durationOf(track))} · {scene ? "pinned" : "cycles"}
+                  {formatClock(durationOf(track))} · {mark}
                   {ghost ? " · ghost copy" : ""}
                 </p>
               </div>

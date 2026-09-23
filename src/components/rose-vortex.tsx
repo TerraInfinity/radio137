@@ -312,29 +312,12 @@ function coverFeather(
   ctx.restore();
 }
 
-const COPY_LANES: { x: number; y: number; align: CanvasTextAlign; wide: number }[] = [
-  { x: 0.5, y: 0.36, align: "center", wide: 0.52 },
-  { x: 0.16, y: 0.5, align: "left", wide: 0.34 },
-  { x: 0.84, y: 0.48, align: "right", wide: 0.32 },
-  { x: 0.5, y: 0.58, align: "center", wide: 0.58 },
-  { x: 0.18, y: 0.56, align: "left", wide: 0.32 },
-  { x: 0.82, y: 0.54, align: "right", wide: 0.32 },
-];
-
 function stageLines(id: PhenomenonId): string[] {
   if (songLines.length) return songLines;
   return captionsForPhenomenon(id) ?? [];
 }
 
 let songLines: string[] = [];
-
-function lineReveal(pulse: RosePulse, len: number) {
-  const beatsPer = Math.max(1, pulse.beatsInBar * 4);
-  const cycle = beatsPer * 2;
-  const pos = (((pulse.beatIndex + pulse.beatPhase) % cycle) + cycle) % cycle;
-  const t = Math.min(1, pos / 2.4);
-  return Math.max(1, Math.ceil(len * t));
-}
 
 function wrapCopy(ctx: CanvasRenderingContext2D, text: string, maxW: number, maxLines = 3): string[] {
   const words = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
@@ -463,67 +446,45 @@ function drawRedGlare(ctx: CanvasRenderingContext2D, w: number, h: number, pulse
   ctx.restore();
 }
 
+let inkBottom = 0;
+
+function readInkBottom() {
+  if (typeof document === "undefined") return 0;
+  if (!document.body.classList.contains("rose-cinema-on")) return 0;
+  const dock = document.querySelector(".player-dock");
+  if (!dock) return 72;
+  return Math.max(72, Math.round(dock.getBoundingClientRect().height) + 28);
+}
+
+function abovePlayer(h: number, ratio: number) {
+  if (inkBottom <= 0) return h * ratio;
+  return Math.min(h * ratio, h - inkBottom - 10);
+}
+
 function drawActLine(
   ctx: CanvasRenderingContext2D,
   lines: string[],
   pulse: RosePulse,
   w: number,
   h: number,
-  size = Math.max(18, Math.min(32, w * 0.028)),
+  _size?: number,
 ) {
   if (!lines.length) return;
-  const alpha = Math.max(0.9, overlayAlpha(pulse, 2));
-  const at = actSlot(pulse, lines.length, 2);
-  const main = lines[at] ?? lines[0] ?? "";
-  const echo = lines[(at + 5) % lines.length] ?? "";
-  const sparkWords = (lines[(at + 11) % lines.length] ?? "").split(/\s+/).filter((word) => word.length > 2).slice(0, 4);
-  const spark = sparkWords.join(" ");
-  const lane = COPY_LANES[actSlot(pulse, COPY_LANES.length, 4)] ?? COPY_LANES[0]!;
-  const echoLane = COPY_LANES[(actSlot(pulse, COPY_LANES.length, 4) + 3) % COPY_LANES.length] ?? COPY_LANES[1]!;
-  const sparkLane = COPY_LANES[(actSlot(pulse, COPY_LANES.length, 4) + 1) % COPY_LANES.length] ?? COPY_LANES[2]!;
-  const style = actSlot(pulse, 3, 8);
-  const shown = style === 2 ? main.slice(0, lineReveal(pulse, main.length)) : main;
-  const serif = style === 1;
+  const main = lines[actSlot(pulse, lines.length, 2)] ?? lines[0] ?? "";
+  const size = Math.max(15, Math.min(20, w * 0.018));
+  const y = abovePlayer(h, 0.8) / h;
   paintCopyBlock(
     ctx,
-    shown,
-    lane,
+    main,
+    { x: 0.055, y, align: "left", wide: 0.62 },
     w,
     h,
     size,
-    alpha,
-    true,
-    serif ? `italic SIZEpx Georgia, "Times New Roman", serif` : `600 SIZEpx ui-sans-serif, Georgia, sans-serif`,
-    serif ? "rgba(255, 246, 240, 0.98)" : "rgba(255, 248, 242, 0.98)",
+    0.9,
+    false,
+    `italic SIZEpx Georgia, "Times New Roman", serif`,
+    "rgba(255, 246, 240, 0.92)",
   );
-  if (echo && echo !== main) {
-    paintCopyBlock(
-      ctx,
-      echo,
-      echoLane,
-      w,
-      h,
-      Math.max(15, size * 0.72),
-      0.82,
-      false,
-      `500 SIZEpx ui-monospace, "IBM Plex Mono", monospace`,
-      "rgba(255, 228, 196, 0.96)",
-    );
-  }
-  if (spark && spark !== main && spark !== echo) {
-    paintCopyBlock(
-      ctx,
-      spark,
-      sparkLane,
-      w,
-      h,
-      Math.max(13, size * 0.58),
-      0.78,
-      false,
-      `600 SIZEpx ui-monospace, "IBM Plex Mono", monospace`,
-      "rgba(190, 236, 255, 0.96)",
-    );
-  }
 }
 
 function expFollow(current: number, target: number, k: number, dt: number) {
@@ -2168,6 +2129,96 @@ function drawVow(
   drawActLine(ctx, stageLines("vow"), pulse, w, h, Math.max(16, Math.min(28, w * 0.028)));
 }
 
+function filmReady(video: HTMLVideoElement) {
+  return video.readyState >= 2 && video.videoWidth > 0;
+}
+
+function holdFilm(video: HTMLVideoElement, on: boolean) {
+  if (on) {
+    if (video.dataset.held !== "1") {
+      video.dataset.held = "1";
+      try {
+        video.currentTime = 0;
+      } catch {
+        /* not seekable yet */
+      }
+    }
+    const end = Number.isFinite(video.duration) ? video.duration : 6;
+    if (video.paused && video.currentTime < end - 0.08) void video.play().catch(() => undefined);
+    return;
+  }
+  if (video.dataset.held === "1") video.dataset.held = "0";
+  if (!video.paused) video.pause();
+}
+
+function loadFilm(src: string) {
+  const video = document.createElement("video");
+  video.muted = true;
+  video.defaultMuted = true;
+  video.playsInline = true;
+  video.preload = "auto";
+  video.src = src;
+  const prime = () => {
+    void video.play().then(() => {
+      video.pause();
+      try {
+        video.currentTime = 0;
+      } catch {
+        /* ignore */
+      }
+    }).catch(() => undefined);
+  };
+  video.addEventListener("canplay", prime, { once: true });
+  video.load();
+  return video;
+}
+
+/** A visiting plate melts at the edges so the glyphs behind it stay visible. */
+function drawSoftPlate(
+  ctx: CanvasRenderingContext2D,
+  source: CanvasImageSource,
+  sw: number,
+  sh: number,
+  cx: number,
+  cy: number,
+  dw: number,
+  dh: number,
+  alpha: number,
+) {
+  if (alpha <= 0.02 || dw < 2 || dh < 2 || sw < 2 || sh < 2) return;
+  const pad = featherPad(dw, dh);
+  if (!pad || !spritePad) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(source, cx - dw / 2, cy - dh / 2, dw, dh);
+    ctx.restore();
+    return;
+  }
+  const tw = spritePad.width;
+  const th = spritePad.height;
+  pad.drawImage(source, 0, 0, sw, sh, 0, 0, tw, th);
+  pad.globalCompositeOperation = "destination-in";
+  const gy = pad.createLinearGradient(0, 0, 0, th);
+  gy.addColorStop(0, "rgba(0,0,0,0)");
+  gy.addColorStop(0.08, "rgba(0,0,0,1)");
+  gy.addColorStop(0.92, "rgba(0,0,0,1)");
+  gy.addColorStop(1, "rgba(0,0,0,0)");
+  pad.fillStyle = gy;
+  pad.fillRect(0, 0, tw, th);
+  const gx = pad.createLinearGradient(0, 0, tw, 0);
+  gx.addColorStop(0, "rgba(0,0,0,0)");
+  gx.addColorStop(0.07, "rgba(0,0,0,1)");
+  gx.addColorStop(0.93, "rgba(0,0,0,1)");
+  gx.addColorStop(1, "rgba(0,0,0,0)");
+  pad.fillStyle = gx;
+  pad.fillRect(0, 0, tw, th);
+  pad.globalCompositeOperation = "source-over";
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(spritePad, cx - dw / 2, cy - dh / 2, dw, dh);
+  ctx.restore();
+}
+
 /** Nested pages. The storm is taught to sit inside a softer shell. */
 function drawManual(
   ctx: CanvasRenderingContext2D,
@@ -2179,6 +2230,7 @@ function drawManual(
   fairy: HTMLImageElement,
   glyphs: HTMLImageElement,
   rose: HTMLImageElement,
+  films: HTMLVideoElement[],
 ) {
   if (ready(glyphs)) coverBlit(ctx, glyphs, w, h, 0.18, 1);
   else {
@@ -2188,15 +2240,28 @@ function drawManual(
   ctx.fillStyle = "rgba(6, 4, 10, 0.2)";
   ctx.fillRect(0, 0, w, h);
 
-  const pages = [cleo, fairy, rose].filter((img) => ready(img));
+  const pages: Array<{ kind: "still"; img: HTMLImageElement } | { kind: "film"; video: HTMLVideoElement }> = [];
+  for (const img of [cleo, fairy, rose]) {
+    if (ready(img)) pages.push({ kind: "still", img });
+  }
+  for (const video of films) {
+    if (filmReady(video)) pages.push({ kind: "film", video });
+  }
+  let active: HTMLVideoElement | null = null;
   if (pages.length > 0) {
-    const slot = 11;
-    const cursor = (pulse.time % (slot * pages.length)) / slot;
-    const index = Math.floor(cursor) % pages.length;
-    const local = cursor - Math.floor(cursor);
-    const img = pages[index]!;
-    const enter = 0.18;
-    const leave = 0.18;
+    const slots = pages.map((page) => (page.kind === "film" ? 6.4 : 11));
+    const total = slots.reduce((sum, slot) => sum + slot, 0);
+    let remain = pulse.time % total;
+    let index = 0;
+    while (index < pages.length - 1 && remain >= (slots[index] ?? 11)) {
+      remain -= slots[index] ?? 11;
+      index += 1;
+    }
+    const slot = slots[index] ?? 11;
+    const local = slot > 0 ? remain / slot : 0;
+    const page = pages[index]!;
+    const enter = page.kind === "film" ? 0.08 : 0.18;
+    const leave = page.kind === "film" ? 0.1 : 0.18;
     const smooth = (t: number) => {
       const x = Math.max(0, Math.min(1, t));
       return x * x * (3 - 2 * x);
@@ -2204,12 +2269,31 @@ function drawManual(
     let presence = 1;
     if (local < enter) presence = smooth(local / enter);
     else if (local > 1 - leave) presence = smooth((1 - local) / leave);
-    const bloom = img === rose;
-    const dh = Math.min(h * (bloom ? 0.56 : 0.88), w * (bloom ? 0.38 : 0.42)) * (0.96 + energy * 0.04);
-    const dw = dh * (img.naturalWidth / img.naturalHeight);
     const lift = (1 - presence) * h * 0.035;
-    featherPortrait(ctx, img, w * 0.5, h * 0.5 + lift, dw, dh, 0.94 * presence);
+    if (page.kind === "still") {
+      const img = page.img;
+      const bloom = img === rose;
+      const dh = Math.min(h * (bloom ? 0.56 : 0.88), w * (bloom ? 0.38 : 0.42)) * (0.96 + energy * 0.04);
+      const dw = dh * (img.naturalWidth / img.naturalHeight);
+      featherPortrait(ctx, img, w * 0.5, h * 0.5 + lift, dw, dh, 0.94 * presence);
+    } else {
+      active = page.video;
+      const dw = Math.min(w * 0.72, h * 0.78 * (page.video.videoWidth / page.video.videoHeight));
+      const dh = dw * (page.video.videoHeight / page.video.videoWidth);
+      drawSoftPlate(
+        ctx,
+        page.video,
+        page.video.videoWidth,
+        page.video.videoHeight,
+        w * 0.5,
+        h * 0.48 + lift,
+        dw,
+        dh,
+        0.94 * presence,
+      );
+    }
   }
+  for (const video of films) holdFilm(video, video === active);
   drawActLine(ctx, stageLines("manual"), pulse, w, h, Math.max(16, Math.min(28, w * 0.028)));
 }
 
@@ -2793,8 +2877,8 @@ function drawAllocate(
     ctx.font = `500 ${Math.max(9, w * 0.011)}px ui-monospace, monospace`;
     ctx.fillStyle = "rgba(255, 236, 210, 0.62)";
     ctx.textAlign = "left";
-    ctx.fillText("HUMANITY", w * 0.08, h * 0.905);
-    ctx.fillText("SKYNET", w * 0.62, h * 0.905);
+    ctx.fillText("HUMANITY", w * 0.08, abovePlayer(h, 0.905));
+    ctx.fillText("SKYNET", w * 0.62, abovePlayer(h, 0.905));
     ctx.restore();
   }
   drawActLine(ctx, stageLines("allocate"), pulse, w, h);
@@ -3677,6 +3761,11 @@ export function RoseVortex({
       mote.life = Math.random() * mote.max * 0.6;
       return mote;
     });
+    const chaosFilms = [
+      loadFilm("/experiences/rose/chaos-sweetie.mp4"),
+      loadFilm("/experiences/rose/chaos-spiral.mp4"),
+      loadFilm("/experiences/rose/chaos-book.mp4"),
+    ];
     const petalFace = loadSprite(SPRITES.petalFace);
     const petalEdge = loadSprite(SPRITES.petalEdge);
     const roseImg = loadSprite(SPRITES.rose);
@@ -3811,6 +3900,7 @@ export function RoseVortex({
       resizeList(glyphsRef.current, kind === "glyphs" ? look.glyphs : 0, (i) => makeGlyphs(1)[0] ?? { a: i, r: 0.6, z: Math.random(), kind: i % 3 });
       const w = canvas.clientWidth || 1;
       const h = canvas.clientHeight || 1;
+      inkBottom = readInkBottom();
       const live = playing && !document.hidden;
       const rockNow = rockRef?.current ?? { charge: 0, hits: 0, burst: 0 };
       rockNow.charge = Math.max(0, rockNow.charge - dt * 0.16);
@@ -4005,7 +4095,9 @@ export function RoseVortex({
         drawVow(ctx, w, h, pulse, energy, rememberLandingImg, rememberDoorsImg, prettyEyesImg, rememberHallImg);
       }
       if (kind === "manual") {
-        drawManual(ctx, w, h, pulse, energy, allocateCleoImg, allocateFairyImg, allocateGlyphsImg, roseImg);
+        drawManual(ctx, w, h, pulse, energy, allocateCleoImg, allocateFairyImg, allocateGlyphsImg, roseImg, chaosFilms);
+      } else {
+        for (const video of chaosFilms) holdFilm(video, false);
       }
       if (kind === "shiny") {
         drawShiny(ctx, w, h, pulse, energy, timewarImg, vortexImg, prettyEyesImg, roseImg);
@@ -4449,6 +4541,11 @@ export function RoseVortex({
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      for (const video of chaosFilms) {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      }
     };
   }, [lookRef, playing, pulseRef, reduce, rockRef]);
 

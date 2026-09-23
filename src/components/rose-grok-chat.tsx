@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageSquare, Pin, Send, X } from "lucide-react";
+import { MessageSquare, Pin, Send } from "lucide-react";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getSeedCatalog } from "@/lib/catalog";
 import { patchStationTrack, saveStation } from "@/lib/desk-api";
@@ -26,13 +26,11 @@ export function RoseGrokChat({
   track,
   look,
   onLook,
-  onClose,
 }: {
   channel: Channel;
   track?: Track | null;
   look: RoseLook;
   onLook: (next: RoseLook) => void;
-  onClose: () => void;
 }) {
   const lookRef = useRef(look);
   lookRef.current = look;
@@ -138,7 +136,7 @@ export function RoseGrokChat({
         if (track) await pinSong(result.look);
         else await saveStationLook(result.look);
       } else {
-        setHint(result.changed ? "Live on the stage. Pin the song to keep it." : "No look change.");
+        setHint(result.changed ? "Look is ready. Pin the song to keep it." : "No look change.");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Grok could not reach the stage.";
@@ -156,11 +154,8 @@ export function RoseGrokChat({
           <MessageSquare className="size-3.5" />
           Grok · {track?.title || "Station look"}
         </p>
-        <button type="button" className="rose-opera-ghost" onClick={onClose} aria-label="Close Grok">
-          <X className="size-4" />
-        </button>
       </div>
-      <p className="rose-atelier-note">Talk the rite into shape. Changes land live on this cut; pin to keep them after refresh.</p>
+      <p className="rose-atelier-note">Talk a song into a look. Pin it to keep the change, or save it as the station look.</p>
       <div ref={logRef} className="rose-grok-log">
         {messages.length === 0 ? (
           <p className="rose-atelier-hint">No thread yet for this song. Try a starter, or describe the phenomenon you want.</p>

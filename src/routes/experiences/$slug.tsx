@@ -45,7 +45,7 @@ function ExperiencePage() {
       const preview = previewTrackOf(getPlayableTracks(channel));
       if (!preview) return;
       if (state.channelSlug === stationSlug && state.track?.id === preview.id) return;
-      void cueTrack(stationSlug, preview.id, { play: state.autoplay, hold: true });
+      void cueTrack(stationSlug, preview.id, { play: false, hold: true });
       return;
     }
     if (arrived.current) return;
