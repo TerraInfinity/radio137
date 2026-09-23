@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ListMusic, Lock, Maximize, MessageSquare, Minimize, Palette, Pause, Play, RotateCw, X } from "lucide-react";
+import { Maximize, MessageSquare, Minimize, Palette, Pause, Play, RotateCw, X } from "lucide-react";
 import "./rose-opera.css";
-import { AdminStationEdit } from "@/components/admin-track-tools";
-import { GhostCleaner } from "@/components/ghost-cleaner";
 import { RoseAtelier } from "@/components/rose-atelier";
 import { RoseGrokChat } from "@/components/rose-grok-chat";
 import { RoseVortex, type RoseRock } from "@/components/rose-vortex";
-import { StationPlaylist } from "@/components/station-playlist";
 import { cn } from "@/lib/cn";
 import { ritePrimary } from "@/lib/rite-primary";
 import { radioEngine } from "@/lib/radio-engine";
@@ -71,7 +68,6 @@ export function RoseOpera({
   const [drift, setDrift] = useState(false);
   const [arming, setArming] = useState(false);
   const [holdingPreview, setHoldingPreview] = useState(experience.slug === "rose");
-  const [deskOpen, setDeskOpen] = useState(false);
   const [atelierOpen, setAtelierOpen] = useState(false);
   const [grokOpen, setGrokOpen] = useState(false);
   const grokPersist = useRef(false);
@@ -85,7 +81,7 @@ export function RoseOpera({
   const rawLoop = stormLoop ? stormSrc : look.loopUrl || experience.loop;
   const loopSrc = rawLoop.includes("tardis-loop") ? "/experiences/rose/vortex-storm.mp4?v=5" : rawLoop;
   const loopPoster = stormLoop || rawLoop.includes("tardis-loop") ? "/experiences/rose/vortex-tunnel.jpg?v=5" : stills[0];
-  const portrait = songPortrait(track, channel) || "/experiences/rose/white-rose.png";
+  const portrait = (holdingPreview ? null : songPortrait(track, channel)) || "/experiences/rose/white-rose.png";
   const previewLive = holdingPreview && (playing || status === "loading");
   const previewEnded = holdingPreview && !previewLive && currentTime > 1.5;
   const previewState = previewLive ? "Playing" : previewEnded ? "Ended" : "Ready";
@@ -248,7 +244,7 @@ export function RoseOpera({
   }, [bpm, currentTime, experience.captions, holdingPreview, playing]);
 
   useEffect(() => {
-    if (cinema === "off" || atelierOpen || grokOpen || deskOpen) {
+    if (cinema === "off" || atelierOpen || grokOpen) {
       setChrome(true);
       return;
     }
@@ -269,7 +265,7 @@ export function RoseOpera({
       window.removeEventListener("pointerdown", poke);
       window.removeEventListener("keydown", poke);
     };
-  }, [atelierOpen, cinema, deskOpen, grokOpen]);
+  }, [atelierOpen, cinema, grokOpen]);
 
   const opera = cinema !== "off" && layout === "full";
 
@@ -302,7 +298,7 @@ export function RoseOpera({
   }, [cinema, drift, layout]);
 
   useEffect(() => {
-    if (layout !== "full" || cinema !== "off" || drift || deskOpen || atelierOpen || grokOpen || reduce) return;
+    if (layout !== "full" || cinema !== "off" || drift || atelierOpen || grokOpen || reduce) return;
     let timer = window.setTimeout(() => setDrift(true), IDLE_OPERA_MS);
     let lastX = -1;
     let lastY = -1;
@@ -327,7 +323,7 @@ export function RoseOpera({
       window.removeEventListener("touchstart", poke);
       window.removeEventListener("keydown", poke);
     };
-  }, [atelierOpen, cinema, deskOpen, drift, grokOpen, layout, reduce]);
+  }, [atelierOpen, cinema, drift, grokOpen, layout, reduce]);
 
   useEffect(() => {
     if (!drift || cinema !== "off") return;
@@ -437,7 +433,7 @@ export function RoseOpera({
     }
   }
 
-  const showCopy = layout === "hero" || chrome || deskOpen || atelierOpen || grokOpen;
+  const showCopy = layout === "hero" || chrome || atelierOpen || grokOpen;
 
   function applyLook(next: RoseLook) {
     tweaked.current = true;
@@ -635,16 +631,6 @@ export function RoseOpera({
                 {cinema === "manual" ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
                 {cinema === "manual" ? "Exit cinema" : "Cinema"}
               </button>
-              <button
-                type="button"
-                onClick={() => setDeskOpen((value) => !value)}
-                className="rose-playlist-open"
-                aria-expanded={deskOpen}
-              >
-                {unlocked || isAdmin ? <ListMusic className="size-4" /> : <Lock className="size-3.5" />}
-                Playlist
-                {channel ? <span className="rose-playlist-count">{getPlayableTracks(channel).length}</span> : null}
-              </button>
               {isAdmin ? (
                 <button type="button" className="rose-opera-ghost" aria-pressed={grokOpen} onClick={() => setGrokOpen((value) => !value)}>
                   <MessageSquare className="size-3.5" />
@@ -672,7 +658,7 @@ export function RoseOpera({
         </div>
         {layout === "full" ? (
           <p className="rose-opera-hint">
-            The arrival preview is the song marked Arrival in the playlist. It plays when Auto is on, and only animates when Auto is off. It stops when that song ends. Reset it, or begin the rite — that always starts at the first song, from the top.
+            The preview stays on the time vortex until you begin the rite. That always starts at the first song, from the top.
           </p>
         ) : null}
       </div>
@@ -680,32 +666,6 @@ export function RoseOpera({
         <button type="button" className="rose-opera-exit" onClick={() => void leaveOpera()} aria-label="Exit cinema">
           <X className="size-4" />
         </button>
-      ) : null}
-      {layout === "full" && deskOpen && channel ? (
-        <div className="rose-desk">
-          <div className="rose-desk-bar">
-            <p className="rose-desk-kicker">{unlocked || isAdmin ? "Playlist" : "Sealed until the rite begins"}</p>
-            <button type="button" onClick={() => setDeskOpen(false)} className="rose-opera-ghost" aria-label="Close playlist">
-              <X className="size-4" />
-            </button>
-          </div>
-          {isAdmin ? <GhostCleaner channel={channel} /> : null}
-          <StationPlaylist
-            channel={channel}
-            locked={!unlocked}
-            onUnlock={() => void begin()}
-            startOpen
-          />
-          {isAdmin ? (
-            <div className="rose-desk-admin">
-              <p className="rose-desk-kicker">Admin</p>
-              <p className="mb-3 text-sm text-muted">
-                Tag a song <span className="font-mono text-gold">bpm:128</span> to lock that cut. Open <span className="font-mono text-gold">Atelier</span> to keep directing the vortex.
-              </p>
-              <AdminStationEdit channel={channel} />
-            </div>
-          ) : null}
-        </div>
       ) : null}
       {atelierOpen && isAdmin && channel ? (
         <RoseAtelier

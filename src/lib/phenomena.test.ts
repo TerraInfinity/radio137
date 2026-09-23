@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { encodeSceneTag, isBigBadWolf, isPrettyAvatar, isRoseRemembers, isRoseRemembers2, isShakeBootie, isSwooningProm, isSweetie, isTwistIntro, isVoiceC, isVoiceCheck, isVoiceCo, isVoiceCoc, isVoiceCocy, isVoiceNo, isVoiceOn, lookForPhenomenon, lookForTrack, phenomenonAt, phenomenonFromTitle, PHENOMENA, sceneFromTags, stepPhenomenon } from "./phenomena.ts";
+import { encodeSceneTag, isBigBadWolf, isPrettyAvatar, isRoseRemembers, isRoseRemembers2, isShakeBootie, isSwooningProm, isSweetie, isTwistIntro, isVoiceC, isVoiceCheck, isVoiceCo, isVoiceCoc, isVoiceCocy, isVoiceNo, isVoiceOn, lookForPhenomenon, lookForTrack, phenomenonAt, phenomenonFromTitle, PHENOMENA, previewTrackOf, sceneFromTags, stepPhenomenon } from "./phenomena.ts";
 import { ROSE_LOOK_DEFAULT } from "./rose-look.ts";
 
 describe("phenomena", () => {
@@ -323,5 +323,10 @@ describe("phenomena", () => {
     assert.equal(phenomenonFromTitle("Voice Coc_"), "choir");
     assert.equal(phenomenonFromTitle("Elf Magic Shrimp Kitty Future Nostalgia"), null);
     assert.equal(phenomenonFromTitle("Time War 2137"), null);
+    const preview = previewTrackOf([
+      { title: "Glaum Shrimp Prom Swooning for Glaum's Attention", tags: ["preview", "scene.v1.prom"] },
+      { title: "Elf Magic Shrimp Kitty Future Nostalgia", tags: ["bpm:122"] },
+    ]);
+    assert.equal(preview?.title, "Elf Magic Shrimp Kitty Future Nostalgia");
   });
 });

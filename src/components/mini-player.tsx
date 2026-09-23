@@ -564,9 +564,11 @@ export function MiniPlayer() {
               <Scrubber currentTime={currentTime} duration={duration} health={pale} />
               {!ios ? <VolumeControl className="w-full max-w-sm md:max-w-none" /> : null}
               {extras}
-              <p className="player-stage-desk text-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle md:text-left">
-                Desk: {kindLabel(deskKind)} · You: {listenModeLabel(listenMode)}
-              </p>
+              {skin === "rose" ? null : (
+                <p className="player-stage-desk text-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle md:text-left">
+                  Desk: {kindLabel(deskKind)} · You: {listenModeLabel(listenMode)}
+                </p>
+              )}
             </div>
           </div>
         </div>

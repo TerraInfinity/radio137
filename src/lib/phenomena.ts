@@ -126,11 +126,11 @@ export function isPreviewTag(tag: string): boolean {
   return t === "preview" || t === "arrival";
 }
 
-/** The arrival preview is the track tagged `preview`, otherwise the Elf Magic song. */
+/** The arrival preview is the Elf Magic song, else a track tagged `preview` that is not already its own scene. */
 export function previewTrackOf<T extends { title: string; tags?: string[] }>(tracks: T[]): T | null {
-  const tagged = tracks.find((track) => (track.tags ?? []).some(isPreviewTag));
-  if (tagged) return tagged;
-  return tracks.find((track) => isElfMagicPreview(track.title)) ?? null;
+  const elf = tracks.find((track) => isElfMagicPreview(track.title));
+  if (elf) return elf;
+  return tracks.find((track) => (track.tags ?? []).some(isPreviewTag) && !sceneFromTags(track.tags)) ?? null;
 }
 
 export function isChaosManual(title?: string | null): boolean {

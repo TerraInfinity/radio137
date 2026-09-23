@@ -25,6 +25,7 @@ export default async function htmlCacheMiddleware(
 ): Promise<unknown> {
   const result = await next();
   if (!(result instanceof Response)) return result;
+  if (result.status >= 300 && result.status < 400) return result;
   const method = (event.req.method ?? "GET").toUpperCase();
   if (method !== "GET" && method !== "HEAD") return result;
   const path = event.url.pathname;

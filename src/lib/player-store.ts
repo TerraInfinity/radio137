@@ -16,8 +16,9 @@ import { durationOf, neighborTrack, nextForward, nextShuffled, rememberDuration,
 import type { CutGroup } from "@/lib/cuts";
 import { endPad, radioEngine } from "@/lib/radio-engine";
 import { effectiveKind, listenModeFromLocation, type ListenMode } from "@/lib/listen-mode";
-import { experienceSlugFromPath, pageCuesPlayback } from "@/lib/playback-page";
+import { experienceSlugFromPath, pageCuesPlayback, shouldHoldRosePreview } from "@/lib/playback-page";
 import { getExperience } from "@/lib/experiences";
+import { previewTrackOf } from "@/lib/phenomena";
 import { bindMediaSession, flushMediaSession, ignoreHidePause, rebindMediaSession, syncMediaSession } from "@/lib/media-session";
 import { forgetCachedAudio, hasCachedAudio, pinCachedAudio, playableSrc, rememberAudio, shouldHoldAutoAdvance, dataSaverOn, warmTrackSrc } from "@/lib/audio-cache";
 import { mediaUrl } from "@/lib/media";
@@ -62,6 +63,7 @@ type PlayerState = {
   buffering: boolean;
   deckHint: string;
   catalogReady: boolean;
+  roseRite: boolean;
   elsewhere: PlaybackPeer | null;
   hydrate: () => void;
   enterGate: () => void;
@@ -124,6 +126,11 @@ function persist() {
     shuffleBySlug: s.shuffleBySlug,
     listenMode: s.listenMode,
   });
+}
+
+function rosePreviewHeld(slug: string | null | undefined): boolean {
+  if (typeof window === "undefined") return false;
+  return shouldHoldRosePreview(window.location.pathname, slug, usePlayerStore.getState().roseRite);
 }
 
 function channelOf(slug: string | null): Channel | undefined {
@@ -351,14 +358,16 @@ async function loadTrack(
   hops = 0,
   mode: "join" | "flow" = "flow",
   restart = false,
+  hold = false,
 ) {
   bindEngine();
+  if (hold && usePlayerStore.getState().roseRite) return;
   if (!play) {
     radioEngine.pause();
     playbackLock.release();
   }
   if (restart) justEndedId = null;
-  if (!restart && justEndedId && track.id === justEndedId && hops === 0 && mode !== "join") {
+  if (!restart && !hold && !holdAtEnd && justEndedId && track.id === justEndedId && hops === 0 && mode !== "join") {
     const channel = channelOf(slug);
     const playable = getPlayableTracks(channel);
     const nxt = pickNext(channel, playable, track.id);
@@ -400,7 +409,9 @@ async function loadTrack(
     usePlayerStore.setState({ elsewhere: null });
   }
   const state = usePlayerStore.getState();
+  if (hold && state.roseRite) return;
   const src = await playableSrc(track);
+  if (hold && usePlayerStore.getState().roseRite) return;
   let result = await radioEngine.load({
     url: src,
     offsetSec: offset,
@@ -421,11 +432,22 @@ async function loadTrack(
     });
   }
   if (result.kind === "stale") return;
+  if (hold && usePlayerStore.getState().roseRite) return;
   if (result.kind === "error") {
+    if (hold || holdAtEnd) {
+      radioEngine.pause();
+      set({ status: "paused" });
+      return;
+    }
     await usePlayerStore.getState().next("error");
     return;
   }
   if (result.kind === "skip") {
+    if (hold || holdAtEnd) {
+      radioEngine.pause();
+      set({ status: "paused", duration: result.duration });
+      return;
+    }
     if (result.duration > 0.25) {
       rememberDuration(track.id, result.duration);
       patchTrackDuration(track.id, result.duration);
@@ -529,6 +551,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   buffering: false,
   deckHint: "",
   catalogReady: false,
+  roseRite: false,
   elsewhere: null,
 
   hydrate: () => {
@@ -648,11 +671,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const last = xp?.stationSlug || get().lastSlug || get().catalog.defaultSlug;
     set({ gateOpen: false, visited: true, lastSlug: last });
     persist();
+    if (xp?.slug === "rose") return;
     void get().tuneIn(last, { forcePlay: !xp, fromStart: Boolean(xp), play: xp ? false : undefined });
   },
 
   tuneIn: async (slug, opts) => {
-    holdAtEnd = false;
+    const openingRite = Boolean(opts?.fromStart && opts?.forcePlay && slug === "rose");
+    if (openingRite) set({ roseRite: true });
     const channel = channelOf(slug);
     if (!channel) {
       set({ status: "idle" });
@@ -675,6 +700,22 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       justEndedId = null;
       set({ listenModeSession: "ondemand" });
     }
+    if (!openingRite && rosePreviewHeld(slug)) {
+      const preview = previewTrackOf(playable);
+      if (preview) {
+        const play = opts?.play === false ? false : Boolean(opts?.forcePlay || opts?.play === true || get().autoplay);
+        await get().cueTrack(slug, preview.id, { play, hold: true });
+      } else if (get().channelSlug === slug && get().track) {
+        radioEngine.pause();
+        set({ track: null, status: "paused", channelSlug: slug, lastSlug: slug, visited: true, gateOpen: false });
+        persist();
+      } else {
+        set({ lastSlug: slug, visited: true, gateOpen: false });
+        persist();
+      }
+      return;
+    }
+    holdAtEnd = false;
     const alreadyHere =
       get().channelSlug === slug &&
       Boolean(get().track) &&
@@ -736,20 +777,28 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   cueTrack: async (slug, trackId, opts) => {
+    if (opts?.hold && get().roseRite) return;
     leaveLiveClock();
     const channel = channelOf(slug);
     const track = channel?.tracks.find((item) => item.id === trackId);
     if (!channel || !track || (isAdultTrack(track) && !isChannelNsfw(channel))) {
+      if (opts?.hold) return;
       await get().tuneIn(slug);
       return;
     }
-    const play = opts?.play ?? true;
-    holdAtEnd = Boolean(opts?.hold);
-    if (play) userPaused = false;
-    else userPaused = true;
-    await loadTrack(slug, track, 0, play, set, 0, "flow");
-    set({ lastSlug: slug, visited: true, gateOpen: false });
-    persist();
+    const run = async () => {
+      if (opts?.hold && get().roseRite) return;
+      const play = opts?.play ?? true;
+      holdAtEnd = Boolean(opts?.hold);
+      if (play) userPaused = false;
+      else userPaused = true;
+      await loadTrack(slug, track, 0, play, set, 0, "flow", false, Boolean(opts?.hold));
+      if (opts?.hold && get().roseRite) return;
+      set({ lastSlug: slug, visited: true, gateOpen: false });
+      persist();
+    };
+    loadLock = Promise.resolve(loadLock).then(run, run);
+    await loadLock;
   },
 
   halt: () => {
@@ -772,6 +821,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
     userPaused = false;
     takeSpeaker();
+    if (rosePreviewHeld(state.channelSlug)) {
+      const channel = channelOf(state.channelSlug);
+      const preview = previewTrackOf(getPlayableTracks(channel));
+      if (preview && state.track?.id !== preview.id && state.channelSlug) {
+        await get().cueTrack(state.channelSlug, preview.id, { play: true, hold: true });
+        return;
+      }
+    }
     if (state.track && state.channelSlug) {
       if (holdAtEnd && state.duration > 1 && state.currentTime >= state.duration - 1.25) {
         userPaused = false;
@@ -794,6 +851,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const run = async () => {
       const slug = get().channelSlug;
       if (!slug) return;
+      if (rosePreviewHeld(slug)) {
+        userPaused = true;
+        holdAtEnd = true;
+        radioEngine.pause();
+        playbackLock.release();
+        set({ status: "paused" });
+        flushMediaSession();
+        return;
+      }
       const channel = channelOf(slug);
       if (!channel) return;
       const playable = getPlayableTracks(channel);
@@ -871,9 +937,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   prev: async () => {
+    const slug = get().channelSlug;
+    if (rosePreviewHeld(slug)) return;
     leaveLiveClock();
     holdAtEnd = false;
-    const slug = get().channelSlug;
     if (!slug) return;
     const channel = channelOf(slug);
     if (!channel) return;
@@ -1051,7 +1118,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       shuffle: shuffleActive(channel, Boolean(slug && get().shuffleBySlug[slug])),
       track: still ?? get().track,
     });
-    if (playingId && !still) void get().next("ended");
+    if (slug && rosePreviewHeld(slug)) {
+      const preview = previewTrackOf(playable);
+      const currentId = get().track?.id ?? null;
+      if (preview && currentId !== preview.id) {
+        void get().cueTrack(slug, preview.id, { play: get().autoplay, hold: true });
+      }
+      flushMediaSession();
+      return;
+    }
+    if (playingId && !still && slug) {
+      if (holdAtEnd) {
+        const preview = previewTrackOf(playable);
+        if (preview && preview.id !== playingId) {
+          void get().cueTrack(slug, preview.id, { play: get().autoplay, hold: true });
+        }
+      } else {
+        void get().next("ended");
+      }
+    }
     flushMediaSession();
   },
 

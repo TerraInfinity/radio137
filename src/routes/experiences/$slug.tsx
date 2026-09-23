@@ -31,26 +31,28 @@ function ExperiencePage() {
   const ready = usePlayerStore((s) => s.ready);
   const catalogReady = usePlayerStore((s) => s.catalogReady);
   const stationSlug = experience?.stationSlug;
+  const roseRite = usePlayerStore((s) => s.roseRite);
+  const trackId = usePlayerStore((s) => s.track?.id ?? null);
+  const channelSlug = usePlayerStore((s) => s.channelSlug);
   const arrived = useRef(false);
 
   useEffect(() => {
-    if (!ready || !catalogReady || !stationSlug || !experience || arrived.current) return;
-    arrived.current = true;
+    if (!ready || !catalogReady || !stationSlug || !experience) return;
     const state = usePlayerStore.getState();
     if (experience.slug === "rose") {
+      if (state.roseRite) return;
       const channel = catalog.channels.find((item) => item.slug === stationSlug);
       const preview = previewTrackOf(getPlayableTracks(channel));
-      const play = state.autoplay;
-      if (preview) {
-        void cueTrack(stationSlug, preview.id, { play, hold: true });
-        return;
-      }
-      void tuneIn(stationSlug, { fromStart: true, play });
+      if (!preview) return;
+      if (state.channelSlug === stationSlug && state.track?.id === preview.id) return;
+      void cueTrack(stationSlug, preview.id, { play: state.autoplay, hold: true });
       return;
     }
+    if (arrived.current) return;
+    arrived.current = true;
     if (state.channelSlug === stationSlug) return;
     void tuneIn(stationSlug, { fromStart: true, play: false });
-  }, [catalog.channels, catalogReady, cueTrack, experience, ready, stationSlug, tuneIn]);
+  }, [catalog.channels, catalogReady, channelSlug, cueTrack, experience, ready, roseRite, stationSlug, trackId, tuneIn]);
 
   if (!experience) {
     return (
