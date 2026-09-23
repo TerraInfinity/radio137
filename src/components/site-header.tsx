@@ -16,6 +16,7 @@ const links = [
   { href: "/stations", label: "Stations", match: (path: string) => path === "/stations" || path.startsWith("/channel/") },
   { href: "/player", label: "Songs", match: (path: string) => path === "/player" || path.startsWith("/player/") || path === "/library" },
   { href: "/experiences", label: "Experiences", match: (path: string) => path.startsWith("/experiences") },
+  { href: "/device-sync", label: "Device Sync", match: (path: string) => path.startsWith("/device-sync") },
 ] as const;
 
 export function SiteHeader() {

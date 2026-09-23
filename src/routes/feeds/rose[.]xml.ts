@@ -19,6 +19,7 @@ export const Route = createFileRoute("/feeds/rose.xml")({
           headers: {
             "content-type": "application/rss+xml; charset=utf-8",
             "cache-control": "public, max-age=300",
+            "access-control-allow-origin": "*",
           },
         });
       },

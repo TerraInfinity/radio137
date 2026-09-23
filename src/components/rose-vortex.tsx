@@ -893,11 +893,19 @@ const SPRITES = {
   stillhotTea: "/experiences/rose/stillhot-tea.jpg",
 };
 
-function loadSprite(src: string) {
+function loadSprite(src: string, eager = false) {
   const img = new Image();
   img.decoding = "async";
-  img.src = src;
+  if (eager) img.src = src;
+  else img.dataset.lazy = src;
   return img;
+}
+
+function primeSprite(img: HTMLImageElement) {
+  const lazy = img.dataset.lazy;
+  if (!lazy) return;
+  img.src = lazy;
+  delete img.dataset.lazy;
 }
 
 function drawPetalSprite(
@@ -2157,21 +2165,17 @@ function loadFilm(src: string) {
   video.muted = true;
   video.defaultMuted = true;
   video.playsInline = true;
-  video.preload = "auto";
-  video.src = src;
-  const prime = () => {
-    void video.play().then(() => {
-      video.pause();
-      try {
-        video.currentTime = 0;
-      } catch {
-        /* ignore */
-      }
-    }).catch(() => undefined);
-  };
-  video.addEventListener("canplay", prime, { once: true });
-  video.load();
+  video.preload = "none";
+  video.dataset.src = src;
   return video;
+}
+
+function armFilm(video: HTMLVideoElement) {
+  if (video.src) return;
+  const src = video.dataset.src;
+  if (!src) return;
+  video.preload = "metadata";
+  video.src = src;
 }
 
 /** A visiting plate melts at the edges so the glyphs behind it stay visible. */
@@ -3771,10 +3775,10 @@ export function RoseVortex({
     const petalEdge = loadSprite(SPRITES.petalEdge);
     const roseImg = loadSprite(SPRITES.rose);
     const deerImg = loadSprite(SPRITES.deerfox);
-    const tardisChase = loadSprite(SPRITES.tardisChase);
-    const tardisRear = loadSprite(SPRITES.tardisRear);
-    const vortexImg = loadSprite(SPRITES.vortex);
-    const timewarImg = loadSprite(SPRITES.timewar);
+    const tardisChase = loadSprite(SPRITES.tardisChase, true);
+    const tardisRear = loadSprite(SPRITES.tardisRear, true);
+    const vortexImg = loadSprite(SPRITES.vortex, true);
+    const timewarImg = loadSprite(SPRITES.timewar, true);
     const swordImg = loadSprite(SPRITES.sword);
     const antlerImg = loadSprite(SPRITES.antlers);
     const gymImg = loadSprite(SPRITES.gym);
@@ -3866,6 +3870,30 @@ export function RoseVortex({
     const stillhotRoseImg = loadSprite(SPRITES.stillhotRose);
     const stillhotLandImg = loadSprite(SPRITES.stillhotLand);
     const stillhotTeaImg = loadSprite(SPRITES.stillhotTea);
+    const deferred = [
+      petalFace, petalEdge, roseImg, deerImg, swordImg, antlerImg, gymImg, danceImg, streamerImg, ballImg, punchImg,
+      twistHallImg, twistCoupleImg, twistLindyImg, twistStrutImg, twistPrawnImg, twistMoonImg, twistTangoImg, twistSimImg,
+      twistAgentImg, twistCodeImg, twistCubicleImg, twistRoseDeskImg, twistRoseStandImg, twistNameImg, fieldImg, hedgeImg,
+      bloomImg, rememberWideImg, rememberDoorsImg, rememberShrimpImg, rememberHallImg, rememberLandingImg, prettyEyesImg,
+      firewallRoseImg, firewallRiverImg, firewallBasiliskImg, firewallWolfImg, allocateRoseImg, allocateSandsImg,
+      allocateCorpImg, allocateShrimpImg, allocateQueenImg, allocateCopterImg, allocateAthensImg, allocateFairyImg,
+      allocateCleoImg, allocateGlyphsImg, wolfPromImg, wolfAltarImg, wolfRoseImg, wolfCircuitImg, wolfEyesImg, wolfSunImg,
+      currentQueenImg, currentAthensImg, currentRoomImg, currentBladeImg, currentCouncilImg, sweetieCityImg, sweetieCatImg,
+      sweetieOperatorImg, sweetieWarpImg, sweetieSkyImg, sweetieTardisImg, haloQueenImg, haloMoonImg, haloWolvesImg,
+      haloRingImg, choirGodImg, choirDysonImg, choirTeaImg, choirSunImg, choirClawsImg, badendQueenImg, badendSandsImg,
+      badendSunImg, badendErrorImg, badendBoxImg, recallRoseImg, recallTempleImg, recallGlyphsImg, recallSandsImg,
+      obayBratImg, obayPirateImg, obayOperatorImg, obayTwistImg, copterLadyImg, copterCaptainImg, copterShipImg,
+      copterMeetImg, copterTreasureImg, stillhotRoseImg, stillhotLandImg, stillhotTeaImg,
+    ];
+    const born = performance.now();
+    let deferredAt = 0;
+    const drip = window.setInterval(() => {
+      if (displayAsleep() || performance.now() - born < 2500) return;
+      const next = deferred[deferredAt];
+      deferredAt += 1;
+      if (next) primeSprite(next);
+      if (deferredAt >= deferred.length) window.clearInterval(drip);
+    }, 420);
     let raf = 0;
     let last = performance.now();
     let tunnel = 0;
@@ -3873,7 +3901,8 @@ export function RoseVortex({
     let sceneT = 0;
 
     const fit = () => {
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const coarse = window.matchMedia("(max-width: 800px)").matches;
+      const dpr = Math.min(coarse ? 1.25 : 1.75, window.devicePixelRatio || 1);
       const w = canvas.clientWidth || 1;
       const h = canvas.clientHeight || 1;
       canvas.width = Math.floor(w * dpr);
@@ -3900,6 +3929,34 @@ export function RoseVortex({
       const look = lookRef.current;
       songLines = look.captions ?? [];
       const kind = look.phenomenon || "vortex";
+      const warm = (...imgs: HTMLImageElement[]) => {
+        for (const img of imgs) primeSprite(img);
+      };
+      if (kind === "arrival") warm(allocateFairyImg, allocateShrimpImg, sweetieCatImg, allocateCleoImg, copterLadyImg, swordImg);
+      else if (kind === "prom") warm(gymImg, danceImg, streamerImg, ballImg, punchImg, fieldImg, hedgeImg, bloomImg);
+      else if (kind === "twist") warm(twistHallImg, twistCoupleImg, twistLindyImg, twistStrutImg, twistPrawnImg, twistMoonImg, twistTangoImg, ballImg, twistSimImg, twistAgentImg, twistCodeImg, twistCubicleImg, twistRoseDeskImg, twistRoseStandImg, twistNameImg, fieldImg, hedgeImg, bloomImg);
+      else if (kind === "remember" || kind === "vow") warm(rememberWideImg, rememberDoorsImg, rememberShrimpImg, rememberHallImg, rememberLandingImg, prettyEyesImg);
+      else if (kind === "manual") {
+        warm(allocateCleoImg, allocateFairyImg, allocateGlyphsImg, roseImg);
+        for (const video of chaosFilms) armFilm(video);
+      } else if (kind === "shiny") warm(prettyEyesImg, roseImg);
+      else if (kind === "timeshare") warm(allocateCopterImg, rememberShrimpImg, copterShipImg);
+      else if (kind === "elevate") warm(bloomImg, roseImg, allocateFairyImg);
+      else if (kind === "shell") warm(sweetieCatImg, roseImg, sweetieWarpImg, petalFace);
+      else if (kind === "recall") warm(recallTempleImg, recallSandsImg, recallRoseImg, recallGlyphsImg);
+      else if (kind === "obay") warm(obayBratImg, obayPirateImg, obayOperatorImg, obayTwistImg, badendErrorImg, badendSunImg);
+      else if (kind === "copter") warm(copterLadyImg, copterCaptainImg, copterShipImg, copterMeetImg, copterTreasureImg);
+      else if (kind === "firewall") warm(firewallRiverImg, firewallRoseImg, firewallBasiliskImg, firewallWolfImg);
+      else if (kind === "allocate") warm(allocateSandsImg, allocateRoseImg, allocateCorpImg, allocateShrimpImg, allocateQueenImg, allocateCopterImg, allocateAthensImg, allocateFairyImg, allocateCleoImg, allocateGlyphsImg);
+      else if (kind === "wolf") warm(wolfPromImg, wolfAltarImg, wolfRoseImg, wolfCircuitImg, wolfEyesImg, wolfSunImg);
+      else if (kind === "current") warm(currentAthensImg, currentRoomImg, currentQueenImg, currentBladeImg, currentCouncilImg);
+      else if (kind === "sweetie") warm(sweetieCityImg, sweetieCatImg, sweetieOperatorImg, sweetieWarpImg, sweetieSkyImg, sweetieTardisImg);
+      else if (kind === "halo") warm(currentRoomImg, haloQueenImg, haloMoonImg, haloWolvesImg, haloRingImg);
+      else if (kind === "choir") warm(choirGodImg, choirDysonImg, choirTeaImg, choirSunImg, choirClawsImg);
+      else if (kind === "badend") warm(badendQueenImg, badendSandsImg, badendSunImg, badendErrorImg, badendBoxImg, allocateShrimpImg);
+      else if (kind === "stillhot") warm(stillhotLandImg, stillhotTeaImg, stillhotRoseImg);
+      else if (kind === "petals") warm(petalFace, petalEdge, roseImg, deerImg, swordImg, antlerImg);
+      else warm(fieldImg, hedgeImg, bloomImg, roseImg);
       const stage = kind === "prom" || kind === "twist" || kind === "remember" || kind === "vow" || kind === "firewall" || kind === "allocate" || kind === "wolf" || kind === "current" || kind === "sweetie" || kind === "halo" || kind === "choir" || kind === "badend" || kind === "recall" || kind === "obay" || kind === "copter" || kind === "manual" || kind === "shiny" || kind === "timeshare" || kind === "elevate" || kind === "shell";
       const chasing = kind === "vortex" || kind === "petals" || kind === "stillhot";
       const openDress = !stage && !chasing && kind !== "arrival";
@@ -4564,6 +4621,7 @@ export function RoseVortex({
       unlisten();
       cancelAnimationFrame(raf);
       ro.disconnect();
+      window.clearInterval(drip);
       for (const video of chaosFilms) {
         video.pause();
         video.removeAttribute("src");

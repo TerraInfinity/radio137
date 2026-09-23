@@ -670,6 +670,7 @@ export function RoseOpera({
             ))}
           </div>
         )}
+        {opening || look.phenomenon === "vortex" || look.phenomenon === "arrival" ? (
         <video
           ref={(node) => {
             stormRef.current = node;
@@ -683,6 +684,7 @@ export function RoseOpera({
           playsInline
           preload={opening ? "auto" : "metadata"}
         />
+        ) : null}
         {reduce || isStageOwned(look.phenomenon) || loopSrc.includes("vortex-storm") ? null : (
           <video
             key={loopSrc}

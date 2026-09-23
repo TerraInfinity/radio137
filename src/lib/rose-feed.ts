@@ -87,18 +87,19 @@ export function roseFeedXml(catalog: Catalog, origin: string): string {
   const channel = catalog.channels.find((item) => item.slug === "rose");
   const tracks = playable(channel);
   const self = roseFeedUrl(root);
-  const image = absolute(root, channel?.cover || "/covers/rose.jpg");
-  const summary = channel?.description || "A fixed-order rite. Subscribe on the phone. The Watch copies the episodes from the phone.";
-  const title = channel?.name || "Rose";
+  const page = `${root}/experiences/rose`;
+  const image = absolute(root, "/experiences/rose/hero.jpg");
+  const summary = channel?.description || "Rose is a fixed-order rite. Send it to Podcasts. The phone keeps the list. The Watch copies from the phone while it charges.";
+  const title = "Rose";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>${xml(title)}</title>
-    <link>${xml(self)}</link>
+    <link>${xml(page)}</link>
     <atom:link href="${xml(self)}" rel="self" type="application/rss+xml" />
     <language>en</language>
     <description>${xml(summary)}</description>
-    <itunes:author>Rose</itunes:author>
+    <itunes:author>Terrainfinity Radio</itunes:author>
     <itunes:summary>${xml(summary)}</itunes:summary>
     <itunes:type>serial</itunes:type>
     <itunes:explicit>false</itunes:explicit>
@@ -107,7 +108,7 @@ export function roseFeedXml(catalog: Catalog, origin: string): string {
     <image>
       <url>${xml(image)}</url>
       <title>${xml(title)}</title>
-      <link>${xml(self)}</link>
+      <link>${xml(page)}</link>
     </image>
 ${tracks.map((track, index) => item(track, index + 1, root)).join("\n")}
   </channel>

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AliasRouteImport } from './routes/$alias'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as DeskRouteImport } from './routes/desk'
+import { Route as DeviceSyncRouteImport } from './routes/device-sync'
 import { Route as ExperiencesRouteImport } from './routes/experiences'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
@@ -51,6 +52,11 @@ const AboutRoute = AboutRouteImport.update({
 const DeskRoute = DeskRouteImport.update({
   id: '/desk',
   path: '/desk',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeviceSyncRoute = DeviceSyncRouteImport.update({
+  id: '/device-sync',
+  path: '/device-sync',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExperiencesRoute = ExperiencesRouteImport.update({
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
+  '/device-sync': typeof DeviceSyncRoute
   '/experiences': typeof ExperiencesRouteWithChildren
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
+  '/device-sync': typeof DeviceSyncRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
   '/desk': typeof DeskRoute
+  '/device-sync': typeof DeviceSyncRoute
   '/experiences': typeof ExperiencesRouteWithChildren
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
@@ -231,6 +240,7 @@ export interface FileRouteTypes {
     | '/$alias'
     | '/about'
     | '/desk'
+    | '/device-sync'
     | '/experiences'
     | '/library'
     | '/login'
@@ -256,6 +266,7 @@ export interface FileRouteTypes {
     | '/$alias'
     | '/about'
     | '/desk'
+    | '/device-sync'
     | '/library'
     | '/login'
     | '/logout'
@@ -280,6 +291,7 @@ export interface FileRouteTypes {
     | '/$alias'
     | '/about'
     | '/desk'
+    | '/device-sync'
     | '/experiences'
     | '/library'
     | '/login'
@@ -306,6 +318,7 @@ export interface RootRouteChildren {
   AliasRoute: typeof AliasRoute
   AboutRoute: typeof AboutRoute
   DeskRoute: typeof DeskRoute
+  DeviceSyncRoute: typeof DeviceSyncRoute
   ExperiencesRoute: typeof ExperiencesRouteWithChildren
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
@@ -353,6 +366,13 @@ declare module '@tanstack/react-router' {
       path: '/desk'
       fullPath: '/desk'
       preLoaderRoute: typeof DeskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/device-sync': {
+      id: '/device-sync'
+      path: '/device-sync'
+      fullPath: '/device-sync'
+      preLoaderRoute: typeof DeviceSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/experiences': {
@@ -510,6 +530,7 @@ const rootRouteChildren: RootRouteChildren = {
   AliasRoute: AliasRoute,
   AboutRoute: AboutRoute,
   DeskRoute: DeskRoute,
+  DeviceSyncRoute: DeviceSyncRoute,
   ExperiencesRoute: ExperiencesRouteWithChildren,
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,

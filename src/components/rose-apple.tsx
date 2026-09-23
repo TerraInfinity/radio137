@@ -1,34 +1,41 @@
 import { useEffect, useState } from "react";
-import { renderSVG } from "uqr";
 import { applePodcastUrl, roseFeedUrl } from "@/lib/rose-feed";
 
-export function RoseApple() {
-  const [open, setOpen] = useState(false);
-  const [feed, setFeed] = useState("");
-
+export function useRoseFeed() {
+  const [feed, setFeed] = useState("https://radio.terrainfinity.ca/feeds/rose.xml");
   useEffect(() => {
     setFeed(roseFeedUrl(window.location.origin));
   }, []);
+  return feed;
+}
 
-  const qr = feed ? renderSVG(feed, { border: 2, pixelSize: 4, ecc: "M", whiteColor: "#fff", blackColor: "#14080c" }) : "";
-
+/** Opens Podcasts on iPhone. Elsewhere, copies the feed and shows the paste path. */
+export function SendToIphone({ className, onFallback }: { className?: string; onFallback?: (message: string) => void }) {
+  const feed = useRoseFeed();
   return (
-    <div className="rose-apple">
-      <button type="button" className="rose-opera-ghost" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-        Send to Apple
-      </button>
-      {open && feed ? (
-        <div className="rose-apple-card" role="dialog" aria-label="Send Rose to Apple">
-          <p>Subscribe on the phone. The Watch copies Rose from the phone. It never opens this feed itself.</p>
-          <a className="rose-apple-go" href={applePodcastUrl(feed)}>
-            Open in Podcasts
-          </a>
-          <a className="rose-apple-url" href={feed}>
-            {feed.replace(/^https:\/\//, "")}
-          </a>
-          <div className="rose-apple-qr" dangerouslySetInnerHTML={{ __html: qr }} />
-        </div>
-      ) : null}
-    </div>
+    <a
+      className={className}
+      href={applePodcastUrl(feed)}
+      onClick={(event) => {
+        const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        if (ios) return;
+        event.preventDefault();
+        const message = "Podcasts → Library → + → Add a Show by URL → paste.";
+        void navigator.clipboard?.writeText(feed).catch(() => undefined);
+        onFallback?.(message);
+      }}
+    >
+      Send to iPhone
+    </a>
+  );
+}
+
+export function RoseApple() {
+  const [hint, setHint] = useState("");
+  return (
+    <span className="rose-apple">
+      <SendToIphone className="rose-opera-ghost" onFallback={setHint} />
+      {hint ? <span className="rose-apple-url">{hint}</span> : null}
+    </span>
   );
 }

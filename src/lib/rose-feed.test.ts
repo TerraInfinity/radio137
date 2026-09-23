@@ -42,7 +42,9 @@ test("rose feed is a serial podcast in catalog order", () => {
   const swoon = xml.indexOf("Swooning");
   const twist = xml.indexOf("twist me intro");
   assert.ok(twist > 0 && swoon > twist);
+  assert.match(xml, /<itunes:author>Terrainfinity Radio<\/itunes:author>/);
   assert.match(xml, /<itunes:episode>1<\/itunes:episode>/);
+  assert.match(xml, /<link>https:\/\/radio\.terrainfinity\.ca\/experiences\/rose<\/link>/);
   assert.match(xml, /radio\/rose\/twist%20me\.mp3/);
   assert.ok(xml.includes("Pretty eyes " + "&" + "amp; the box"));
   assert.equal(roseFeedUrl("https://radio.terrainfinity.ca/"), "https://radio.terrainfinity.ca/feeds/rose.xml");
