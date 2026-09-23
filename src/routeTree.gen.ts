@@ -25,6 +25,7 @@ import { Route as ExperiencesSlugRouteImport } from './routes/experiences/$slug'
 import { Route as FeedsRoseDotxmlRouteImport } from './routes/feeds/rose[.]xml'
 import { Route as PlayerIndexRouteImport } from './routes/player/index'
 import { Route as PlayerIdRouteImport } from './routes/player/$id'
+import { Route as SyncSlugRouteImport } from './routes/sync/$slug'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiDeskUploadRouteImport } from './routes/api/desk/upload'
 import { Route as ApiDeskUploadArtRouteImport } from './routes/api/desk/upload-art'
@@ -114,6 +115,11 @@ const PlayerIdRoute = PlayerIdRouteImport.update({
   path: '/player/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SyncSlugRoute = SyncSlugRouteImport.update({
+  id: '/sync/$slug',
+  path: '/sync/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -170,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/experiences/$slug': typeof ExperiencesSlugRoute
   '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
   '/player/$id': typeof PlayerIdRoute
+  '/sync/$slug': typeof SyncSlugRoute
   '/experiences/': typeof ExperiencesIndexRoute
   '/player/': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/experiences/$slug': typeof ExperiencesSlugRoute
   '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
   '/player/$id': typeof PlayerIdRoute
+  '/sync/$slug': typeof SyncSlugRoute
   '/experiences': typeof ExperiencesIndexRoute
   '/player': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/experiences/$slug': typeof ExperiencesSlugRoute
   '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
   '/player/$id': typeof PlayerIdRoute
+  '/sync/$slug': typeof SyncSlugRoute
   '/experiences/': typeof ExperiencesIndexRoute
   '/player/': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -250,6 +259,7 @@ export interface FileRouteTypes {
     | '/experiences/$slug'
     | '/feeds/rose.xml'
     | '/player/$id'
+    | '/sync/$slug'
     | '/experiences/'
     | '/player/'
     | '/api/auth/$'
@@ -275,6 +285,7 @@ export interface FileRouteTypes {
     | '/experiences/$slug'
     | '/feeds/rose.xml'
     | '/player/$id'
+    | '/sync/$slug'
     | '/experiences'
     | '/player'
     | '/api/auth/$'
@@ -301,6 +312,7 @@ export interface FileRouteTypes {
     | '/experiences/$slug'
     | '/feeds/rose.xml'
     | '/player/$id'
+    | '/sync/$slug'
     | '/experiences/'
     | '/player/'
     | '/api/auth/$'
@@ -327,6 +339,7 @@ export interface RootRouteChildren {
   ChannelSlugRoute: typeof ChannelSlugRoute
   FeedsRoseDotxmlRoute: typeof FeedsRoseDotxmlRoute
   PlayerIdRoute: typeof PlayerIdRoute
+  SyncSlugRoute: typeof SyncSlugRoute
   PlayerIndexRoute: typeof PlayerIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDeskUploadRoute: typeof ApiDeskUploadRoute
@@ -452,6 +465,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sync/$slug': {
+      id: '/sync/$slug'
+      path: '/sync/$slug'
+      fullPath: '/sync/$slug'
+      preLoaderRoute: typeof SyncSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -539,6 +559,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChannelSlugRoute: ChannelSlugRoute,
   FeedsRoseDotxmlRoute: FeedsRoseDotxmlRoute,
   PlayerIdRoute: PlayerIdRoute,
+  SyncSlugRoute: SyncSlugRoute,
   PlayerIndexRoute: PlayerIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDeskUploadRoute: ApiDeskUploadRoute,

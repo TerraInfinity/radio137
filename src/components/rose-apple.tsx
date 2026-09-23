@@ -20,7 +20,7 @@ export function SendToIphone({ className, onFallback }: { className?: string; on
         const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
         if (ios) return;
         event.preventDefault();
-        const message = "Podcasts → Library → + → Add a Show by URL → paste.";
+        const message = "Podcasts → Library → + → Add a Show by URL → paste the https feed.";
         void navigator.clipboard?.writeText(feed).catch(() => undefined);
         onFallback?.(message);
       }}

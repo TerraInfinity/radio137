@@ -12,10 +12,10 @@ import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 
 const links = [
-  { href: "/stations", label: "Stations", match: (path: string) => path === "/stations" || path.startsWith("/channel/") },
-  { href: "/player", label: "Songs", match: (path: string) => path === "/player" || path.startsWith("/player/") || path === "/library" },
-  { href: "/experiences", label: "Experiences", match: (path: string) => path.startsWith("/experiences") },
-  { href: "/device-sync", label: "Device Sync", match: (path: string) => path.startsWith("/device-sync") },
+  { to: "/stations", params: undefined, label: "Stations", match: (path: string) => path === "/stations" || path.startsWith("/channel/") },
+  { to: "/player", params: undefined, label: "Songs", match: (path: string) => path === "/player" || path.startsWith("/player/") || path === "/library" },
+  { to: "/experiences", params: undefined, label: "Experiences", match: (path: string) => path.startsWith("/experiences") },
+  { to: "/sync/$slug", params: { slug: "rose" }, label: "Device Sync", match: (path: string) => path.startsWith("/sync") || path.startsWith("/device-sync") },
 ] as const;
 
 export function SiteHeader() {
@@ -55,8 +55,9 @@ export function SiteHeader() {
           const active = link.match(pathname);
           return (
             <Link
-              key={link.href}
-              to={link.href}
+              key={link.to}
+              to={link.to}
+              params={link.params}
               onClick={onPick}
               className={cn(
                 "inline-flex h-11 shrink-0 items-center px-2 font-mono text-[11px] uppercase tracking-[0.12em]",

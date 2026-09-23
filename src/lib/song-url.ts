@@ -46,6 +46,7 @@ export const RESERVED_PUBLIC_PATHS = [
   "static",
   "station",
   "stations",
+  "sync",
   "status",
   "well-known",
   "www",

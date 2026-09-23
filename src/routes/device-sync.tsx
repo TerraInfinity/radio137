@@ -1,7 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { DeviceSync } from "@/components/device-sync";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/device-sync")({
-  component: DeviceSync,
-  head: () => ({ meta: [{ title: "Device Sync · Radio" }] }),
+  component: () => <Navigate to="/sync/$slug" params={{ slug: "rose" }} replace />,
 });
