@@ -62,5 +62,8 @@ export function experienceRows(channels: Channel[], views: Record<string, number
 }
 
 export function homeFeatured(channels: Channel[], views: Record<string, number>): DialRow[] {
-  return experienceRows(channels, views).filter((row) => row.featured).slice(0, 3);
+  const experiences = experienceRows(channels, views).filter((row) => row.featured);
+  const taken = new Set(experiences.map((row) => row.stationSlug));
+  const stations = stationRows(channels, views).filter((row) => row.featured && !taken.has(row.slug));
+  return [...experiences, ...stations].sort((a, b) => b.weight - a.weight || a.title.localeCompare(b.title));
 }

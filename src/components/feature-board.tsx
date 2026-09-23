@@ -8,14 +8,14 @@ export function FeatureBoard({ rows }: { rows: DialRow[] }) {
   const tuneIn = usePlayerStore((s) => s.tuneIn);
   const lead = rows[0];
   if (!lead) return null;
-  const side = rows.slice(1, 3);
+  const side = rows.slice(1);
   return (
     <section className="mt-10">
       <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-gold">Featured</p>
-      <div className={side.length ? "mt-3 grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(16rem,0.8fr)]" : "mt-3"}>
+      <div className={side.length ? "mt-3 grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(16rem,0.9fr)]" : "mt-3"}>
         <FeatureFace row={lead} large onPlay={() => void tuneIn(lead.stationSlug, { forcePlay: true })} />
         {side.length ? (
-          <div className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
             {side.map((row) => (
               <FeatureFace key={`${row.kind}-${row.slug}`} row={row} onPlay={() => void tuneIn(row.stationSlug, { forcePlay: true })} />
             ))}
