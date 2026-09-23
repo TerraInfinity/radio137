@@ -17,6 +17,7 @@ import { Route as ExperiencesRouteImport } from './routes/experiences'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LogoutRouteImport } from './routes/logout'
+import { Route as StationsRouteImport } from './routes/stations'
 import { Route as ChannelSlugRouteImport } from './routes/channel/$slug'
 import { Route as ExperiencesIndexRouteImport } from './routes/experiences/index'
 import { Route as ExperiencesSlugRouteImport } from './routes/experiences/$slug'
@@ -70,6 +71,11 @@ const LoginRoute = LoginRouteImport.update({
 const LogoutRoute = LogoutRouteImport.update({
   id: '/logout',
   path: '/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StationsRoute = StationsRouteImport.update({
+  id: '/stations',
+  path: '/stations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChannelSlugRoute = ChannelSlugRouteImport.update({
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
+  '/stations': typeof StationsRoute
   '/channel/$slug': typeof ChannelSlugRoute
   '/experiences/$slug': typeof ExperiencesSlugRoute
   '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByTo {
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
+  '/stations': typeof StationsRoute
   '/channel/$slug': typeof ChannelSlugRoute
   '/experiences/$slug': typeof ExperiencesSlugRoute
   '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
@@ -200,6 +208,7 @@ export interface FileRoutesById {
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
+  '/stations': typeof StationsRoute
   '/channel/$slug': typeof ChannelSlugRoute
   '/experiences/$slug': typeof ExperiencesSlugRoute
   '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
@@ -226,6 +235,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/login'
     | '/logout'
+    | '/stations'
     | '/channel/$slug'
     | '/experiences/$slug'
     | '/feeds/rose.xml'
@@ -249,6 +259,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/login'
     | '/logout'
+    | '/stations'
     | '/channel/$slug'
     | '/experiences/$slug'
     | '/feeds/rose.xml'
@@ -273,6 +284,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/login'
     | '/logout'
+    | '/stations'
     | '/channel/$slug'
     | '/experiences/$slug'
     | '/feeds/rose.xml'
@@ -298,6 +310,7 @@ export interface RootRouteChildren {
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
   LogoutRoute: typeof LogoutRoute
+  StationsRoute: typeof StationsRoute
   ChannelSlugRoute: typeof ChannelSlugRoute
   FeedsRoseDotxmlRoute: typeof FeedsRoseDotxmlRoute
   PlayerIdRoute: typeof PlayerIdRoute
@@ -368,6 +381,13 @@ declare module '@tanstack/react-router' {
       path: '/logout'
       fullPath: '/logout'
       preLoaderRoute: typeof LogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stations': {
+      id: '/stations'
+      path: '/stations'
+      fullPath: '/stations'
+      preLoaderRoute: typeof StationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/channel/$slug': {
@@ -494,6 +514,7 @@ const rootRouteChildren: RootRouteChildren = {
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
   LogoutRoute: LogoutRoute,
+  StationsRoute: StationsRoute,
   ChannelSlugRoute: ChannelSlugRoute,
   FeedsRoseDotxmlRoute: FeedsRoseDotxmlRoute,
   PlayerIdRoute: PlayerIdRoute,

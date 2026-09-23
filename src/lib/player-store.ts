@@ -20,6 +20,7 @@ import { experienceSlugFromPath, pageCuesPlayback, shouldHoldRosePreview } from 
 import { getExperience } from "@/lib/experiences";
 import { previewTrackOf } from "@/lib/phenomena";
 import { bindMediaSession, flushMediaSession, ignoreHidePause, rebindMediaSession, syncMediaSession } from "@/lib/media-session";
+import { listensFor, pickWelcome, scoreFeature } from "@/lib/feature-weight";
 import { claimPlaybackSession, deckIsStalled, displayAsleep } from "@/lib/display-rest";
 import { forgetCachedAudio, hasCachedAudio, pinCachedAudio, playableSrc, rememberAudio, shouldHoldAutoAdvance, dataSaverOn, warmTrackSrc } from "@/lib/audio-cache";
 import { mediaUrl } from "@/lib/media";
@@ -738,7 +739,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   enterGate: () => {
     const xpSlug = typeof window !== "undefined" ? experienceSlugFromPath(window.location.pathname) : null;
     const xp = xpSlug ? getExperience(xpSlug, get().catalog) : undefined;
-    const last = xp?.stationSlug || get().lastSlug || get().catalog.defaultSlug;
+    const channels = get().catalog.channels;
+    const views = get().views;
+    const rows = channels.map((channel, index) => ({
+      slug: channel.slug,
+      enabled: channel.enabled && !isChannelNsfw(channel) && getPlayableTracks(channel).length > 0,
+      featured: Boolean(channel.featured),
+      weight: scoreFeature({
+        featured: Boolean(channel.featured),
+        featuredRank: channel.featuredRank,
+        listens: listensFor(channel.tracks, views),
+        newer: channels.length <= 1 ? 1 : index / (channels.length - 1),
+        fresh: (channel.tags ?? []).some((tag) => tag.toLowerCase() === "new"),
+      }),
+    }));
+    const last = xp?.stationSlug || pickWelcome(rows, get().lastSlug, get().catalog.defaultSlug);
     set({ gateOpen: false, visited: true, lastSlug: last });
     persist();
     if (xp?.slug === "rose") return;

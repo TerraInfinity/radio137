@@ -12,7 +12,8 @@ import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 
 const links = [
-  { href: "/", label: "Stations", match: (path: string) => path === "/" || path.startsWith("/channel/") },
+  { href: "/", label: "Home", match: (path: string) => path === "/" },
+  { href: "/stations", label: "Stations", match: (path: string) => path === "/stations" || path.startsWith("/channel/") },
   { href: "/player", label: "Songs", match: (path: string) => path === "/player" || path.startsWith("/player/") || path === "/library" },
   { href: "/experiences", label: "Experiences", match: (path: string) => path.startsWith("/experiences") },
 ] as const;

@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChannelCard } from "@/components/channel-card";
+import { useMemo } from "react";
+import { DialList } from "@/components/dial-list";
 import { DialSearch } from "@/components/dial-search";
-import { isChannelNsfw, publicChannels } from "@/lib/catalog";
+import { FeatureBoard } from "@/components/feature-board";
+import { publicChannels } from "@/lib/catalog";
+import { featuredFaces, mixedRows } from "@/lib/feature-rows";
 import { qSearch } from "@/lib/search";
 import { usePlayerStore } from "@/lib/player-store";
-import { useMemo } from "react";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -14,24 +16,20 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const catalog = usePlayerStore((s) => s.catalog);
+  const views = usePlayerStore((s) => s.views);
   const channels = catalog.channels.length ? catalog.channels : publicChannels();
   const { q = "" } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const featured = useMemo(
-    () =>
-      channels
-        .filter((channel) => channel.enabled && channel.featured && !isChannelNsfw(channel))
-        .sort((a, b) => (a.featuredRank ?? 99) - (b.featuredRank ?? 99) || a.name.localeCompare(b.name)),
-    [channels],
-  );
   const searching = q.trim().length >= 2;
+  const rows = useMemo(() => mixedRows(channels, views), [channels, views]);
+  const faces = useMemo(() => featuredFaces(rows), [rows]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 pb-52">
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Welcome to the Light Ages</p>
       <h1 className="mt-2 font-display text-5xl font-semibold tracking-tight">Radio</h1>
       <p className="mt-3 max-w-prose text-muted">
-        Herein the chaos primer, bound in relative time. A radio of frequencies. Live desks keep one shared present.
+        Featured frequencies and rites. Newer and most heard stay near the top. Stations and experiences each keep their own lane.
       </p>
       <div className="mt-8 max-w-3xl">
         <DialSearch
@@ -41,30 +39,12 @@ function Home() {
           heading="Search songs & stations"
         />
       </div>
-      {searching ? null : featured.length > 0 ? (
-        <section className="mt-10">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">Featured</p>
-          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {featured.slice(0, 6).map((channel) => (
-              <ChannelCard key={channel.slug} channel={channel} />
-            ))}
-          </div>
-        </section>
-      ) : null}
-      {searching ? null : (
-        <section className="mt-10">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">All stations</p>
-          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {channels
-              .filter((channel) => channel.enabled && !isChannelNsfw(channel))
-              .map((channel) => (
-                <ChannelCard key={channel.slug} channel={channel} />
-              ))}
-          </div>
-        </section>
-      )}
+      {searching ? null : <FeatureBoard rows={faces} />}
+      {searching ? null : <DialList title="On the dial" rows={rows} />}
       <p className="mt-10 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">
-        The network is quiet. <Link to="/channel/$slug" params={{ slug: "default" }} className="text-gold">Open desk</Link>
+        <Link to="/stations" className="text-gold">Stations</Link>
+        {" · "}
+        <Link to="/experiences" className="text-gold">Experiences</Link>
       </p>
     </div>
   );

@@ -12,7 +12,7 @@ export function EnterGate() {
         <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-gold">Frequency</p>
         <h1 className="mt-3 font-display text-5xl font-semibold tracking-tight">Radio</h1>
         <p className="mt-4 text-pretty text-muted">
-          Tune in to open the default station. Shared station and song links skip this page and start on their own.
+          Tune in opens a featured station, or the last one you were hearing. Shared links skip this page and start on their own.
         </p>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-1">
           <ListenModeLamp />
