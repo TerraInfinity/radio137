@@ -16,13 +16,14 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/sso.test.ts src/lib/similar-cuts.test.ts src/lib/catalog-edits.test.ts src/lib/media.test.ts src/lib/audio-cache.test.ts src/lib/cn.test.ts src/lib/duration-probe.test.ts src/lib/rose-pulse.test.ts src/lib/rose-look.test.ts src/lib/playback-lock.test.ts src/lib/phenomena.test.ts src/lib/experiences.test.ts src/lib/rose-grok.test.ts src/lib/experience-unlock.test.ts src/lib/rose-air.test.ts",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/sso.test.ts src/lib/similar-cuts.test.ts src/lib/catalog-edits.test.ts src/lib/media.test.ts src/lib/audio-cache.test.ts src/lib/cn.test.ts src/lib/duration-probe.test.ts src/lib/rose-pulse.test.ts src/lib/rose-look.test.ts src/lib/playback-lock.test.ts src/lib/phenomena.test.ts src/lib/experiences.test.ts src/lib/rose-grok.test.ts src/lib/experience-unlock.test.ts src/lib/rose-air.test.ts src/lib/rose-rite.test.ts src/lib/audio-transcode.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1125.0",
     "@aws-sdk/s3-request-presigner": "^3.1135.0",
+    "@breezystack/lamejs": "^1.2.7",
     "@electric-sql/pglite": "^0.5.4",
     "@hookform/resolvers": "^5.7.0",
     "@radix-ui/react-accordion": "^1.2.12",

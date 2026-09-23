@@ -299,6 +299,17 @@ export const renameStationFile = createServerFn({ method: "POST" })
     return { object, ...(await snapshot()) };
   });
 
+export const shareSongAudio = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z.object({ channelSlug: z.string().min(1), trackId: z.string().min(1), convert: z.boolean().optional() }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { shareSongAudioFile } = await import("@/lib/catalog-edits.server");
+    const shared = await shareSongAudioFile(context.user, data);
+    return { ...shared, ...(await snapshot()) };
+  });
+
 export const reorderStationTracks = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
   .validator((input: unknown) =>

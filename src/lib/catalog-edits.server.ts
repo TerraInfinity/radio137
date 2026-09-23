@@ -592,3 +592,98 @@ export async function setFeaturedOrder(user: RadioUser, slugs: string[]) {
     await upsertStation(user, { slug: unique[i], featured: true, featuredRank: i });
   }
 }
+
+const MAX_AUDIO = 80 * 1024 * 1024;
+
+function sameAudio(a: string, b: string): boolean {
+  if (a === b) return true;
+  const left = normalizeR2Key(r2KeyFromAudioUrl(a) || "");
+  const right = normalizeR2Key(r2KeyFromAudioUrl(b) || "");
+  return Boolean(left) && left === right;
+}
+
+function isRoseMp3(url: string): boolean {
+  const key = normalizeR2Key(r2KeyFromAudioUrl(url) || "").toLowerCase();
+  return key.startsWith("radio/rose/") && key.endsWith(".mp3");
+}
+
+async function readRemoteAudio(url: string): Promise<Uint8Array> {
+  if (!/^https:\/\//i.test(url)) throw new Error("Audio URL must be https");
+  const response = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(60_000) });
+  if (!response.ok) throw new Error(`Could not read the audio (${response.status})`);
+  const length = Number(response.headers.get("content-length") || "0");
+  if (length > MAX_AUDIO) throw new Error("That file is over 80 MB");
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength > MAX_AUDIO) throw new Error("That file is over 80 MB");
+  if (bytes.byteLength < 64) throw new Error("That audio file is empty");
+  return bytes;
+}
+
+/** Point every copy of this song at one file. Wav (and other non-mp3) can be encoded into radio/rose/ first. The original file stays on R2. */
+export async function shareSongAudioFile(
+  user: RadioUser,
+  input: { channelSlug: string; trackId: string; convert?: boolean },
+): Promise<{ url: string; key: string | null; updated: number; matched: number; converted: boolean; reused: boolean }> {
+  const catalog = await liveCatalog();
+  const channel = catalog.channels.find((item) => item.slug === input.channelSlug);
+  const source = channel?.tracks.find((item) => item.id === input.trackId);
+  if (!source?.audioUrl) throw new Error("No audio file on this song");
+  const { sameSongTitle } = await import("@/lib/rose-rite");
+  const { audioExtension, isMp3Name, transcodeToMp3 } = await import("@/lib/audio-transcode.server");
+  const matches: Array<{ slug: string; id: string; audioUrl: string }> = [];
+  for (const desk of catalog.channels) {
+    for (const item of desk.tracks) {
+      if (item.enabled === false || !item.audioUrl) continue;
+      if (!sameSongTitle(item.title, source.title)) continue;
+      matches.push({ slug: desk.slug, id: item.id, audioUrl: item.audioUrl });
+    }
+  }
+  if (!matches.some((item) => item.slug === input.channelSlug && item.id === source.id)) {
+    matches.push({ slug: input.channelSlug, id: source.id, audioUrl: source.audioUrl });
+  }
+
+  const wantConvert = Boolean(input.convert) && !isMp3Name(source.audioUrl);
+  let targetUrl = source.audioUrl;
+  let converted = false;
+  let reused = false;
+
+  if (wantConvert) {
+    const existing =
+      matches.find((item) => item.slug === "rose" && isRoseMp3(item.audioUrl)) ?? matches.find((item) => isRoseMp3(item.audioUrl));
+    if (existing) {
+      targetUrl = existing.audioUrl;
+      reused = true;
+    } else {
+      const { putR2Object, r2Configured, sanitizeUploadName } = await import("@/lib/r2.server");
+      if (!r2Configured()) throw new Error("R2 keys are not set");
+      const bytes = await readRemoteAudio(source.audioUrl);
+      const mp3 = await transcodeToMp3(bytes, audioExtension(source.audioUrl) || "wav");
+      const stem = sanitizeUploadName(source.title).replace(/\.[a-z0-9]{2,5}$/i, "") || "track";
+      let key = `radio/rose/${stem}.mp3`;
+      const keyTaken = catalog.channels.some((desk) =>
+        desk.tracks.some((item) => {
+          if (!item.audioUrl || sameSongTitle(item.title, source.title)) return false;
+          return normalizeR2Key(r2KeyFromAudioUrl(item.audioUrl) || "").toLowerCase() === key.toLowerCase();
+        }),
+      );
+      if (keyTaken) key = `radio/rose/${stem}-shared.mp3`;
+      const object = await putR2Object(key, mp3, "audio/mpeg");
+      targetUrl = object.url;
+      converted = true;
+    }
+  }
+
+  const key = r2KeyFromAudioUrl(targetUrl);
+  let updated = 0;
+  for (const item of matches) {
+    if (sameAudio(item.audioUrl, targetUrl)) continue;
+    await upsertEdit(user, {
+      channelSlug: item.slug,
+      trackId: item.id,
+      audioUrl: targetUrl,
+      r2Key: key,
+    });
+    updated += 1;
+  }
+  return { url: targetUrl, key, updated, matched: matches.length, converted, reused };
+}

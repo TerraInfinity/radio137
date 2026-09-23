@@ -2,14 +2,14 @@ import seed from "@/data/catalog.json";
 import { durationOf, rememberDuration } from "@/lib/playback";
 import { findPlayerSong, findSongByAlias, findStation, findStationByAlias } from "@/lib/song-url";
 import type { Catalog, Channel, ShuffleMode, StationKind, Track } from "@/lib/types";
-import { sortPlaylistTracks } from "@/lib/track-title";
+import { orderStationTracks } from "@/lib/rose-rite";
 
 const rawSeed = seed as Catalog;
 const seedCatalog: Catalog = {
   ...rawSeed,
   channels: rawSeed.channels.map((channel) => ({
     ...channel,
-    tracks: normalizeKind(channel.kind || channel.mode) === "fixed" ? channel.tracks : sortPlaylistTracks(channel.tracks),
+    tracks: orderStationTracks(channel.slug, normalizeKind(channel.kind || channel.mode), channel.tracks),
   })),
 };
 let catalog = seedCatalog;

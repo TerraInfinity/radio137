@@ -100,10 +100,14 @@ function lumaOf(r: number, g: number, b: number) {
 
 function keyedPortrait(img: HTMLImageElement, dw: number, dh: number): HTMLCanvasElement | "keep" | null {
   const cap = 880;
-  const scale = Math.min(1, cap / Math.max(dw, dh));
-  const cw = Math.max(32, Math.round(dw * scale));
-  const ch = Math.max(32, Math.round(dh * scale));
-  const key = `${img.src}|${cw}x${ch}|plate2`;
+  const nw = img.naturalWidth > 0 ? img.naturalWidth : dw;
+  const nh = img.naturalHeight > 0 ? img.naturalHeight : dh;
+  const scale = Math.min(1, cap / Math.max(nw, nh, 1));
+  const cw = Math.max(32, Math.round(nw * scale));
+  const ch = Math.max(32, Math.round(nh * scale));
+  // One plate per photograph. Keying off the drawn size flashed the black studio
+  // on and off whenever a kick or a phrase changed the portrait by a few pixels.
+  const key = `${img.src}|plate3`;
   const hit = plateCache.get(key);
   if (hit) return hit;
   if (typeof document === "undefined") return null;
@@ -2120,7 +2124,7 @@ function drawRemember(ctx: CanvasRenderingContext2D, w: number, h: number, pulse
   drawActLine(ctx, stageLines("remember"), pulse, w, h, Math.max(16, Math.min(28, w * 0.028)));
 }
 
-/** Two seekers close the distance. The doors and the eyes meet on the bar. */
+/** The vow is the artwork. Landing, doors, hall, and eyes take turns as the stage. */
 function drawVow(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -2132,55 +2136,31 @@ function drawVow(
   eyes: HTMLImageElement,
   hall: HTMLImageElement,
 ) {
-  const cx = w * 0.5;
-  const cy = h * 0.48;
-  const meet = 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(pulse.phrasePhase * Math.PI * 2));
-  const lock = Math.min(1, meet * 0.72 + pulse.downbeat * 0.55 + pulse.kick * 0.2);
-  const gap = (1 - lock) * w * 0.34 + 8;
-  coverBlit(ctx, night, w, h, 0.45 + lock * 0.1, 0.9);
-  ctx.fillStyle = `rgba(6, 4, 12, ${0.28 - lock * 0.12})`;
+  const plates = [night, doors, hall, eyes].filter((img) => ready(img));
+  if (plates.length > 0) {
+    const span = plates.length;
+    const seg = (pulse.time * 0.055) % span;
+    const i = Math.floor(seg) % plates.length;
+    const f = seg - Math.floor(seg);
+    const ease = f * f * (3 - 2 * f);
+    const current = plates[i]!;
+    const next = plates[(i + 1) % plates.length]!;
+    coverBlit(ctx, current, w, h, 0.4, 1);
+    if (next !== current) coverBlit(ctx, next, w, h, 0.58, ease);
+  }
+  ctx.fillStyle = "rgba(6, 4, 12, 0.16)";
   ctx.fillRect(0, 0, w, h);
 
   ctx.save();
   ctx.globalCompositeOperation = "screen";
-  for (let i = 0; i < 8; i++) {
-    const y = h * (0.72 - ((pulse.time * 0.05 + i * 0.11) % 1) * 0.5);
-    const lift = (i % 2 ? 1 : -1) * (18 + energy * 20);
-    ctx.strokeStyle = `rgba(255, 214, 150, ${0.12 + energy * 0.16 + pulse.kick * 0.08})`;
-    ctx.lineWidth = 1.2;
+  const breath = 0.5 + 0.5 * Math.sin(pulse.phrasePhase * Math.PI * 2);
+  for (let n = 0; n < 5; n++) {
+    const y = h * (0.78 - ((pulse.time * 0.04 + n * 0.14) % 1) * 0.42);
+    ctx.strokeStyle = `rgba(255, 214, 150, ${0.07 + energy * 0.1 + breath * 0.05})`;
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(w * 0.08, y);
-    ctx.quadraticCurveTo(cx + lift, y - 28 - i * 4, w * 0.92, y + 8);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  if (ready(hall) && lock > 0.62) {
-    coverBlit(ctx, hall, w, h, 0.5, (lock - 0.62) * 1.4);
-  }
-
-  const dw = Math.min(w * 0.42, h * 0.72);
-  if (ready(eyes)) {
-    const eh = dw * (eyes.naturalHeight / Math.max(1, eyes.naturalWidth));
-    featherPortrait(ctx, eyes, cx - gap, cy, dw, eh, 0.55 + lock * 0.4);
-  }
-  if (ready(doors)) {
-    const dh = dw * 0.92 * (doors.naturalHeight / Math.max(1, doors.naturalWidth));
-    featherPortrait(ctx, doors, cx + gap, cy + h * 0.02, dw * 0.92, dh, 0.5 + lock * 0.45);
-  }
-
-  ctx.save();
-  ctx.strokeStyle = `rgba(255, 228, 186, ${0.25 + lock * 0.6})`;
-  ctx.lineWidth = 1.5 + lock * 3;
-  ctx.beginPath();
-  ctx.moveTo(cx - gap, cy);
-  ctx.lineTo(cx + gap, cy);
-  ctx.stroke();
-  if (lock > 0.8) {
-    ctx.strokeStyle = `rgba(255, 236, 200, ${lock})`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 18 + pulse.kick * 26, 0, Math.PI * 2);
+    ctx.quadraticCurveTo(w * 0.5, y - 16 - n * 3, w * 0.92, y + 6);
     ctx.stroke();
   }
   ctx.restore();
@@ -2200,39 +2180,36 @@ function drawManual(
   glyphs: HTMLImageElement,
   rose: HTMLImageElement,
 ) {
-  coverBlit(ctx, glyphs, w, h, 0.4, 0.85);
-  ctx.fillStyle = "rgba(8, 4, 12, 0.35)";
+  if (ready(glyphs)) coverBlit(ctx, glyphs, w, h, 0.18, 1);
+  else {
+    ctx.fillStyle = "#100c08";
+    ctx.fillRect(0, 0, w, h);
+  }
+  ctx.fillStyle = "rgba(6, 4, 10, 0.2)";
   ctx.fillRect(0, 0, w, h);
-  const pages = [cleo, fairy, rose, glyphs];
-  const turn = (pulse.phrasePhase + pulse.downbeat * 0.15) % 1;
-  for (let i = 0; i < pages.length; i++) {
-    const img = pages[i];
-    if (!img || !ready(img)) continue;
-    const nest = 1 - i * 0.18;
-    const peel = i === Math.floor(turn * pages.length) ? pulse.kick * 0.08 : 0;
-    const dw = w * (0.72 * nest + peel);
-    const dh = dw * (img.naturalHeight / Math.max(1, img.naturalWidth));
-    const ang = (i * 2.399) + Math.sin(pulse.time * 0.3 + i) * 0.04;
-    ctx.save();
-    ctx.translate(w * 0.5 + Math.cos(ang) * (18 + i * 10), h * 0.46 + Math.sin(ang) * 8);
-    ctx.rotate(ang * 0.15);
-    featherPortrait(ctx, img, 0, 0, dw, dh, 0.55 + (1 - i * 0.12) * 0.35);
-    ctx.restore();
+
+  const pages = [cleo, fairy, rose].filter((img) => ready(img));
+  if (pages.length > 0) {
+    const slot = 11;
+    const cursor = (pulse.time % (slot * pages.length)) / slot;
+    const index = Math.floor(cursor) % pages.length;
+    const local = cursor - Math.floor(cursor);
+    const img = pages[index]!;
+    const enter = 0.18;
+    const leave = 0.18;
+    const smooth = (t: number) => {
+      const x = Math.max(0, Math.min(1, t));
+      return x * x * (3 - 2 * x);
+    };
+    let presence = 1;
+    if (local < enter) presence = smooth(local / enter);
+    else if (local > 1 - leave) presence = smooth((1 - local) / leave);
+    const bloom = img === rose;
+    const dh = Math.min(h * (bloom ? 0.56 : 0.88), w * (bloom ? 0.38 : 0.42)) * (0.96 + energy * 0.04);
+    const dw = dh * (img.naturalWidth / img.naturalHeight);
+    const lift = (1 - presence) * h * 0.035;
+    featherPortrait(ctx, img, w * 0.5, h * 0.5 + lift, dw, dh, 0.94 * presence);
   }
-  ctx.save();
-  ctx.strokeStyle = `rgba(232, 196, 140, ${0.25 + energy * 0.3})`;
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  for (let i = 0; i < 48; i++) {
-    const a = i * 0.42 + pulse.time * 0.15;
-    const r = 8 + i * (4 + energy * 2);
-    const x = w * 0.5 + Math.cos(a) * r;
-    const y = h * 0.46 + Math.sin(a) * r * 0.55;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.stroke();
-  ctx.restore();
   drawActLine(ctx, stageLines("manual"), pulse, w, h, Math.max(16, Math.min(28, w * 0.028)));
 }
 
@@ -3342,16 +3319,43 @@ function drawCopter(
 ) {
   const cx = w * 0.5;
   const ken = Math.sin(pulse.time * 0.048) * 0.5 + 0.5;
-  const phrase = 0.5 + 0.5 * Math.sin(pulse.phrasePhase * Math.PI * 2);
   const spray = Math.min(1, pulse.kick * 0.7 + energy * 0.28);
-  coverBlit(ctx, meet, w, h, ken, 0.55);
-  coverBlit(ctx, ship, w, h, 1 - ken, 0.42 + spray * 0.22);
+  coverBlit(ctx, meet, w, h, ken, 0.88);
+  coverBlit(ctx, ship, w, h, 1 - ken, 0.55 + spray * 0.28);
   drawScanGhost(ctx, w, h, pulse.time * 0.8, 0.1 + spray * 0.08);
 
   if (ready(lady)) {
-    const dh = Math.min(h * 1.0, w * 0.78) * (1 + pulse.kick * 0.03 + phrase * 0.02);
+    const dh = Math.min(h * 0.96, w * 0.72);
     const dw = dh * (lady.naturalWidth / lady.naturalHeight);
-    featherPortrait(ctx, lady, w * 0.32, h * 0.52, dw, dh, 0.94);
+    const span = 20;
+    const u = (pulse.time % span) / span;
+    const enter = 0.14;
+    const hold = 0.2;
+    const exit = 0.16;
+    const smooth = (t: number) => {
+      const x = Math.max(0, Math.min(1, t));
+      return x * x * (3 - 2 * x);
+    };
+    const offLeft = -dw * 0.62;
+    const home = w * 0.36;
+    const offRight = w + dw * 0.62;
+    let x = offRight;
+    let presence = 0;
+    if (u < enter) {
+      const t = smooth(u / enter);
+      x = offLeft + (home - offLeft) * t;
+      presence = t;
+    } else if (u < enter + hold) {
+      x = home;
+      presence = 1;
+    } else if (u < enter + hold + exit) {
+      const t = smooth((u - enter - hold) / exit);
+      x = home + (offRight - home) * t;
+      presence = 1 - t;
+    }
+    if (presence > 0.03) {
+      featherPortrait(ctx, lady, x, h * 0.54, dw, dh, 0.94 * presence);
+    }
   }
 
   if (ready(captain) && actSlot(pulse, 3, 4) !== 0) {
@@ -3386,6 +3390,106 @@ function drawCopter(
   drawActLine(ctx, stageLines("copter"), pulse, w, h);
 }
 
+function dustGrain(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  t: number,
+  energy: number,
+  kick: number,
+  i: number,
+  near: number,
+) {
+  const seed = i * 12.9898;
+  const ny = Math.abs(Math.sin(seed * 1.7));
+  const y = h * (near > 0.7 ? 0.32 + ny * 0.66 : 0.04 + ny * 0.9);
+  const bob = Math.sin(t * (0.7 + near * 0.5) + seed) * (8 + near * 16);
+  const speed = (36 + (i % 7) * 24) * (0.65 + energy * 0.55);
+  const span = w + 420;
+  const x = span - ((t * speed + i * 83) % span) - 140;
+  const rx = (22 + (i % 6) * 28) * (0.45 + near * 0.7);
+  const ry = rx * (0.22 + (i % 3) * 0.07);
+  const alpha = (0.07 + near * 0.16) * (0.75 + kick * 0.3);
+  const tone = i % 4;
+  const g = ctx.createRadialGradient(x, y + bob, 0, x, y + bob, rx);
+  g.addColorStop(
+    0,
+    tone === 0
+      ? `rgba(228, 176, 122, ${alpha})`
+      : tone === 1
+        ? `rgba(176, 78, 40, ${alpha})`
+        : tone === 2
+          ? `rgba(255, 220, 180, ${alpha * 0.7})`
+          : `rgba(110, 48, 28, ${alpha})`,
+  );
+  g.addColorStop(1, "rgba(90, 36, 18, 0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(x, y + bob, rx, ry, -0.22, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** Sand sheets and grit. Replaces the vortex spirals on Voice ON. */
+function drawDustStorm(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  pulse: RosePulse,
+  energy: number,
+  layer: "far" | "near",
+) {
+  const t = pulse.time;
+  const gust = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(t * 0.33));
+  const kick = pulse.kick;
+  ctx.save();
+  ctx.lineCap = "round";
+  if (layer === "far") {
+    const sky = ctx.createLinearGradient(0, 0, w * 0.2, h * 0.48);
+    sky.addColorStop(0, `rgba(150, 78, 40, ${0.16 + gust * 0.1})`);
+    sky.addColorStop(0.55, `rgba(120, 58, 30, ${0.08 + energy * 0.06})`);
+    sky.addColorStop(1, "rgba(120, 58, 30, 0)");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h * 0.5);
+    for (let i = 0; i < 6; i++) {
+      const travel = (t * (0.07 + i * 0.018) + i * 0.16) % 1;
+      const bw = w * (0.55 + (i % 3) * 0.16);
+      const bh = h * (0.1 + (i % 2) * 0.06);
+      const x = (1.25 - travel * 1.9) * w;
+      const y = h * (0.18 + (i % 4) * 0.16);
+      const g = ctx.createRadialGradient(x, y, bh * 0.2, x, y, bw * 0.55);
+      const a = 0.16 + gust * 0.16 + (i % 2 ? kick * 0.08 : 0);
+      g.addColorStop(0, `rgba(${i % 2 ? "214, 150, 96" : "168, 78, 40"}, ${a})`);
+      g.addColorStop(1, "rgba(90, 32, 16, 0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(x, y, bw * 0.5, bh, -0.18 + Math.sin(t * 0.5 + i) * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (let i = 0; i < 36; i++) dustGrain(ctx, w, h, t, energy, kick, i, 0.55);
+  } else {
+    for (let band = 0; band < 2; band++) {
+      const travel = (t * 0.07 + band * 0.5) % 1;
+      const x = (1.15 - travel * 1.7) * w;
+      const wall = ctx.createLinearGradient(x, 0, x + w * 0.38, 0);
+      const a = (band ? 0.14 : 0.22) + gust * 0.12 + kick * 0.06;
+      wall.addColorStop(0, "rgba(70, 26, 14, 0)");
+      wall.addColorStop(0.3, `rgba(150, 68, 32, ${a})`);
+      wall.addColorStop(0.62, `rgba(214, 156, 98, ${a * 0.75})`);
+      wall.addColorStop(1, "rgba(70, 26, 14, 0)");
+      ctx.fillStyle = wall;
+      ctx.fillRect(x - w * 0.05, h * 0.08, w * 0.46, h * 0.9);
+    }
+    const floor = ctx.createLinearGradient(0, h * 0.46, 0, h);
+    floor.addColorStop(0, "rgba(150, 70, 34, 0)");
+    floor.addColorStop(0.4, `rgba(140, 60, 28, ${0.16 + gust * 0.1})`);
+    floor.addColorStop(1, `rgba(92, 36, 18, ${0.34 + gust * 0.12})`);
+    ctx.fillStyle = floor;
+    ctx.fillRect(0, h * 0.5, w, h * 0.5);
+    for (let i = 0; i < 28; i++) dustGrain(ctx, w, h, t, energy, kick, i + 180, 1);
+  }
+  ctx.restore();
+}
+
 function drawStillhot(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -3395,13 +3499,22 @@ function drawStillhot(
   land: HTMLImageElement,
   tea: HTMLImageElement,
   rose: HTMLImageElement,
+  tardisChase: HTMLImageElement,
+  tardisRear: HTMLImageElement,
+  craft: { x: number; y: number; h: number; lamp: number; bank: number; show: boolean } | null,
 ) {
-  const cx = w * 0.5;
   const ken = Math.sin(pulse.time * 0.04) * 0.5 + 0.5;
   const phrase = 0.5 + 0.5 * Math.sin(pulse.phrasePhase * Math.PI * 2);
   const heat = Math.min(1, pulse.kick * 0.55 + energy * 0.3);
   if (ready(land)) {
-    coverFeather(ctx, land, w, h, ken, 0.42 + heat * 0.18, 0.48);
+    coverBlit(ctx, land, w, h, ken * 0.35, 1);
+  } else {
+    ctx.fillStyle = "#6a2e1c";
+    ctx.fillRect(0, 0, w, h);
+  }
+  drawDustStorm(ctx, w, h, pulse, energy, "far");
+  if (craft?.show) {
+    drawTardisCraft(ctx, tardisChase, tardisRear, craft.x, craft.y, craft.h, craft.lamp, craft.bank);
   }
   if (ready(tea) && actSlot(pulse, 2, 4) === 1) {
     const ts = Math.min(w, h) * (0.22 + phrase * 0.04);
@@ -3424,6 +3537,7 @@ function drawStillhot(
     const dw = dh * (rose.naturalWidth / rose.naturalHeight);
     featherPortrait(ctx, rose, w * 0.22, h * 0.6, dw, dh, 0.88);
   }
+  drawDustStorm(ctx, w, h, pulse, energy, "near");
   drawActLine(ctx, stageLines("stillhot"), pulse, w, h);
 }
 
@@ -3693,7 +3807,7 @@ export function RoseVortex({
       const chasing = kind === "vortex" || kind === "petals" || kind === "stillhot";
       const openDress = !stage && !chasing && kind !== "arrival";
       const storm = kind === "vortex" || kind === "arrival";
-      resizeList(starsRef.current, storm ? 0 : kind === "stillhot" ? Math.max(look.stars, 180) : look.stars, (i) => makeStars(1)[0] ?? { a: i, r: 0.4, z: Math.random(), len: 0.02 });
+      resizeList(starsRef.current, storm || kind === "stillhot" ? 0 : look.stars, (i) => makeStars(1)[0] ?? { a: i, r: 0.4, z: Math.random(), len: 0.02 });
       resizeList(glyphsRef.current, kind === "glyphs" ? look.glyphs : 0, (i) => makeGlyphs(1)[0] ?? { a: i, r: 0.6, z: Math.random(), kind: i % 3 });
       const w = canvas.clientWidth || 1;
       const h = canvas.clientHeight || 1;
@@ -3817,12 +3931,12 @@ export function RoseVortex({
         g.addColorStop(0.62, `rgba(70, 190, 220, ${0.12 + visEnergy * 0.14})`);
         g.addColorStop(1, "rgba(7, 3, 10, 0.22)");
       }
-      if (!storm && !stage) {
+      if (!storm && !stage && kind !== "stillhot") {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
       }
 
-      if (chasing && !storm) {
+      if (chasing && !storm && kind !== "stillhot") {
         drawVortexPlate(ctx, vortexImg, cx, cy, w, h, spin, visEnergy, 1.22, false);
         drawVortexPlate(ctx, vortexImg, cx, cy, w, h, spin * 1.4, visEnergy * 0.7, 0.7, true);
         drawVortexCore(ctx, cx, cy, w, h, visEnergy, visKick);
@@ -3984,7 +4098,7 @@ export function RoseVortex({
       }
       if (stage) revealStormRim(ctx, w, h);
 
-      if (!stage && kind !== "arrival") {
+      if (!stage && kind !== "arrival" && kind !== "stillhot") {
         for (const star of starsRef.current) {
           if (chasing || live) star.z -= dt * (chasing ? 0.95 + rush * 1.85 : 0.42 + fly * 2.1) * (0.4 + star.len * 10);
           if (star.z < 0) star.z += 1;
@@ -4005,12 +4119,8 @@ export function RoseVortex({
         }
       }
 
-      const drawRings = kind === "glyphs" || kind === "stillhot";
-      const rings = drawRings ? (kind === "stillhot" ? Math.max(look.rings, 32) : look.rings) : 0;
-      if (kind === "stillhot") {
-        drawChaseHelix(ctx, cx, cy, fov, tunnel, spin, visEnergy, visKick, 0.3, 1);
-        drawTunnelRings(ctx, cx, cy, fov, tunnel, spin, visEnergy, visKick, rings, 0.3, 1);
-      } else if (!storm) {
+      const rings = kind === "glyphs" ? look.rings : 0;
+      if (!storm) {
         for (let i = 0; i < rings; i++) {
           const u = (i / Math.max(1, rings) + tunnel * 0.08) % 1;
           const z = 0.18 + u * 3.4;
@@ -4057,7 +4167,7 @@ export function RoseVortex({
         }
       }
 
-      if (look.bolts && kind !== "void" && kind !== "still-rite" && !stage && pulse.downbeat > 0.2 && live) {
+      if (look.bolts && kind !== "void" && kind !== "still-rite" && kind !== "stillhot" && !stage && pulse.downbeat > 0.2 && live) {
         bolt(ctx, cx, cy, cx - w * 0.38, cy - h * 0.2, pulse.beatIndex + 0.2, pulse.downbeat * 0.85);
         bolt(ctx, cx, cy, cx + w * 0.34, cy + h * 0.18, pulse.beatIndex + 1.1, pulse.downbeat * 0.7);
       }
@@ -4088,7 +4198,7 @@ export function RoseVortex({
         drawDeerfox(ctx, deerImg, w, h, pulse, energy, false);
       }
 
-      if (chasing) {
+      if (chasing && kind !== "stillhot") {
         const stream = streamRef.current;
         const cap = kind === "petals" ? 14 : 10;
         if (stream.length < cap) {
@@ -4125,10 +4235,6 @@ export function RoseVortex({
         }
         for (const petal of stream) {
           if (petal.z <= tardisZ) drawStreamPetal(ctx, petal, cx, cy, fov, petalFace, petalEdge, visEnergy);
-        }
-        if (kind === "stillhot") {
-          drawChaseHelix(ctx, cx, cy, fov, tunnel, spin, visEnergy, visKick, 0, 0.3);
-          drawTunnelRings(ctx, cx, cy, fov, tunnel, spin, visEnergy, visKick, rings, 0, 0.3);
         }
       }
 
@@ -4190,8 +4296,17 @@ export function RoseVortex({
       if (chasing && !storm) ctx.restore();
 
       if (kind === "stillhot") {
-        drawStillhot(ctx, w, h, pulse, energy, stillhotLandImg, stillhotTeaImg, stillhotRoseImg);
-        drawRedGlare(ctx, w, h, pulse);
+        const tardis = project(tardisX, tardisY, tardisZ, cx, cy, fov);
+        const hgt = Math.min(w, h) * (0.16 / Math.max(0.95, tardisZ));
+        const lamp = Math.min(1, visKick * 0.85 + pulse.downbeat + 0.38);
+        drawStillhot(ctx, w, h, pulse, energy, stillhotLandImg, stillhotTeaImg, stillhotRoseImg, tardisChase, tardisRear, {
+          x: tardis.x,
+          y: tardis.y,
+          h: hgt,
+          lamp,
+          bank,
+          show: look.box,
+        });
       }
       drawRockBonus(ctx, kind, w, h, pulse, rockNow);
 
@@ -4253,7 +4368,7 @@ export function RoseVortex({
       ctx.fillRect(0, 0, w, h);
 
       if (stage) petalsRef.current.length = 0;
-      if (look.petals && !stage && kind !== "void" && kind !== "still-rite") {
+      if (look.petals && !stage && kind !== "void" && kind !== "still-rite" && kind !== "stillhot") {
         const petals = petalsRef.current;
         const beat = pulse.beatIndex;
         const cap = kind === "petals" ? 7 : chasing ? 4 : 5;

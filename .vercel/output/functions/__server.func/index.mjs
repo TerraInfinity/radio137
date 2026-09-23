@@ -453,6 +453,7 @@ function isHtml(response) {
 async function htmlCacheMiddleware(event, next) {
 	const result = await next();
 	if (!(result instanceof Response)) return result;
+	if (result.status >= 300 && result.status < 400) return result;
 	const method = (event.req.method ?? "GET").toUpperCase();
 	if (method !== "GET" && method !== "HEAD") return result;
 	const path = event.url.pathname;
@@ -464,6 +465,21 @@ async function htmlCacheMiddleware(event, next) {
 	if (existing.includes("no-cache") || existing.includes("private")) return result;
 	if (isHtml(result) || path === "/" || path.startsWith("/channel/") || path.startsWith("/player/")) result.headers.set("Cache-Control", "public, s-maxage=180, stale-while-revalidate=600");
 	return result;
+}
+//#endregion
+//#region server/middleware/rose-channel.ts
+/**
+* /channel/rose is the old station URL. The only Rose frontend is the experience.
+*/
+function roseChannelRedirect(event, next) {
+	if ((event.url.pathname.replace(/\/+$/, "") || "/").toLowerCase() !== "/channel/rose") return next();
+	return new Response(null, {
+		status: 302,
+		headers: {
+			Location: `/experiences/rose${event.url.search}`,
+			"Cache-Control": "no-store"
+		}
+	});
 }
 //#endregion
 //#region #nitro/virtual/routing
@@ -500,7 +516,11 @@ var findRoute = /* @__PURE__ */ (() => {
 		};
 	});
 })();
-var globalMiddleware = [toEventHandler(grokPwaMiddleware), toEventHandler(htmlCacheMiddleware)].filter(Boolean);
+var globalMiddleware = [
+	toEventHandler(grokPwaMiddleware),
+	toEventHandler(htmlCacheMiddleware),
+	toEventHandler(roseChannelRedirect)
+].filter(Boolean);
 //#endregion
 //#region node_modules/nitro/dist/runtime/internal/error/prod.mjs
 var errorHandler = (error, event) => {

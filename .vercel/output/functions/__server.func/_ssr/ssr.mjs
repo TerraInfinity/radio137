@@ -106,7 +106,7 @@ var HEADERS = { TSS_SHELL: "X-TSS_SHELL" };
 * the dev styles URL for route-scoped CSS collection.
 */
 async function getStartManifest(matchedRoutes) {
-	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-DC9TDdS7.mjs");
+	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-BD0q959f.mjs");
 	const startManifest = tsrStartManifest();
 	let routes = startManifest.routes;
 	routes[rootRouteId];
@@ -132,11 +132,11 @@ var manifest = {
 	},
 	"08659e0d0d60384b044868cdfd6b5d78aac7aba6ca3e76a712a57aac1b061266": {
 		functionName: "addStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"144c9e43196ca6bf0a596c59ad5c3095bc07d2aa8f85cd097d593121f0a2ec34": {
 		functionName: "setFeaturedRail_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"1bad9c20212fb739ea13d7879e0b1c774851aade5573e4f7ca52fcedd500d550": {
 		functionName: "listStationChat_createServerFn_handler",
@@ -144,11 +144,11 @@ var manifest = {
 	},
 	"1c7e2a4bf243ecec1748ddd3254f51bf34a1be3c8c0aaded4b4d41b322685c35": {
 		functionName: "skipSimilarCuts_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"1f9b8aaec0e2a3610687481c510ceeb3159aa9d36fbbc8714870d1ad5c4128a6": {
 		functionName: "completeDeskUpload_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"26893775ee356fdf5d12240d58a031a5dec729df95aa4ce90905470656552d1a": {
 		functionName: "listGlaumWords_createServerFn_handler",
@@ -156,7 +156,7 @@ var manifest = {
 	},
 	"2adf9a5e205af9c1d15d19e63fe2f106c7f5a6330edf5fc760537317911ed9b7": {
 		functionName: "dismissReviewItemFn_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"33b02d65bba8d133fa56e02858c9d159e244ea83c4eb483cd2c2b6dd0b10bb63": {
 		functionName: "bumpTrackView_createServerFn_handler",
@@ -164,11 +164,15 @@ var manifest = {
 	},
 	"4312dafe79054c46e754cd9b8607c11bb2607d5c3a3f8a59ff3aa0a9123febe4": {
 		functionName: "mergeStationCutClusters_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
+	},
+	"45059354f1d00eadfda28d98d139c4840461cb595c69767e4281c572a849d348": {
+		functionName: "pullStationLyrics_createServerFn_handler",
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"595cc028164bced834212e5cbe6c60a901bce2ed87db2abd1ed37525bb3f50e3": {
 		functionName: "restoreReviewItemFn_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"613b8c42e93a79bb0b67e0ea6912b9473afa49225fd950065b80b3dc2be5f2c4": {
 		functionName: "toggleFavoriteTrack_createServerFn_handler",
@@ -176,15 +180,15 @@ var manifest = {
 	},
 	"6394d77b68adc7de38f7d5b92074423b52e5b7be42a911ba3de73f04918268ac": {
 		functionName: "listReviewQueue_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"6419abad04b105db7e36894252b6619b53542483e9295a713c9ad8fd0458c6d0": {
 		functionName: "moveR2Object_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"6d9a4c36e4fa94358d626ce6220b0261d71242f3bc3a9bdacc4770f584b1c569": {
 		functionName: "directRoseLook_createServerFn_handler",
-		importer: () => import("./rose-grok-api-DEmtiPGo.mjs")
+		importer: () => import("./rose-grok-api-DrKsprfr.mjs")
 	},
 	"76fc65498ac00f10a1e5229b52aa0c1267908ee9bdd34049ace69c68c0225c41": {
 		functionName: "addGuestGlaumWordFn_createServerFn_handler",
@@ -192,43 +196,47 @@ var manifest = {
 	},
 	"789391bd697359317c296e3f37247ff55aa67af199a6b74ba94c7d4f8decd163": {
 		functionName: "rehomeReviewItemFn_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"7e0e63ee3f7f7eca955516fee0d48f5605e9338c3859b4a9d175aeb5f96c54bd": {
 		functionName: "unmergeStationCut_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"800fe0eb6f64b76196232f5cc031243f8f0f09e2cdca82e2c8251647814fe247": {
 		functionName: "renameStationFile_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"82a76a214c21f04ee0c704c6bf2329e4b5b8a9152b58b7d4ab524b5d1dc64843": {
 		functionName: "listCutGroups_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"86faca5244608013bd67686cf60e5d0459a82e02de3fa9da95267f70f32d0bd4": {
 		functionName: "reorderStationTracks_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"90fd962caebe299f7527d82a153d8a20a3717fbdcf226f5c3a6f12c720d8f4fd": {
 		functionName: "unallocateStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"92be32e04773b72416ff5451aa424abf58edefa82028323d6a5f1d02f061a0bb": {
 		functionName: "importR2Tracks_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"a0f574ca851bffce43b4e3ba655b29babab6d5b0703b3873a41409a03e7b9a6a": {
 		functionName: "hideStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"aac5d28e1fc5864e8830505713c59008fee0591dd6fc1b3d59c3871d5dfc62f1": {
 		functionName: "addAdminGlaumWordFn_createServerFn_handler",
 		importer: () => import("./glaum-api-Dr6vvhZJ.mjs")
 	},
+	"ab3fe6b6b8359e36fd10ff61b925753694a0cb63eb2be3f4e0e7eaa5c8956017": {
+		functionName: "shareSongAudio_createServerFn_handler",
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
+	},
 	"ad177eb156e0e962cf763c344be8866b84009abc7a6c31f2269e1048d8e105ad": {
 		functionName: "pingServices_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"b249dd9adefe7c79e424e8c9c31771aadfe41f573346771cb1adaaca54c53616": {
 		functionName: "postStationChat_createServerFn_handler",
@@ -236,7 +244,7 @@ var manifest = {
 	},
 	"b9c9fe0cca0befd3ae8bedbf69fee8d4a08b690b7d33de85aa2f47a155c3c7f0": {
 		functionName: "deleteR2Object_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"bd429980c9d23aa02b69708d64446997683f3214c7b2ddc527fd991042d50b4d": {
 		functionName: "bumpTrackLike_createServerFn_handler",
@@ -244,23 +252,23 @@ var manifest = {
 	},
 	"be4f0c5d004d01180e478be884f3b7aa2de4cdbc95ddf46f1ff3a37c72cbe9c1": {
 		functionName: "mintDeskUpload_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"cc74c64dc2667ff889d7baf82b14c6704c54a443ca298f5c60de9cf63700e054": {
 		functionName: "saveStation_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"ce752a9c60416a0748de8ae86a006017f54ced857f2581ba1a9f7cfcce8bb3a9": {
 		functionName: "listCatalogEdits_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"d2882a2b429e6c16019d84a0522a03cc982ad7b92d32eff9362b05d04d93cd1e": {
 		functionName: "placeStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"d86c18414a468e5882fe82b035766d562e4179ae03a7965f0b06cb986a1cec7a": {
 		functionName: "mergeStationCuts_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"d996ff8bdab3183a7d117e9ee91b5c2b479c7298eba46fb4195eef1a1de2cc4d": {
 		functionName: "hideGlaumWordFn_createServerFn_handler",
@@ -268,35 +276,35 @@ var manifest = {
 	},
 	"d9c9172f364a7e534585135887b704f2b3b59298313c4af8e00a092debec0967": {
 		functionName: "deleteStationFile_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"d9e89e6e17ea4381b3ec922098d3fcb3e864b4b3b07789c439e701ed259ef683": {
 		functionName: "getRadioSession_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"da98c26cacb974e0e1405aa77e85814e3a2aec5b3a4e0b9e2e42c4119a20f587": {
 		functionName: "patchStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"df9d243e1b860c4496bba86a34cad4e87c50b6b7b199b0acf683fa5bc37e5c1f": {
 		functionName: "listStationR2_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"e4f922a88d85017fd6365e5b5442c3930c1905e0e4755d162c604c57f6992e91": {
 		functionName: "restoreStationTrack_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"ef8d1ed7626b299fba3a7d71b3c1354edca25d308009b62e5bdb0ce70327bb2d": {
 		functionName: "dissolveStationCut_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"f2dace1869b4b93bdcb91d67211a80767c66904df25ea5f8e992e05d96283a2a": {
 		functionName: "hideStationTracks_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	},
 	"f9a90fefbce8c7877d112d09bb33465d0ac179e6127dd5c0e438fa0d59f78fd6": {
 		functionName: "listCutSkips_createServerFn_handler",
-		importer: () => import("./desk-api-DSDDuLLL.mjs")
+		importer: () => import("./desk-api-E6IHqdHB.mjs")
 	}
 };
 async function getServerFnById(id, access) {
@@ -1566,7 +1574,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-BjRk-_wL.mjs").then((n) => n.t),
+		import("./router-6iRva2YN.mjs").then((n) => n.t),
 		import("./start-5Z2QO8AU.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);

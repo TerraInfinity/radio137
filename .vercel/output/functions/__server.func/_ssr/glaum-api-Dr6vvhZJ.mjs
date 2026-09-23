@@ -3,7 +3,7 @@ import { F as object, P as number, R as string } from "../_libs/@better-auth/cor
 import { t as createServerRpc } from "./createServerRpc-CcvdN_gc.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/glaum-api-Dr6vvhZJ.js
 var radioSessionMiddleware = createMiddleware({ type: "function" }).client(async ({ next }) => {
-	const { getBearerToken } = await import("./client-nKCa1E1y.mjs").then((n) => n.n).then((n) => n.n);
+	const { getBearerToken } = await import("./client-nKCa1E1y.mjs").then((n) => n.n);
 	return next({ sendContext: { bearerToken: getBearerToken() ?? void 0 } });
 }).server(async ({ next, context }) => {
 	const { resolveRadioUser } = await import("./sso.server-NSJ3vLzw.mjs").then((n) => n.p);

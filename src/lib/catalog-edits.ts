@@ -1,5 +1,6 @@
 import type { Catalog, Channel, Track } from "@/lib/types";
 import { normalizeKind, normalizeShuffle, parseTags } from "@/lib/catalog";
+import { orderStationTracks } from "@/lib/rose-rite";
 import { sortPlaylistTracks } from "@/lib/track-title";
 import { parseAliases } from "@/lib/song-url";
 
@@ -126,8 +127,7 @@ export function applyCatalogEdits(
     );
     const kind = station?.kind ? normalizeKind(station.kind) : normalizeKind(channel.kind || channel.mode);
     const order = orderMap(bag?.values());
-    const keepSeedOrder = kind === "fixed" && ![...order.values()].some((n) => n != null);
-    const ordered = keepSeedOrder ? tracks : sortPlaylistTracks(tracks, order);
+    const ordered = orderStationTracks(channel.slug, kind, tracks, order);
     return {
       ...channel,
       name: station?.name || channel.name,

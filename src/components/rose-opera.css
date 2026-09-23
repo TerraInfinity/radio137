@@ -1294,7 +1294,13 @@ body:has(.player-sliver) .rose-opera-full:not(.is-cinema) .rose-grok {
 .rose-opera[data-phenomenon="copter"] .rose-opera-loop,
 .rose-opera[data-phenomenon="copter"] .rose-opera-stills,
 .rose-opera[data-phenomenon="copter"] .rose-opera-vortex,
-.rose-opera[data-phenomenon="copter"] .rose-opera-lantern {
+.rose-opera[data-phenomenon="copter"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="stillhot"] .rose-opera-loop,
+.rose-opera[data-phenomenon="stillhot"] .rose-opera-stills,
+.rose-opera[data-phenomenon="stillhot"] .rose-opera-vortex,
+.rose-opera[data-phenomenon="stillhot"] .rose-opera-lantern,
+.rose-opera[data-phenomenon="stillhot"] .rose-storm-bed,
+.rose-opera[data-phenomenon="stillhot"] .rose-opera-air {
   opacity: 0 !important;
   visibility: hidden;
 }

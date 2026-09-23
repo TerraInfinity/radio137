@@ -1,6 +1,6 @@
-import type { Track } from "./types.ts";
+type Named = { id: string; title: string; artist?: string };
 
-export function compareTrackTitle(a: Track, b: Track): number {
+export function compareTrackTitle(a: Named, b: Named): number {
   return (
     a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: "base" }) ||
     (a.artist || "").localeCompare(b.artist || "", undefined, { numeric: true, sensitivity: "base" }) ||
@@ -9,10 +9,10 @@ export function compareTrackTitle(a: Track, b: Track): number {
 }
 
 /** Default A–Z. Custom `sortOrder` only wins after an admin Arranges the desk. */
-export function sortPlaylistTracks(
-  tracks: Track[],
+export function sortPlaylistTracks<T extends Named>(
+  tracks: T[],
   orderById?: ReadonlyMap<string, number | null | undefined>,
-): Track[] {
+): T[] {
   const hasOrder = orderById ? [...orderById.values()].some((n) => n != null) : false;
   return [...tracks].sort((a, b) => {
     if (!hasOrder) return compareTrackTitle(a, b);

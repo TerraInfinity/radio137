@@ -30,6 +30,14 @@ export function isAudioKey(key: string): boolean {
   return /\.(mp3|wav|flac|m4a|ogg|aac)$/i.test(key.split("?")[0]);
 }
 
+export function audioExtension(urlOrName: string): string {
+  const path = (urlOrName || "").split("?")[0]?.split("#")[0] ?? "";
+  const name = path.split("/").pop() || "";
+  const dot = name.lastIndexOf(".");
+  if (dot < 0) return "";
+  return name.slice(dot + 1).toLowerCase();
+}
+
 export function normalizeR2Key(key: string): string {
   const cleaned = key.replace(/^\/+/, "").replace(/\\/g, "/");
   try {

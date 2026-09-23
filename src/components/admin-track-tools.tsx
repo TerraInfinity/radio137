@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { addStationTrack, deleteStationFile, hideStationTrack, patchStationTrack, renameStationFile } from "@/lib/desk-api";
+import { addStationTrack, deleteStationFile, hideStationTrack, patchStationTrack, renameStationFile, shareSongAudio } from "@/lib/desk-api";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
-import { audioPathParts, fileLocationLabel, r2KeyFromAudioUrl } from "@/lib/file-path";
+import { audioExtension, audioPathParts, fileLocationLabel, r2KeyFromAudioUrl } from "@/lib/file-path";
+import { sameSongTitle } from "@/lib/rose-rite";
 import { getSeedCatalog } from "@/lib/catalog";
 import { directDeskUpload } from "@/lib/direct-upload";
 import { useRadioUser } from "@/lib/radio-user";
@@ -27,7 +28,7 @@ function applySnapshot(
 
 export function AdminTrackTools({ slug, track, compact = false }: { slug: string; track: Track; compact?: boolean }) {
   const { isAdmin, r2Configured, isPending } = useRadioUser();
-  const [busy, setBusy] = useState<"hide" | "r2" | "save" | "file" | "rename" | null>(null);
+  const [busy, setBusy] = useState<"hide" | "r2" | "save" | "file" | "rename" | "share" | null>(null);
   const [title, setTitle] = useState(track.title);
   const [artist, setArtist] = useState(track.artist);
   const [tags, setTags] = useState((track.tags ?? []).filter((tag) => !tag.startsWith("scene.v1.")).join(", "));
@@ -39,6 +40,7 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
   const [hint, setHint] = useState("");
   const next = usePlayerStore((s) => s.next);
   const playingId = usePlayerStore((s) => s.track?.id ?? null);
+  const channels = usePlayerStore((s) => s.catalog.channels);
   if (isPending || !isAdmin) return null;
   const location = fileLocationLabel(track.audioUrl);
   const key = r2KeyFromAudioUrl(track.audioUrl);
@@ -145,6 +147,39 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
     }
   }
 
+  const copies = channels.flatMap((channel) =>
+    channel.tracks
+      .filter((item) => item.enabled !== false && item.audioUrl && sameSongTitle(item.title, track.title))
+      .map((item) => ({ slug: channel.slug, url: item.audioUrl })),
+  );
+  const fileKeys = new Set(copies.map((item) => r2KeyFromAudioUrl(item.url) || item.url));
+  const desks = new Set(copies.map((item) => item.slug));
+  const ext = audioExtension(track.audioUrl);
+  const needsMp3 = Boolean(ext) && ext !== "mp3";
+
+  async function shareAudio(convert: boolean) {
+    const where = desks.size > 1 ? `${copies.length} copies on ${desks.size} desks` : `${copies.length} ${copies.length === 1 ? "copy" : "copies"}`;
+    const message = convert
+      ? `Turn this ${ext || "file"} into an mp3 in radio/rose/ and point ${where} of “${track.title}” at it?\n\nThe original file stays on R2.`
+      : `Point ${where} of “${track.title}” at this audio file?\n\nOther files stay on R2. Titles stay as they are.`;
+    if (!window.confirm(message)) return;
+    setBusy("share");
+    setHint(convert ? "Converting to mp3…" : "Sharing this file…");
+    try {
+      const result = await shareSongAudio({ data: { channelSlug: slug, trackId: track.id, convert } });
+      applySnapshot(result.tracks, result.stations, playingId, next);
+      if (result.url) setAudioUrl(result.url);
+      if (result.converted) setHint(`Mp3 is in radio/rose/. ${result.updated} ${result.updated === 1 ? "copy now uses" : "copies now use"} it.`);
+      else if (result.reused) setHint(`Already an mp3 in radio/rose/. ${result.updated} ${result.updated === 1 ? "copy now uses" : "copies now use"} it.`);
+      else setHint(result.updated ? `${result.updated} ${result.updated === 1 ? "copy now uses" : "copies now use"} this file.` : "Every copy already uses this file.");
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Could not share this file");
+      setHint("");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   if (compact) {
     return (
       <button
@@ -246,6 +281,22 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
               }}
             />
           </label>
+          {needsMp3 ? (
+            <button type="button" disabled={Boolean(busy)} onClick={() => void shareAudio(true)} className="inline-flex h-11 items-center px-3 text-left font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+              {busy === "share" ? "Working…" : "Convert to mp3 and use it everywhere"}
+            </button>
+          ) : null}
+          {fileKeys.size > 1 ? (
+            <button type="button" disabled={Boolean(busy)} onClick={() => void shareAudio(false)} className="inline-flex h-11 items-center px-3 text-left font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+              {busy === "share" ? "Working…" : "Use this file on every copy"}
+            </button>
+          ) : null}
+          <p className="text-sm text-muted">
+            {copies.length > 1
+              ? `${copies.length} copies of this song, ${fileKeys.size} ${fileKeys.size === 1 ? "file" : "files"}, ${desks.size} ${desks.size === 1 ? "desk" : "desks"}. Same name keeps its own scene.`
+              : "No other copy of this song is on a desk."}
+            {needsMp3 ? " A wav stays put. The new mp3 lands in radio/rose/ and every copy of this name plays that." : ""}
+          </p>
         </FoldDetails>
         <div className="flex flex-wrap gap-2">
           <button type="submit" disabled={Boolean(busy)} className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">

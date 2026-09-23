@@ -17,7 +17,7 @@ var social_api_exports = /* @__PURE__ */ __exportAll$1({
 	toggleFavoriteTrack: () => toggleFavoriteTrack
 });
 var radioSessionMiddleware = createMiddleware({ type: "function" }).client(async ({ next }) => {
-	const { getBearerToken } = await import("./client-nKCa1E1y.mjs").then((n) => n.n).then((n) => n.n);
+	const { getBearerToken } = await import("./client-nKCa1E1y.mjs").then((n) => n.n);
 	return next({ sendContext: { bearerToken: getBearerToken() ?? void 0 } });
 }).server(async ({ next, context }) => {
 	const { resolveRadioUser } = await import("./sso.server-NSJ3vLzw.mjs").then((n) => n.p);
