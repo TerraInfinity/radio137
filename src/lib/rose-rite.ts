@@ -108,21 +108,16 @@ function byName(a: Named, b: Named): number {
   );
 }
 
-/** Rite songs first, in rite order. Anything else (Time War, Basilisk) sorts after, by title. */
+/** Rite songs only, in rite order. Time War, The Basilisk, and anything else stay off this station. */
 export function sortRoseRite<T extends Named>(tracks: T[]): T[] {
-  return [...tracks].sort((a, b) => {
-    const ai = roseRiteIndex(a.title);
-    const bi = roseRiteIndex(b.title);
-    const aHit = ai >= 0;
-    const bHit = bi >= 0;
-    if (aHit && bHit && ai !== bi) return ai - bi;
-    if (aHit !== bHit) return aHit ? -1 : 1;
-    return byName(a, b);
-  });
+  return tracks
+    .filter((track) => roseRiteIndex(track.title) >= 0)
+    .sort((a, b) => roseRiteIndex(a.title) - roseRiteIndex(b.title) || byName(a, b));
 }
 
 /**
- * Playlist order. A desk Arrange lock wins. Rose with no lock uses the rite.
+ * Playlist order. Rose is only the rite list — a desk Arrange lock can
+ * reorder those songs, but Time War, The Basilisk, and anything else are dropped.
  * Other fixed stations keep the order they were saved in.
  */
 export function orderStationTracks<T extends Named>(
@@ -132,8 +127,11 @@ export function orderStationTracks<T extends Named>(
   orderById?: ReadonlyMap<string, number | null | undefined>,
 ): T[] {
   const hasOrder = orderById ? [...orderById.values()].some((n) => n != null) : false;
+  if (slug === "rose") {
+    const rite = tracks.filter((track) => roseRiteIndex(track.title) >= 0);
+    return hasOrder ? sortPlaylistTracks(rite, orderById) : sortRoseRite(rite);
+  }
   if (hasOrder) return sortPlaylistTracks(tracks, orderById);
-  if (slug === "rose") return sortRoseRite(tracks);
   if (kind === "fixed") return [...tracks];
   return sortPlaylistTracks(tracks);
 }

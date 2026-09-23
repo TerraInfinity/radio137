@@ -22,7 +22,7 @@ describe("rose rite order", () => {
     assert.notEqual(roseRiteIndex("Glaum Shrimp Prom - Swooning for Glaum's Attention"), roseRiteIndex("Glaum Shrimp Prom Shake That Bootie"));
   });
 
-  it("sorts the rite first and leaves extra songs after it", () => {
+  it("drops songs that are not on the rite list", () => {
     const shuffled = [
       row("elf", ROSE_RITE[21]),
       row("war", "Time War 2137"),
@@ -33,7 +33,7 @@ describe("rose rite order", () => {
       row("manual", "Lady Glaum's Chaos Manual"),
     ];
     const ordered = sortRoseRite(shuffled).map((item) => item.id);
-    assert.deepEqual(ordered, ["swoon", "manual", "boot", "on", "elf", "bas", "war"]);
+    assert.deepEqual(ordered, ["swoon", "manual", "boot", "on", "elf"]);
   });
 
   it("uses the rite for Rose until a desk Arrange lock exists", () => {
@@ -46,11 +46,13 @@ describe("rose rite order", () => {
       orderStationTracks(
         "rose",
         "fixed",
-        tracks,
+        [...tracks, row("war", "Time War 2137"), row("bas", "The Basilisk")],
         new Map([
           ["elf", 0],
-          ["twist", 1],
-          ["swoon", 2],
+          ["war", 1],
+          ["twist", 2],
+          ["bas", 3],
+          ["swoon", 4],
         ]),
       ).map((item) => item.id),
       ["elf", "twist", "swoon"],

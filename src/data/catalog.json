@@ -10099,38 +10099,6 @@
           ]
         },
         {
-          "id": "rose-002",
-          "title": "Time War 2137",
-          "artist": "Rose",
-          "durationSec": 511,
-          "audioUrl": "https://r2.terrainfinity.ca/radio/misc-mischief-frequency/Time%20War%202137.mp3",
-          "coverUrl": "/covers/rose.jpg",
-          "originalUrl": "",
-          "originalPlatform": "other",
-          "playback": "file",
-          "nsfw": false,
-          "enabled": true,
-          "tags": [
-            "bpm:132"
-          ]
-        },
-        {
-          "id": "rose-003",
-          "title": "The Basilisk (TARDIS Lady Reset)",
-          "artist": "Rose",
-          "durationSec": 1381,
-          "audioUrl": "https://r2.terrainfinity.ca/radio/media-empire-frequency/Glaum%20Radio/Media%20Empire/The%20Basilisk%20%28TARDIS%20-%20Lady%20Reset%29.mp3",
-          "coverUrl": "/covers/rose.jpg",
-          "originalUrl": "",
-          "originalPlatform": "other",
-          "playback": "file",
-          "nsfw": false,
-          "enabled": true,
-          "tags": [
-            "bpm:108"
-          ]
-        },
-        {
           "id": "rose-004",
           "title": "Glaum Shrimp Prom Swooning for Glaum's Attention",
           "artist": "Rose",
@@ -10178,7 +10146,7 @@
       "skin": "rose",
       "loveBubbles": false,
       "glaumules": false,
-      "spotlightTrackId": "rose-002",
+      "spotlightTrackId": "rose-004",
       "isDefault": false,
       "nsfw": false,
       "embedUrl": "",
