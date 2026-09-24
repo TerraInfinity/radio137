@@ -24,7 +24,7 @@ function SyncAdd() {
     if (!offer.enabled || !podcast.startsWith("podcast:")) return;
     const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
     if (!ios) return;
-    window.location.assign(podcast);
+    window.location.replace(podcast);
     const timer = window.setTimeout(() => setHeld(true), 900);
     return () => window.clearTimeout(timer);
   }, [offer.enabled, podcast]);

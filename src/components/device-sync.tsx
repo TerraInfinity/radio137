@@ -4,7 +4,7 @@ import { renderSVG } from "uqr";
 import { getPlayableTracks, publicChannels } from "@/lib/catalog";
 import { feedFor, listenFor, offerFor, siriFor } from "@/lib/device-sync";
 import { applePodcastUrl } from "@/lib/rose-feed";
-import { detectSyncPath, shortcutsCreateUrl, shortcutsRunUrl, syncAddUrl, syncPageUrl, type SyncPath, type SyncTab } from "@/lib/sync-path";
+import { detectSyncPath, shortcutsCreateUrl, shortcutsRunUrl, syncAddUrl, type SyncPath, type SyncTab } from "@/lib/sync-path";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 import { zipStore } from "@/lib/zip-store";
@@ -106,7 +106,6 @@ export function DeviceSync({
     fileName: fileName(track.title, index + 1, track.audioUrl),
   }));
   const podcastQr = hasFeed ? syncAddUrl(origin, slug) : "";
-  const siriQr = syncPageUrl(origin, slug, "apple", "siri");
   const runSiri = shortcutsRunUrl(say);
   const makeSiri = shortcutsCreateUrl();
 
@@ -182,64 +181,38 @@ export function DeviceSync({
     <div className="mx-auto max-w-3xl px-4 py-10 pb-52">
       <section>
         <h1 className="font-display text-5xl font-semibold tracking-tight sm:text-6xl">{title}</h1>
-        <p className="mt-3 max-w-prose text-lg text-muted">Pick one. Play it now, keep it offline, or teach Siri the name.</p>
+        <p className="mt-3 max-w-prose text-lg text-muted">Tap Add to Podcasts. That opens the subscribe sheet. The code does the same thing from another screen.</p>
         {!offer.enabled && isAdmin ? <p className="mt-2 text-sm text-muted">Guests do not see this until Device sync is on in the station settings.</p> : null}
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          <Choice
-            title="Play live"
-            line="Opens the station on this phone."
-            scan="Camera opens the player."
-            qr={iphone ? "" : listen}
-            action={
-              <a href={listen} className="inline-flex h-12 w-full items-center justify-center rounded-md bg-fg px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
-                Play now
-              </a>
-            }
-          />
+        <div className="mt-6 flex max-w-sm flex-col gap-2">
+          <a href={listen} className="inline-flex h-12 items-center justify-center rounded-md border border-line px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+            Play now
+          </a>
           {hasFeed ? (
-            <Choice
-              title="Save offline"
-              line="Podcasts keeps the list. The Watch copies it while charging."
-              scan="Camera opens Podcasts → Subscribe."
-              qr={iphone ? "" : podcastQr}
-              action={
-                <a href={applePodcastUrl(feed)} className="inline-flex h-12 w-full items-center justify-center rounded-md bg-fg px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
-                  Add to Podcasts
-                </a>
-              }
-            />
+            <a href={applePodcastUrl(feed)} className="inline-flex h-12 items-center justify-center rounded-md bg-fg px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
+              Add to Podcasts
+            </a>
           ) : (
-            <Choice
-              title="Save offline"
-              line="No podcast feed yet. Download the audio instead."
-              scan=""
-              qr=""
-              action={
-                <button type="button" onClick={() => void enqueueGrabs(slug, grabItems)} className="inline-flex h-12 w-full items-center justify-center rounded-md bg-fg px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
-                  Download
-                </button>
-              }
-            />
+            <button type="button" onClick={() => void enqueueGrabs(slug, grabItems)} className="inline-flex h-12 items-center justify-center rounded-md bg-fg px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
+              Download the audio
+            </button>
           )}
-          <Choice
-            title="Hey Siri"
-            line={`After it is downloaded, say “${say}” on the iPhone or the Watch.`}
-            scan="Camera opens the Siri steps."
-            qr={iphone ? "" : siriQr}
-            action={
-              <button
-                type="button"
-                onClick={() => {
-                  onPath("apple");
-                  onTab("siri");
-                }}
-                className="inline-flex h-12 w-full items-center justify-center rounded-md border border-line px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
-              >
-                Set up {say}
-              </button>
-            }
-          />
+          <button
+            type="button"
+            onClick={() => {
+              onPath("apple");
+              onTab("siri");
+            }}
+            className="inline-flex h-12 items-center justify-center rounded-md border border-line px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
+          >
+            Set up {say}
+          </button>
         </div>
+        {iphone || !podcastQr ? null : (
+          <div className="mt-8 hidden w-40 sm:block">
+            <Qr value={podcastQr} />
+            <p className="mt-2 text-sm text-muted">Scan with the iPhone. It opens Add to Podcasts, not this page.</p>
+          </div>
+        )}
       </section>
 
       <div className="mt-16">
@@ -450,22 +423,6 @@ export function DeviceSync({
       {appleTab === "offline" ? <AudioGrabs slug={slug} items={grabItems} /> : null}
 
       {note ? <p className="mt-4 text-sm text-muted">{note}</p> : null}
-    </div>
-  );
-}
-
-function Choice({ title, line, scan, qr, action }: { title: string; line: string; scan: string; qr: string; action: ReactNode }) {
-  return (
-    <div className="flex flex-col rounded-xl bg-bg-elevated p-4">
-      <p className="font-display text-2xl">{title}</p>
-      <p className="mt-2 flex-1 text-sm text-muted">{line}</p>
-      <div className="mt-4">{action}</div>
-      {qr ? (
-        <div className="mt-4 hidden sm:block">
-          <Qr value={qr} />
-          <p className="mt-2 text-center text-sm text-muted">{scan}</p>
-        </div>
-      ) : null}
     </div>
   );
 }
