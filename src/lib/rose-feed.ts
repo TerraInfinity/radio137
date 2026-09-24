@@ -126,9 +126,12 @@ function item(track: Track, episode: number, origin: string, fact: RoseFeedFact)
 export function roseFeedXml(catalog: Catalog, origin: string, facts: Record<string, RoseFeedFact> = {}): string {
   const root = origin.replace(/\/$/, "") || "https://radio.terrainfinity.ca";
   const channel = catalog.channels.find((item) => item.slug === "rose");
-  const tracks = selectRoseFeed(roseFeedCandidates(catalog), facts).filter((track) => {
+  const tracks = selectRoseFeed(roseFeedCandidates(catalog), facts).flatMap((track) => {
     const fact = facts[track.id];
-    return Boolean(fact && fact.bytes > 0 && fact.durationSec > 0);
+    const durationSec = fact && fact.durationSec > 1 ? fact.durationSec : track.durationSec;
+    const bytes = fact?.bytes ?? 0;
+    if (!(bytes > 0 && durationSec > 0)) return [];
+    return [{ track, fact: { bytes, durationSec } }];
   });
   const self = roseFeedUrl(root);
   const page = `${root}/experiences/rose`;
@@ -158,7 +161,7 @@ export function roseFeedXml(catalog: Catalog, origin: string, facts: Record<stri
       <title>${xml(title)}</title>
       <link>${xml(page)}</link>
     </image>
-${tracks.map((track, index) => item(track, index + 1, root, facts[track.id]!)).join("\n")}
+${tracks.map((row, index) => item(row.track, index + 1, root, row.fact)).join("\n")}
   </channel>
 </rss>
 `;
