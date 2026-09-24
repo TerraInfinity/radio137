@@ -177,6 +177,19 @@ export function stationsForSong(id: string): Channel[] {
   return catalog.channels.filter((channel) => channel.enabled && channel.tracks.some((track) => track.id === id && track.enabled !== false));
 }
 
+/** Stations that play this recording, including a copy that was added later with the same file. */
+export function stationsForRecording(track: Track): Channel[] {
+  const file = (track.audioUrl || "").split("?")[0];
+  return catalog.channels.filter((channel) =>
+    channel.tracks.some((item) => {
+      if (item.enabled === false) return false;
+      if (item.id === track.id) return true;
+      const other = (item.audioUrl || "").split("?")[0];
+      return Boolean(file) && other === file;
+    }),
+  );
+}
+
 export function stationSkin(channel: Channel): "glaum" | "waheguru" | "buzz" | "rose" | "none" {
   if (channel.skin === "rose" || channel.slug === "rose" || /bad.?wolf|rose opera/i.test(`${channel.slug} ${channel.name}`)) return "rose";
   if (channel.skin === "glaum" || channel.glaumules || /glaum|glåüm|glaom/i.test(channel.slug + channel.name)) return "glaum";
