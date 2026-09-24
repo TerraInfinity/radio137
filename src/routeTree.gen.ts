@@ -34,6 +34,7 @@ import { Route as ApiSsoConsumeRouteImport } from './routes/api/sso/consume'
 import { Route as ApiSsoLoginRouteImport } from './routes/api/sso/login'
 import { Route as ApiSsoLogoutRouteImport } from './routes/api/sso/logout'
 import { Route as ApiSsoMeRouteImport } from './routes/api/sso/me'
+import { Route as SyncSlugAddRouteImport } from './routes/sync/$slug.add'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -160,6 +161,11 @@ const ApiSsoMeRoute = ApiSsoMeRouteImport.update({
   path: '/api/sso/me',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SyncSlugAddRoute = SyncSlugAddRouteImport.update({
+  id: '/add',
+  path: '/add',
+  getParentRoute: () => SyncSlugRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -176,7 +182,7 @@ export interface FileRoutesByFullPath {
   '/experiences/$slug': typeof ExperiencesSlugRoute
   '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
   '/player/$id': typeof PlayerIdRoute
-  '/sync/$slug': typeof SyncSlugRoute
+  '/sync/$slug': typeof SyncSlugRouteWithChildren
   '/experiences/': typeof ExperiencesIndexRoute
   '/player/': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -187,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
   '/api/sso/me': typeof ApiSsoMeRoute
+  '/sync/$slug/add': typeof SyncSlugAddRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -202,7 +209,7 @@ export interface FileRoutesByTo {
   '/experiences/$slug': typeof ExperiencesSlugRoute
   '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
   '/player/$id': typeof PlayerIdRoute
-  '/sync/$slug': typeof SyncSlugRoute
+  '/sync/$slug': typeof SyncSlugRouteWithChildren
   '/experiences': typeof ExperiencesIndexRoute
   '/player': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -213,6 +220,7 @@ export interface FileRoutesByTo {
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
   '/api/sso/me': typeof ApiSsoMeRoute
+  '/sync/$slug/add': typeof SyncSlugAddRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -230,7 +238,7 @@ export interface FileRoutesById {
   '/experiences/$slug': typeof ExperiencesSlugRoute
   '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
   '/player/$id': typeof PlayerIdRoute
-  '/sync/$slug': typeof SyncSlugRoute
+  '/sync/$slug': typeof SyncSlugRouteWithChildren
   '/experiences/': typeof ExperiencesIndexRoute
   '/player/': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
   '/api/sso/me': typeof ApiSsoMeRoute
+  '/sync/$slug/add': typeof SyncSlugAddRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -270,6 +279,7 @@ export interface FileRouteTypes {
     | '/api/sso/login'
     | '/api/sso/logout'
     | '/api/sso/me'
+    | '/sync/$slug/add'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -296,6 +306,7 @@ export interface FileRouteTypes {
     | '/api/sso/login'
     | '/api/sso/logout'
     | '/api/sso/me'
+    | '/sync/$slug/add'
   id:
     | '__root__'
     | '/'
@@ -323,6 +334,7 @@ export interface FileRouteTypes {
     | '/api/sso/login'
     | '/api/sso/logout'
     | '/api/sso/me'
+    | '/sync/$slug/add'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -339,7 +351,7 @@ export interface RootRouteChildren {
   ChannelSlugRoute: typeof ChannelSlugRoute
   FeedsRoseDotxmlRoute: typeof FeedsRoseDotxmlRoute
   PlayerIdRoute: typeof PlayerIdRoute
-  SyncSlugRoute: typeof SyncSlugRoute
+  SyncSlugRoute: typeof SyncSlugRouteWithChildren
   PlayerIndexRoute: typeof PlayerIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDeskUploadRoute: typeof ApiDeskUploadRoute
@@ -528,6 +540,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSsoMeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sync/$slug/add': {
+      id: '/sync/$slug/add'
+      path: '/add'
+      fullPath: '/sync/$slug/add'
+      preLoaderRoute: typeof SyncSlugAddRouteImport
+      parentRoute: typeof SyncSlugRoute
+    }
   }
 }
 
@@ -545,6 +564,18 @@ const ExperiencesRouteWithChildren = ExperiencesRoute._addFileChildren(
   ExperiencesRouteChildren,
 )
 
+interface SyncSlugRouteChildren {
+  SyncSlugAddRoute: typeof SyncSlugAddRoute
+}
+
+const SyncSlugRouteChildren: SyncSlugRouteChildren = {
+  SyncSlugAddRoute: SyncSlugAddRoute,
+}
+
+const SyncSlugRouteWithChildren = SyncSlugRoute._addFileChildren(
+  SyncSlugRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AliasRoute: AliasRoute,
@@ -559,7 +590,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChannelSlugRoute: ChannelSlugRoute,
   FeedsRoseDotxmlRoute: FeedsRoseDotxmlRoute,
   PlayerIdRoute: PlayerIdRoute,
-  SyncSlugRoute: SyncSlugRoute,
+  SyncSlugRoute: SyncSlugRouteWithChildren,
   PlayerIndexRoute: PlayerIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDeskUploadRoute: ApiDeskUploadRoute,

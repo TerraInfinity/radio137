@@ -4,7 +4,7 @@ import { renderSVG } from "uqr";
 import { useRoseFeed } from "@/components/rose-apple";
 import { getPlayableTracks, publicChannels } from "@/lib/catalog";
 import { applePodcastUrl } from "@/lib/rose-feed";
-import { detectSyncPath, syncPageUrl, type SyncPath, type SyncTab } from "@/lib/sync-path";
+import { detectSyncPath, syncAddUrl, type SyncPath, type SyncTab } from "@/lib/sync-path";
 import { usePlayerStore } from "@/lib/player-store";
 import { zipStore } from "@/lib/zip-store";
 import { cn } from "@/lib/cn";
@@ -51,13 +51,13 @@ function fileName(title: string, index: number): string {
   return `${String(index).padStart(2, "0")} ${clean}.mp3`;
 }
 
-function Qr({ value, big }: { value: string; big?: boolean }) {
+function Qr({ value }: { value: string }) {
   const svg = useMemo(
-    () => (value ? renderSVG(value, { border: 2, pixelSize: big ? 6 : 4, ecc: "M", whiteColor: "#fff", blackColor: "#14080c" }) : ""),
-    [value, big],
+    () => (value ? renderSVG(value, { border: 2, pixelSize: 8, ecc: "M", whiteColor: "#fff", blackColor: "#14080c" }) : ""),
+    [value],
   );
   if (!svg) return null;
-  return <div className={big ? "w-56" : "w-36"} dangerouslySetInnerHTML={{ __html: svg }} />;
+  return <div className="w-60 [&_svg]:h-auto [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
 const SHORTCUTS = "https://apps.apple.com/app/shortcuts/id915249334";
@@ -88,21 +88,15 @@ export function DeviceSync({
   const channel = channels.find((item) => item.slug === slug);
   const title = slug === "rose" ? "Rose" : channel?.name || slug;
   const detected = useMemo(() => detectSyncPath(typeof navigator === "undefined" ? "" : navigator.userAgent), []);
+  const iphone = useMemo(() => /iPhone|iPod/.test(typeof navigator === "undefined" ? "" : navigator.userAgent), []);
   const selected = path ?? detected;
   const appleTab = tab === "radio" ? "radio" : "offline";
   const [note, setNote] = useState("");
-  const [qrLock, setQrLock] = useState<SyncPath | undefined>(undefined);
   const [packOpen, setPackOpen] = useState(false);
   const [packing, setPacking] = useState("");
   const appleTicks = useTicks(`radio.device-sync.${slug}.apple`);
   const androidTicks = useTicks(`radio.device-sync.${slug}.android`);
-  const page = syncPageUrl(origin, slug);
-  const qr =
-    selected === "apple"
-      ? syncPageUrl(origin, slug, "apple", appleTab)
-      : selected === "android"
-        ? syncPageUrl(origin, slug, "android")
-        : syncPageUrl(origin, slug, qrLock);
+  const addUrl = syncAddUrl(origin, slug);
 
   async function copyFeed() {
     try {
@@ -151,77 +145,91 @@ export function DeviceSync({
   }
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-10 pb-52">
-      <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Device Sync</p>
-      <h1 className="mt-2 font-display text-5xl font-semibold tracking-tight">{title}</h1>
-      <p className="mt-3 text-muted">{ready ? "Get the rite on your phone. Offline. In order." : "This rite is not ready to send yet."}</p>
-      <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="How to send it">
-        {PATHS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            role="tab"
-            aria-selected={selected === item.id}
-            onClick={() => onPath(item.id)}
+    <div className="mx-auto max-w-3xl px-4 py-10 pb-52">
+      <section className="grid items-center gap-8 min-[800px]:grid-cols-[minmax(0,1fr)_15rem]">
+        <div>
+          <h1 className="font-display text-6xl font-semibold tracking-tight">{title}</h1>
+          <p className={cn("mt-3 hidden max-w-sm text-lg text-muted min-[800px]:block", iphone && "!hidden")}>
+            {ready ? "Scan to add the rite to Podcasts." : "This rite is not ready to send yet."}
+          </p>
+          <a
+            href={ready ? applePodcastUrl(feed) : undefined}
             className={cn(
-              "inline-flex h-11 items-center rounded-full px-4 font-mono text-[11px] uppercase tracking-[0.14em]",
-              selected === item.id ? "bg-fg text-bg" : "bg-bg-elevated text-muted",
+              "mt-6 inline-flex h-14 w-full items-center justify-center rounded-md bg-fg px-4 font-mono text-[12px] uppercase tracking-[0.14em] text-bg min-[800px]:hidden",
+              iphone && "!flex",
+              !ready && "pointer-events-none opacity-40",
             )}
+            onClick={(event) => {
+              if (!ready) {
+                event.preventDefault();
+                return;
+              }
+              if (/iPhone|iPad|iPod/.test(navigator.userAgent)) return;
+              event.preventDefault();
+              void navigator.clipboard?.writeText(feed).catch(() => undefined);
+              setNote("Podcasts → Library → + → Add a Show by URL → paste the https feed.");
+            }}
           >
-            {item.label}
-          </button>
-        ))}
+            Add {title} to Podcasts
+          </a>
+          <p className={cn("mt-3 text-sm text-muted min-[800px]:hidden", iphone && "!block")}>Subscribe, then stay on Wi‑Fi.</p>
+        </div>
+        {iphone ? null : (
+          <div className="hidden min-[800px]:block">
+            <Qr value={addUrl} />
+            <p className="mt-3 text-sm text-muted">iPhone Camera → Podcasts → Subscribe.</p>
+          </div>
+        )}
+      </section>
+
+      <div className="mt-16">
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="After it is on the phone">
+          {(
+            [
+              ["offline", "Download for Offline"],
+              ["radio", "Radio Sync"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={appleTab === id}
+              onClick={() => onTab(id)}
+              className={cn(
+                "inline-flex h-11 items-center rounded-full px-4 font-mono text-[11px] uppercase tracking-[0.14em]",
+                appleTab === id ? "bg-fg text-bg" : "bg-bg-elevated text-muted",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="How to send it">
+          {PATHS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={selected === item.id}
+              onClick={() => onPath(item.id)}
+              className={cn(
+                "inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em]",
+                selected === item.id ? "text-gold" : "text-subtle",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {selected === "apple" ? (
-        <section className="mt-8">
-          <div className="flex gap-2" role="tablist" aria-label="Siri on Watch">
-            {(
-              [
-                ["offline", "Offline"],
-                ["radio", "Radio"],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={appleTab === id}
-                onClick={() => onTab(id)}
-                className={cn(
-                  "inline-flex h-10 items-center rounded-full px-3 font-mono text-[11px] uppercase tracking-[0.14em]",
-                  appleTab === id ? "text-gold" : "text-subtle",
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
 
-          {appleTab === "offline" ? (
+      {selected === "apple" || appleTab === "radio" ? (
+        <section className="mt-8">
+          {appleTab === "offline" && selected === "apple" ? (
             <>
-              <a
-                href={ready ? applePodcastUrl(feed) : undefined}
-                className={cn(
-                  "mt-4 inline-flex h-12 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg",
-                  !ready && "pointer-events-none opacity-40",
-                )}
-                onClick={(event) => {
-                  if (!ready) {
-                    event.preventDefault();
-                    return;
-                  }
-                  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
-                  if (ios) return;
-                  event.preventDefault();
-                  void navigator.clipboard?.writeText(feed).catch(() => undefined);
-                  setNote("Podcasts → Library → + → Add a Show by URL → paste the https feed.");
-                }}
-              >
-                Add {title} to Podcasts
-              </a>
-              <p className="mt-3 text-sm text-muted">Podcasts → Library → + → Add a Show by URL → paste the https feed.</p>
-              <p className="mt-2 text-sm text-muted">Podcasts keeps the playlist. The Watch copies from the phone.</p>
+              <p className="text-sm text-muted">Podcasts keeps the playlist. The Watch copies from the phone.</p>
               <Steps
                 ticks={appleTicks.ticks}
                 onToggle={appleTicks.save}
@@ -240,7 +248,7 @@ export function DeviceSync({
                 <p className="mt-3 text-sm text-muted">Do not use Play Music. Test with “Hey Siri, Play Rose.”</p>
               </SiriBlock>
             </>
-          ) : (
+          ) : appleTab === "radio" ? (
             <>
               <SiriBlock>
                 <p className="mt-3 text-sm text-muted">Live needs a Shortcut. Siri will not learn a stream by itself.</p>
@@ -273,16 +281,11 @@ export function DeviceSync({
                 })}
               </ul>
             </>
-          )}
-
-          <div className="mt-6">
-            <Qr value={qr} />
-            <p className="mt-2 text-sm text-subtle">Scan opens this page on iPhone. It does not save a file.</p>
-          </div>
+          ) : null}
         </section>
       ) : null}
 
-      {selected === "android" ? (
+      {appleTab === "offline" && selected === "android" ? (
         <section className="mt-8">
           <button
             type="button"
@@ -315,35 +318,12 @@ export function DeviceSync({
               ["offline", "Play offline in that app"],
             ]}
           />
-          <div className="mt-6">
-            <Qr value={qr} />
-          </div>
         </section>
       ) : null}
 
-      {selected === "computer" ? (
+      {appleTab === "offline" && selected === "computer" ? (
         <section className="mt-8">
-          <Qr value={qr} big />
-          <p className="mt-3 text-sm text-muted">Scan with your phone. Do not scan the XML.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              aria-pressed={qrLock === "apple"}
-              onClick={() => setQrLock((value) => (value === "apple" ? undefined : "apple"))}
-              className={cn("h-10 px-3 font-mono text-[11px] uppercase tracking-[0.14em]", qrLock === "apple" ? "text-gold" : "text-subtle")}
-            >
-              iPhone QR
-            </button>
-            <button
-              type="button"
-              aria-pressed={qrLock === "android"}
-              onClick={() => setQrLock((value) => (value === "android" ? undefined : "android"))}
-              className={cn("h-10 px-3 font-mono text-[11px] uppercase tracking-[0.14em]", qrLock === "android" ? "text-gold" : "text-subtle")}
-            >
-              Android QR
-            </button>
-          </div>
-          <button type="button" onClick={() => void copyFeed()} className="mt-2 inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+          <button type="button" onClick={() => void copyFeed()} className="inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
             Copy feed URL
           </button>
           <div className="mt-6 border-t border-line pt-4">
@@ -370,7 +350,6 @@ export function DeviceSync({
               Play on site
             </Link>
           </p>
-          <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">{page.replace(/^https:\/\//, "")}</p>
         </section>
       ) : null}
 

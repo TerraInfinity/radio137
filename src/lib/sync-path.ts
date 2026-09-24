@@ -15,6 +15,12 @@ export function detectSyncPath(ua: string): SyncPath {
   return "computer";
 }
 
+/** The only address a camera should open. It is a page, not the feed. */
+export function syncAddUrl(origin: string, slug: string): string {
+  const root = origin.replace(/\/$/, "") || "https://radio.terrainfinity.ca";
+  return `${root}/sync/${encodeURIComponent(slug)}/add`;
+}
+
 /** Page a phone should open. Never the feed. */
 export function syncPageUrl(origin: string, slug: string, path?: SyncPath, tab?: SyncTab): string {
   const root = origin.replace(/\/$/, "") || "https://radio.terrainfinity.ca";
