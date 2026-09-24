@@ -1,10 +1,10 @@
-import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { renderSVG } from "uqr";
-import { useRoseFeed } from "@/components/rose-apple";
 import { getPlayableTracks, publicChannels } from "@/lib/catalog";
+import { feedFor, listenFor, offerFor, siriFor } from "@/lib/device-sync";
 import { applePodcastUrl } from "@/lib/rose-feed";
-import { detectSyncPath, syncAddUrl, type SyncPath, type SyncTab } from "@/lib/sync-path";
+import { detectSyncPath, syncAddUrl, syncPageUrl, type SyncPath, type SyncTab } from "@/lib/sync-path";
+import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 import { zipStore } from "@/lib/zip-store";
 import { cn } from "@/lib/cn";
@@ -46,9 +46,10 @@ function useTicks(key: string) {
   return { ticks, save, reset };
 }
 
-function fileName(title: string, index: number): string {
+function fileName(title: string, index: number, url: string): string {
   const clean = title.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || `track-${index}`;
-  return `${String(index).padStart(2, "0")} ${clean}.mp3`;
+  const ext = (url.split("?")[0]?.match(/\.([a-z0-9]+)$/i)?.[1] || "mp3").toLowerCase();
+  return `${String(index).padStart(2, "0")} ${clean}.${ext}`;
 }
 
 function Qr({ value }: { value: string }) {
@@ -61,11 +62,6 @@ function Qr({ value }: { value: string }) {
 }
 
 const SHORTCUTS = "https://apps.apple.com/app/shortcuts/id915249334";
-
-const LIVE_NAMES = [
-  { say: "Play Glaum", slug: "official-glaum-frequency" },
-  { say: "Play Athens", slug: "cyber-athens-frequency" },
-] as const;
 
 export function DeviceSync({
   slug,
@@ -81,12 +77,18 @@ export function DeviceSync({
   onTab: (tab: SyncTab) => void;
 }) {
   const catalog = usePlayerStore((s) => s.catalog);
+  const { isAdmin } = useRadioUser();
   const channels = catalog.channels.length ? catalog.channels : publicChannels();
   const origin = useOrigin();
-  const feed = useRoseFeed();
-  const ready = slug === "rose";
   const channel = channels.find((item) => item.slug === slug);
-  const title = slug === "rose" ? "Rose" : channel?.name || slug;
+  const offer = offerFor(channel ?? { slug, tags: [] });
+  const feed = feedFor(slug, origin, offer);
+  const hasFeed = Boolean(feed);
+  const open = offer.enabled || isAdmin;
+  const title = channel?.name || (slug === "rose" ? "Rose" : slug);
+  const say = siriFor(title, slug, offer);
+  const listen = channel ? listenFor(origin, channel) : `${origin}/channel/${slug}`;
+  const appleShow = offer.appleUrl;
   const detected = useMemo(() => detectSyncPath(typeof navigator === "undefined" ? "" : navigator.userAgent), []);
   const iphone = useMemo(() => /iPhone|iPod/.test(typeof navigator === "undefined" ? "" : navigator.userAgent), []);
   const selected = path ?? detected;
@@ -96,22 +98,25 @@ export function DeviceSync({
   const [packing, setPacking] = useState("");
   const appleTicks = useTicks(`radio.device-sync.${slug}.apple`);
   const androidTicks = useTicks(`radio.device-sync.${slug}.android`);
-  const addUrl = syncAddUrl(origin, slug);
+  const addUrl = hasFeed ? syncAddUrl(origin, slug) : syncPageUrl(origin, slug);
 
   async function copyFeed() {
+    if (!feed) {
+      setNote("No podcast feed yet. An admin can paste one, or download the audio below.");
+      return;
+    }
     try {
       await navigator.clipboard.writeText(feed);
       setNote("Feed copied. Paste it into the app. Do not download the file.");
     } catch {
-      setNote("Could not copy. The feed is the https address the app already knows.");
+      setNote(feed);
     }
   }
 
   async function pack() {
-    const rose = channels.find((item) => item.slug === "rose");
-    const tracks = getPlayableTracks(rose);
+    const tracks = getPlayableTracks(channel);
     if (tracks.length === 0) {
-      setPacking("The rite is not in the catalog yet.");
+      setPacking("This station has no audio yet.");
       return;
     }
     setPacking(`Packing 0 of ${tracks.length}`);
@@ -125,23 +130,42 @@ export function DeviceSync({
     ];
     for (let i = 0; i < tracks.length; i++) {
       const track = tracks[i];
+      if (!track) continue;
       setPacking(`Packing ${i + 1} of ${tracks.length}`);
       const response = await fetch(track.audioUrl);
       if (!response.ok) {
         setPacking(`Could not fetch ${track.title}.`);
         return;
       }
-      files.push({ name: fileName(track.title, i + 1), data: new Uint8Array(await response.arrayBuffer()) });
+      files.push({ name: fileName(track.title, i + 1, track.audioUrl), data: new Uint8Array(await response.arrayBuffer()) });
     }
     const packed = zipStore(files).slice();
     const blob = new Blob([packed.buffer], { type: "application/zip" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "rose-rite.zip";
+    link.download = `${slug}.zip`;
     link.click();
     URL.revokeObjectURL(url);
     setPacking("Packed. Import on a computer, then Sync Library.");
+  }
+
+  if (!channel && slug !== "rose") {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16">
+        <h1 className="font-display text-4xl font-semibold">No such station</h1>
+      </div>
+    );
+  }
+
+  if (!open) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16">
+        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Device sync</p>
+        <h1 className="mt-2 font-display text-4xl font-semibold">{title}</h1>
+        <p className="mt-3 max-w-prose text-muted">This station is not offering a phone page yet.</p>
+      </div>
+    );
   }
 
   return (
@@ -149,35 +173,48 @@ export function DeviceSync({
       <section className="grid items-center gap-8 min-[800px]:grid-cols-[minmax(0,1fr)_15rem]">
         <div>
           <h1 className="font-display text-6xl font-semibold tracking-tight">{title}</h1>
+          {!offer.enabled && isAdmin ? <p className="mt-2 text-sm text-muted">Guests do not see this until Device sync is on in the station settings.</p> : null}
+          {appleShow ? (
+            <a href={appleShow} className="mt-3 inline-flex font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+              Apple Podcasts
+            </a>
+          ) : null}
           <p className={cn("mt-3 hidden max-w-sm text-lg text-muted min-[800px]:block", iphone && "!hidden")}>
-            {ready ? "Scan to add the rite to Podcasts." : "This rite is not ready to send yet."}
+            {hasFeed ? "Scan to add it to Podcasts." : "Scan to open this station on your phone."}
           </p>
-          <a
-            href={ready ? applePodcastUrl(feed) : undefined}
-            className={cn(
-              "mt-6 inline-flex h-14 w-full items-center justify-center rounded-md bg-fg px-4 font-mono text-[12px] uppercase tracking-[0.14em] text-bg min-[800px]:hidden",
-              iphone && "!flex",
-              !ready && "pointer-events-none opacity-40",
-            )}
-            onClick={(event) => {
-              if (!ready) {
+          {hasFeed ? (
+            <a
+              href={applePodcastUrl(feed)}
+              className={cn(
+                "mt-6 inline-flex h-14 w-full items-center justify-center rounded-md bg-fg px-4 font-mono text-[12px] uppercase tracking-[0.14em] text-bg min-[800px]:hidden",
+                iphone && "!flex",
+              )}
+              onClick={(event) => {
+                if (/iPhone|iPad|iPod/.test(navigator.userAgent)) return;
                 event.preventDefault();
-                return;
-              }
-              if (/iPhone|iPad|iPod/.test(navigator.userAgent)) return;
-              event.preventDefault();
-              void navigator.clipboard?.writeText(feed).catch(() => undefined);
-              setNote("Podcasts → Library → + → Add a Show by URL → paste the https feed.");
-            }}
-          >
-            Add {title} to Podcasts
-          </a>
+                void navigator.clipboard?.writeText(feed).catch(() => undefined);
+                setNote("Podcasts → Library → + → Add a Show by URL → paste the https feed.");
+              }}
+            >
+              Add {title} to Podcasts
+            </a>
+          ) : appleShow ? (
+            <a
+              href={appleShow}
+              className={cn(
+                "mt-6 inline-flex h-14 w-full items-center justify-center rounded-md bg-fg px-4 font-mono text-[12px] uppercase tracking-[0.14em] text-bg min-[800px]:hidden",
+                iphone && "!flex",
+              )}
+            >
+              Open in Apple Podcasts
+            </a>
+          ) : null}
           <p className={cn("mt-3 text-sm text-muted min-[800px]:hidden", iphone && "!block")}>Subscribe, then stay on Wi‑Fi.</p>
         </div>
         {iphone ? null : (
           <div className="hidden min-[800px]:block">
             <Qr value={addUrl} />
-            <p className="mt-3 text-sm text-muted">iPhone Camera → Podcasts → Subscribe.</p>
+            <p className="mt-3 text-sm text-muted">{hasFeed ? "iPhone Camera → Podcasts → Subscribe." : "Scan with your phone."}</p>
           </div>
         )}
       </section>
@@ -242,10 +279,10 @@ export function DeviceSync({
               />
               <SiriBlock>
                 <ol className="mt-3 grid gap-2 text-sm text-muted">
-                  <li>After the show is in Podcasts, try “Hey Siri, play Rose” on the Watch. No Shortcut yet.</li>
-                  <li>If Siri misses: iPhone Shortcuts → Play Podcast → show Rose → name the Shortcut Play Rose → Watch app → Shortcuts → add it.</li>
+                  <li>After the show is in Podcasts, try “Hey Siri, {say}” on the Watch. No Shortcut yet.</li>
+                  <li>If Siri misses: iPhone Shortcuts → Play Podcast → show {title} → name the Shortcut {say} → Watch app → Shortcuts → add it.</li>
                 </ol>
-                <p className="mt-3 text-sm text-muted">Do not use Play Music. Test with “Hey Siri, Play Rose.”</p>
+                <p className="mt-3 text-sm text-muted">Do not use Play Music. Test with “Hey Siri, {say}.”</p>
               </SiriBlock>
             </>
           ) : appleTab === "radio" ? (
@@ -255,31 +292,20 @@ export function DeviceSync({
                 <ol className="mt-3 grid gap-2 text-sm text-muted">
                   <li>iPhone Shortcuts → Open URLs → paste the Listen-now address → name it Play and a short word → Watch app → Shortcuts → add it.</li>
                 </ol>
-                <p className="mt-3 text-sm text-muted">One Shortcut per station. Do not reuse Play Rose. That name is the podcast.</p>
+                <p className="mt-3 text-sm text-muted">One Shortcut for this station. Name it {say}. Do not reuse another station’s name.</p>
                 <p className="mt-2 text-sm text-muted">This opens the site player. It is not Apple Music Radio. The Watch cannot add a radio URL. Safari on the phone starts it. Audio can go to Watch Bluetooth, or the phone can stay the player.</p>
               </SiriBlock>
-              <ul className="mt-4 grid gap-2">
-                <li className="rounded-xl bg-bg-elevated px-4 py-3 text-sm">
-                  <p className="font-display text-lg">Play Rose</p>
-                  <p className="text-muted">Podcasts only. Do not point this name at a stream.</p>
-                </li>
-                {LIVE_NAMES.map((item) => {
-                  const listen = `${origin}/channel/${item.slug}`;
-                  return (
-                    <li key={item.say} className="rounded-xl bg-bg-elevated px-4 py-3 text-sm">
-                      <p className="font-display text-lg">{item.say}</p>
-                      <p className="mt-1 break-all font-mono text-[10px] uppercase tracking-[0.08em] text-subtle">{listen.replace(/^https:\/\//, "")}</p>
-                      <button
-                        type="button"
-                        onClick={() => void navigator.clipboard?.writeText(listen).then(() => setNote(`${item.say} address copied. Paste it into Open URLs.`)).catch(() => setNote(listen))}
-                        className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
-                      >
-                        Copy Listen-now
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="mt-4 rounded-xl bg-bg-elevated px-4 py-3 text-sm">
+                <p className="font-display text-lg">{say}</p>
+                <p className="mt-1 break-all font-mono text-[10px] uppercase tracking-[0.08em] text-subtle">{listen.replace(/^https:\/\//, "")}</p>
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard?.writeText(listen).then(() => setNote(`${say} address copied. Paste it into Open URLs.`)).catch(() => setNote(listen))}
+                  className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
+                >
+                  Copy Listen-now
+                </button>
+              </div>
             </>
           ) : null}
         </section>
@@ -289,13 +315,13 @@ export function DeviceSync({
         <section className="mt-8">
           <button
             type="button"
-            disabled={!ready}
+            disabled={!hasFeed}
             onClick={() => void copyFeed()}
             className="inline-flex h-12 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg disabled:opacity-40"
           >
             Copy RSS feed
           </button>
-          {ready ? (
+          {hasFeed ? (
             <a
               href={`pktc://subscribe/${encodeURIComponent(feed)}`}
               className="ml-3 inline-flex h-12 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
@@ -335,7 +361,7 @@ export function DeviceSync({
                 <p>Last resort — Music app on a computer → Import → Sync Library.</p>
                 <button
                   type="button"
-                  disabled={!ready || packing.startsWith("Packing")}
+                  disabled={packing.startsWith("Packing")}
                   onClick={() => void pack()}
                   className="mt-3 inline-flex h-11 items-center rounded-md border border-line px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-gold disabled:opacity-40"
                 >
@@ -346,10 +372,24 @@ export function DeviceSync({
             ) : null}
           </div>
           <p className="mt-6 text-sm">
-            <Link to="/experiences/$slug" params={{ slug: "rose" }} className="text-gold">
+            <a href={listen} className="text-gold">
               Play on site
-            </Link>
+            </a>
           </p>
+        </section>
+      ) : null}
+
+      {appleTab === "offline" ? (
+        <section className="mt-8">
+          <button
+            type="button"
+            disabled={packing.startsWith("Packing")}
+            onClick={() => void pack()}
+            className="inline-flex h-12 items-center rounded-md border border-line px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-gold disabled:opacity-40"
+          >
+            Download the audio
+          </button>
+          {packing ? <p className="mt-2 text-sm text-muted">{packing}</p> : <p className="mt-2 text-sm text-muted">A zip of this station, in playlist order.</p>}
         </section>
       ) : null}
 

@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { Maximize, Minimize, Palette, Pause, Play, RotateCw, X } from "lucide-react";
 import "./rose-opera.css";
 import { RoseAtelier } from "@/components/rose-atelier";
-import { RoseApple } from "@/components/rose-apple";
 import { RoseVortex, type RoseRock } from "@/components/rose-vortex";
 import { ExperienceGate, previewDeckProgress } from "@/components/experience-gate";
 import { cn } from "@/lib/cn";
@@ -17,6 +16,7 @@ import type { RadioExperience } from "@/lib/experiences";
 import { lookFromStation, type RoseLook } from "@/lib/rose-look";
 import { lookForPhenomenon, lookForTrack, isStageOwned, phenomenonMeta, previewTrackOf, stepPhenomenon, type PhenomenonId } from "@/lib/phenomena";
 import { getPlayableTracks } from "@/lib/catalog";
+import { offerFor } from "@/lib/device-sync";
 import { songPortrait } from "@/lib/media";
 import { bpmFromTags, captionForPulse, pulseAt, type RosePulse } from "@/lib/rose-pulse";
 import { useRadioUser } from "@/lib/radio-user";
@@ -824,7 +824,11 @@ export function RoseOpera({
                 {cinema === "manual" ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
                 {cinema === "manual" ? "Exit cinema" : "Cinema"}
               </button>
-              {experience.slug === "rose" && cinema === "off" ? <RoseApple /> : null}
+              {offerFor(channel ?? { slug: experience.stationSlug, tags: [] }).enabled && cinema === "off" ? (
+                <Link to="/sync/$slug" params={{ slug: experience.stationSlug }} className="rose-opera-ghost">
+                  On your phone
+                </Link>
+              ) : null}
             </>
           ) : (
             <>

@@ -5,6 +5,7 @@ import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getSeedCatalog, kindHint, kindLabel, normalizeKind, normalizeShuffle, shuffleHint, shuffleLabel } from "@/lib/catalog";
 import { cn, slugify } from "@/lib/cn";
 import { saveStation } from "@/lib/desk-api";
+import { encodeSyncTag, offerFor, ROSE_APPLE_SHOW } from "@/lib/device-sync";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel, ShuffleMode, StationKind } from "@/lib/types";
 
@@ -19,7 +20,7 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
   const [shuffle, setShuffle] = useState<ShuffleMode>(normalizeShuffle(channel.shuffle));
   const [category, setCategory] = useState(channel.category ?? "");
   const [energy, setEnergy] = useState(channel.energy ?? "");
-  const [tags, setTags] = useState(channel.tags.filter((tag) => !tag.startsWith("look.v1.") && !tag.startsWith("xp.v1.")).join(", "));
+  const [tags, setTags] = useState(channel.tags.filter((tag) => !tag.startsWith("look.v1.") && !tag.startsWith("xp.v1.") && !tag.startsWith("sync.v1.")).join(", "));
   const [cover, setCover] = useState(channel.cover ?? "");
   const [motion, setMotion] = useState(channel.videoUrl || channel.animationUrl || "");
   const [publicSlug, setPublicSlug] = useState(channel.publicSlug ?? "");
@@ -27,6 +28,11 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
   const [nsfw, setNsfw] = useState(Boolean(channel.nsfw));
   const [claimable, setClaimable] = useState(Boolean(channel.claimable));
   const [featured, setFeatured] = useState(Boolean(channel.featured));
+  const savedSync = offerFor(channel);
+  const [syncOn, setSyncOn] = useState(savedSync.enabled);
+  const [appleUrl, setAppleUrl] = useState(savedSync.appleUrl);
+  const [feedUrl, setFeedUrl] = useState(savedSync.feedUrl);
+  const [siriName, setSiriName] = useState(savedSync.siriName);
   const [busy, setBusy] = useState(false);
 
   return (
@@ -46,7 +52,11 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
             energy: energy.trim() || undefined,
             tags: [
               ...channel.tags.filter((tag) => tag.startsWith("look.v1.") || tag.startsWith("xp.v1.")),
-              ...tags.split(/[,;]+/).map((item) => item.trim()).filter((item) => item && !item.startsWith("look.v1.") && !item.startsWith("xp.v1.")),
+              encodeSyncTag({ enabled: syncOn, appleUrl, feedUrl, siriName }),
+              ...tags
+                .split(/[,;]+/)
+                .map((item) => item.trim())
+                .filter((item) => item && !item.startsWith("look.v1.") && !item.startsWith("xp.v1.") && !item.startsWith("sync.v1.")),
             ].join(", ") || undefined,
             cover: cover.trim() || undefined,
             animationUrl: motion.trim() || undefined,
@@ -124,6 +134,26 @@ export function StationSettingsForm({ channel, compact = false }: { channel: Cha
           <input className="input mt-1" value={energy} onChange={(event) => setEnergy(event.target.value)} placeholder="clock, start to finish…" />
         </label>
       </div>
+      <FoldDetails title="Device sync" hint={syncOn ? "On" : "Off"}>
+        <label className="inline-flex h-11 items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
+          <input type="checkbox" checked={syncOn} onChange={(event) => setSyncOn(event.target.checked)} />
+          Offer a phone page
+        </label>
+        <p className="text-sm text-muted">Guests only see “On your phone” after this is on. The page can subscribe a podcast, follow the live station, or download the audio.</p>
+        <label className="mt-2 block">
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Apple Podcasts show</span>
+          <input className="input mt-1" value={appleUrl} onChange={(event) => setAppleUrl(event.target.value)} placeholder={channel.slug === "rose" ? ROSE_APPLE_SHOW : "https://podcasts.apple.com/…"} />
+        </label>
+        <label className="mt-2 block">
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">RSS feed</span>
+          <input className="input mt-1" value={feedUrl} onChange={(event) => setFeedUrl(event.target.value)} placeholder={channel.slug === "rose" ? "Blank uses /feeds/rose.xml" : "https://…/feed.xml"} />
+          <span className="mt-1 block text-sm text-muted">Leave Rose blank to keep this site’s feed. Other stations need a feed pasted here before Podcasts can subscribe.</span>
+        </label>
+        <label className="mt-2 block">
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Siri name</span>
+          <input className="input mt-1" value={siriName} onChange={(event) => setSiriName(event.target.value)} placeholder="Play Glaum" />
+        </label>
+      </FoldDetails>
       <label className="block">
         <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">Tags</span>
         <input className="input mt-1" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="comma separated" />

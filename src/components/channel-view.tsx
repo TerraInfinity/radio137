@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Navigate } from "@tanstack/react-router";
+import { Navigate, Link } from "@tanstack/react-router";
 import { AdminStationEdit } from "@/components/admin-track-tools";
 import { FoldSection } from "@/components/fold-section";
 import { GlaumWordBooth } from "@/components/glaum-word-booth";
@@ -12,6 +12,7 @@ import { StationChat } from "@/components/station-chat";
 import { StationPlaylist } from "@/components/station-playlist";
 import { StationVisual } from "@/components/station-visual";
 import { experienceForStation, experienceFromChannel } from "@/lib/experiences";
+import { offerFor } from "@/lib/device-sync";
 import { getPlayableTracks, kindHint, kindLabel, normalizeKind, stationSkin } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
 import { isOnDemandOverlay, listenModeLabel } from "@/lib/listen-mode";
@@ -48,7 +49,8 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
   const catalog = usePlayerStore((s) => s.catalog);
   const experience = experienceFromChannel(channel) ?? experienceForStation(channel.slug, catalog);
   const statusLabel = !channel.enabled ? "Off air" : playable.length === 0 ? "Empty desk" : here ? status : kindHint(kind);
-  const tags = channel.tags ?? [];
+  const tags = (channel.tags ?? []).filter((tag) => !tag.startsWith("sync.v1.") && !tag.startsWith("xp.v1.") && !tag.startsWith("look.v1.") && !tag.startsWith("scene.v1."));
+  const syncOn = offerFor(channel).enabled;
 
   useEffect(() => {
     if (experience) return;
@@ -93,6 +95,11 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
         </button>
         <ShuffleToggle channel={channel} compact />
         <ShareLink path={sharePath || stationPath(channel)} title={channel.name} compact />
+        {syncOn ? (
+          <Link to="/sync/$slug" params={{ slug: channel.slug }} className="inline-flex h-12 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+            On your phone
+          </Link>
+        ) : null}
       </div>
       <div className="mt-8">
         <NowPlayingCard channel={channel} track={now ?? null} statusLabel={statusLabel} />

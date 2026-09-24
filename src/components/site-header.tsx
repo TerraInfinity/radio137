@@ -15,7 +15,6 @@ const links = [
   { to: "/stations", params: undefined, label: "Stations", match: (path: string) => path === "/stations" || path.startsWith("/channel/") },
   { to: "/player", params: undefined, label: "Songs", match: (path: string) => path === "/player" || path.startsWith("/player/") || path === "/library" },
   { to: "/experiences", params: undefined, label: "Experiences", match: (path: string) => path.startsWith("/experiences") },
-  { to: "/sync/$slug", params: { slug: "rose" }, label: "Device Sync", match: (path: string) => path.startsWith("/sync") || path.startsWith("/device-sync") },
 ] as const;
 
 export function SiteHeader() {
