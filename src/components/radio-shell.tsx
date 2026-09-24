@@ -3,6 +3,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { Atmosphere } from "@/components/atmosphere";
 import { EnterGate } from "@/components/enter-gate";
 import { LoveLayer } from "@/components/love-layer";
+import { ConvertQueueBar } from "@/components/convert-queue-bar";
 import { MiniPlayer } from "@/components/mini-player";
 import { SiteHeader } from "@/components/site-header";
 import { SsoCodeCatcher } from "@/components/sso-code-catcher";
@@ -39,6 +40,7 @@ export function RadioShell({ children }: { children: React.ReactNode }) {
       <div className="relative z-10">
         <SiteHeader />
         {children}
+        {ready && !showGate ? <ConvertQueueBar /> : null}
         {ready && !showGate ? <MiniPlayer /> : null}
       </div>
       {showGate ? <EnterGate /> : null}

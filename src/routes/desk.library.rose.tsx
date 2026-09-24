@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { convertWavOnThisDevice } from "@/lib/convert-wav";
+import { enqueueWavConverts, onConvertFinished, useConvertQueue } from "@/lib/convert-queue";
 import { hideStationTrack, listRoseLibrary, reprobeRoseTrack } from "@/lib/desk-api";
 import { formatClock } from "@/lib/cn";
 import { useRadioUser } from "@/lib/radio-user";
@@ -28,6 +28,8 @@ function RoseLibraryPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
 
+  const jobs = useConvertQueue();
+
   async function load() {
     const data = await listRoseLibrary();
     setRows(data.rows);
@@ -36,32 +38,16 @@ function RoseLibraryPage() {
   useEffect(() => {
     if (!isAdmin) return;
     void load().catch((err) => setError(err instanceof Error ? err.message : "Could not read Rose"));
+    return onConvertFinished(() => {
+      void load().catch(() => undefined);
+    });
   }, [isAdmin]);
 
-  async function convert(row: Row) {
-    setBusy(row.id);
-    setError("");
-    try {
-      const result = await convertWavOnThisDevice({
-        channelSlug: "rose",
-        trackId: row.id,
-        audioUrl: row.audioUrl,
-        onProgress: setError,
-      });
-      if (result.tracks) {
-        const { applyCatalogEdits } = await import("@/lib/catalog-edits");
-        const { getSeedCatalog } = await import("@/lib/catalog");
-        const { usePlayerStore } = await import("@/lib/player-store");
-        usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), result.tracks, result.stations));
-      }
-      setError("");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not convert");
-    } finally {
-      setBusy("");
-    }
+  function queue(row: Row) {
+    enqueueWavConverts([{ title: row.title, channelSlug: "rose", trackId: row.id, audioUrl: row.audioUrl }]);
   }
+
+  const wavs = rows.filter((row) => row.format === "wav" || row.format === "aiff" || row.format === "aif");
 
   async function reprobe(row: Row) {
     setBusy(row.id);
@@ -117,6 +103,17 @@ function RoseLibraryPage() {
         Back to the desk
       </Link>
       {error ? <p className="mt-4 text-sm text-muted">{error}</p> : null}
+      {wavs.length ? (
+        <button
+          type="button"
+          onClick={() =>
+            enqueueWavConverts(wavs.map((row) => ({ title: row.title, channelSlug: "rose", trackId: row.id, audioUrl: row.audioUrl })))
+          }
+          className="mt-4 inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg"
+        >
+          Queue all {wavs.length} wavs
+        </button>
+      ) : null}
       <ul className="mt-6 divide-y divide-line">
         {rows.map((row) => (
           <li key={row.id} className="grid gap-1 py-3 text-sm">
@@ -130,11 +127,15 @@ function RoseLibraryPage() {
             {row.format === "wav" || row.format === "aiff" || row.format === "aif" ? (
               <button
                 type="button"
-                disabled={busy === row.id}
-                onClick={() => void convert(row)}
+                disabled={jobs.some((job) => job.trackId === row.id && (job.state === "queued" || job.state === "active"))}
+                onClick={() => queue(row)}
                 className="mt-1 inline-flex h-10 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold disabled:opacity-40"
               >
-                {busy === row.id ? "Encoding…" : "Convert WAV → MP3"}
+                {jobs.find((job) => job.trackId === row.id)?.state === "active"
+                  ? "Encoding…"
+                  : jobs.some((job) => job.trackId === row.id && job.state === "queued")
+                    ? "Queued"
+                    : "Queue WAV → MP3"}
               </button>
             ) : null}
             <button

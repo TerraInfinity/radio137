@@ -5,7 +5,7 @@ import { audioExtension, audioPathParts, fileLocationLabel, r2KeyFromAudioUrl } 
 import { sameSongTitle } from "@/lib/rose-rite";
 import { getSeedCatalog } from "@/lib/catalog";
 import { directDeskUpload } from "@/lib/direct-upload";
-import { convertWavOnThisDevice } from "@/lib/convert-wav";
+import { enqueueWavConverts, useConvertQueue } from "@/lib/convert-queue";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 import { cn, slugify } from "@/lib/cn";
@@ -39,6 +39,7 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
   const [coverUrl, setCoverUrl] = useState(track.coverUrl ?? "");
   const [filename, setFilename] = useState(audioPathParts(track.audioUrl).filename);
   const [hint, setHint] = useState("");
+  const convertJobs = useConvertQueue();
   const next = usePlayerStore((s) => s.next);
   const playingId = usePlayerStore((s) => s.track?.id ?? null);
   const channels = usePlayerStore((s) => s.catalog.channels);
@@ -164,22 +165,15 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
       ? `Turn this ${ext || "file"} into an mp3 next to it and point ${where} of “${track.title}” at it?\n\nEncoding happens in this browser, with a progress line. The wav stays on R2.`
       : `Point ${where} of “${track.title}” at this audio file?\n\nOther files stay on R2. Titles stay as they are.`;
     if (!window.confirm(message)) return;
+    if (convert) {
+      enqueueWavConverts([{ title: track.title, channelSlug: slug, trackId: track.id, audioUrl: track.audioUrl }]);
+      setHint("Queued. The bar shows download, encode, and upload.");
+      return;
+    }
     setBusy("share");
-    setHint(convert ? "Downloading the wav…" : "Sharing this file…");
+    setHint("Sharing this file…");
     try {
-      if (convert) {
-        const result = await convertWavOnThisDevice({
-          channelSlug: slug,
-          trackId: track.id,
-          audioUrl: track.audioUrl,
-          onProgress: setHint,
-        });
-        applySnapshot(result.tracks, result.stations, playingId, next);
-        if (result.url) setAudioUrl(result.url);
-        setHint(`Mp3 is beside the wav. ${result.updated} ${result.updated === 1 ? "copy now uses" : "copies now use"} it.`);
-        return;
-      }
-      const result = await shareSongAudio({ data: { channelSlug: slug, trackId: track.id, convert } });
+      const result = await shareSongAudio({ data: { channelSlug: slug, trackId: track.id, convert: false } });
       applySnapshot(result.tracks, result.stations, playingId, next);
       if (result.url) setAudioUrl(result.url);
       if (result.converted) setHint(`Mp3 is in radio/rose/. ${result.updated} ${result.updated === 1 ? "copy now uses" : "copies now use"} it.`);
@@ -295,8 +289,12 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
             />
           </label>
           {needsMp3 ? (
-            <button type="button" disabled={Boolean(busy)} onClick={() => void shareAudio(true)} className="inline-flex h-11 items-center px-3 text-left font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-              {busy === "share" ? "Working…" : "Convert to mp3 and use it everywhere"}
+            <button type="button" disabled={convertJobs.some((job) => job.trackId === track.id && (job.state === "queued" || job.state === "active"))} onClick={() => void shareAudio(true)} className="inline-flex h-11 items-center px-3 text-left font-mono text-[11px] uppercase tracking-[0.14em] text-gold disabled:opacity-40">
+              {convertJobs.find((job) => job.trackId === track.id)?.state === "active"
+                ? "Encoding…"
+                : convertJobs.some((job) => job.trackId === track.id && job.state === "queued")
+                  ? "Queued"
+                  : "Queue mp3 and use it everywhere"}
             </button>
           ) : null}
           {fileKeys.size > 1 ? (
