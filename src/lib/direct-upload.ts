@@ -1,13 +1,15 @@
 import { completeDeskUpload, mintDeskUpload } from "@/lib/desk-api";
 
-export async function putFileToR2(putUrl: string, file: Blob, contentType: string) {
+export async function putFileToR2(putUrl: string, file: Blob, contentType: string, signal?: AbortSignal) {
   const res = await fetch(putUrl, {
     method: "PUT",
     body: file,
     headers: { "Content-Type": contentType },
+    signal,
   });
   if (!res.ok) {
-    throw new Error(res.status === 403 ? "R2 rejected the upload (CORS or expired link). Try again." : "Upload to storage failed");
+    const why = res.status === 403 ? "R2 rejected the upload. The link may have expired, or the bucket is blocking this browser." : "Upload to storage failed";
+    throw new Error(`${why} (${res.status} ${res.statusText || "no status"})`);
   }
 }
 
