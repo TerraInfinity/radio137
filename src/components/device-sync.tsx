@@ -108,7 +108,7 @@ export function DeviceSync({
   const catalogUrl = offer.appleUrl || (slug === "rose" ? ROSE_APPLE_SHOW : "");
   const show = appleShowLinks(catalogUrl);
   const subscribeHref = (iphone ? show?.app : show?.page) || "";
-  const podcastQr = show?.page || "";
+  const podcastQr = slug === "rose" ? ROSE_APPLE_SHOW : show?.page || "";
   const runSiri = shortcutsRunUrl(say);
   const makeSiri = shortcutsCreateUrl();
 
@@ -213,7 +213,7 @@ export function DeviceSync({
         {iphone || !podcastQr ? null : (
           <div className="mt-8 hidden w-40 sm:block">
             <Qr value={podcastQr} />
-            <p className="mt-2 text-sm text-muted">Scan with the iPhone. Podcasts opens the show. It does not download a file.</p>
+            <p className="mt-2 break-all text-sm text-muted">{podcastQr.replace(/^https:\/\//, "")}</p>
           </div>
         )}
       </section>

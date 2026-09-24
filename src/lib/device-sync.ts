@@ -13,7 +13,7 @@ export function appleShowLinks(catalogUrl: string): { page: string; app: string 
     if (url.protocol !== "https:" || !url.hostname.endsWith("podcasts.apple.com")) return null;
     const id = url.pathname.match(/id(\d+)/)?.[1];
     if (!id) return null;
-    return { page: url.toString(), app: `podcasts://podcasts.apple.com/podcast/id${id}` };
+    return { page: `${url.origin}${url.pathname}`, app: `podcasts://${url.host}${url.pathname}` };
   } catch {
     return null;
   }

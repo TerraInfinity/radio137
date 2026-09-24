@@ -16,7 +16,7 @@ test("device sync stays off until an admin turns it on, except Rose", () => {
 test("the Apple button is the catalog show, never the feed file", () => {
   const links = appleShowLinks("https://podcasts.apple.com/us/podcast/rose/id6815476712");
   assert.equal(links?.page, "https://podcasts.apple.com/us/podcast/rose/id6815476712");
-  assert.equal(links?.app, "podcasts://podcasts.apple.com/podcast/id6815476712");
+  assert.equal(links?.app, "podcasts://podcasts.apple.com/us/podcast/rose/id6815476712");
   assert.equal(links?.page.includes("rose.xml"), false);
   assert.equal(appleShowLinks("https://radio.terrainfinity.ca/feeds/rose.xml"), null);
 });
