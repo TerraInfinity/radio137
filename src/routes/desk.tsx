@@ -105,7 +105,10 @@ function DeskPage() {
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">C · God desk</p>
       <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight">Station desk</h1>
       <p className="mt-3 max-w-prose text-muted">
-        Pick a station, add songs, keep the rest folded. R2 scans in the background so the desk stays light.
+        Pick a station, add songs, keep the rest folded. R2 scans in the background so the desk stays light.{" "}
+        <Link to="/desk/library/rose" className="text-gold">
+          Rose library
+        </Link>
       </p>
       <DeskOverview channels={channels} reviewOpen={reviewOpen} />
       <DeskPerformance channels={channels} />

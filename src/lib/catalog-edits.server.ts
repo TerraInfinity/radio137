@@ -762,3 +762,25 @@ export async function shelveLibraryFile(
   return { key: object.key, url: object.url, updated, copied };
 }
 
+
+/** Turn one Rose wav into a 320 kbps stereo mp3 beside it and point the row at the mp3. The wav stays. */
+export async function convertRoseWavFile(user: RadioUser, trackId: string): Promise<{ key: string; url: string }> {
+  const catalog = await liveCatalog();
+  const channel = catalog.channels.find((item) => item.slug === "rose");
+  const track = channel?.tracks.find((item) => item.id === trackId);
+  if (!track?.audioUrl) throw new Error("That Rose song is not in the catalog");
+  const { audioExtension, encodeStereoMp3, isMp3Name } = await import("@/lib/audio-transcode.server");
+  if (isMp3Name(track.audioUrl)) throw new Error("That file is already an mp3");
+  const { putR2Object, r2Configured, sanitizeUploadName } = await import("@/lib/r2.server");
+  if (!r2Configured()) throw new Error("R2 keys are not set");
+  const bytes = await readRemoteAudio(track.audioUrl);
+  const mp3 = await encodeStereoMp3(bytes, audioExtension(track.audioUrl) || "wav");
+  const from = normalizeR2Key(r2KeyFromAudioUrl(track.audioUrl) || "");
+  const slash = from.lastIndexOf("/");
+  const folder = slash >= 0 ? from.slice(0, slash) : "radio/rose";
+  const base = (slash >= 0 ? from.slice(slash + 1) : sanitizeUploadName(track.title)).replace(/\.[a-z0-9]{2,5}$/i, "") || "track";
+  const key = `${folder}/${base}.mp3`;
+  const object = await putR2Object(key, mp3, "audio/mpeg");
+  await upsertEdit(user, { channelSlug: "rose", trackId, audioUrl: object.url, r2Key: object.key });
+  return { key: object.key, url: object.url };
+}

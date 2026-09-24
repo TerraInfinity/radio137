@@ -1,4 +1,4 @@
-import type { Catalog, Channel, Track } from "./types.ts";
+import type { Catalog, Track } from "./types.ts";
 
 export const ROSE_FEED_PATH = "/feeds/rose.xml";
 const MEDIA_BASE = "https://r2.terrainfinity.ca";
@@ -21,12 +21,60 @@ function xml(value: string): string {
     .replace(/'/g, "&" + "apos;");
 }
 
-function playable(channel: Channel | undefined): Track[] {
+export const ROSE_COVER_PATH = "/experiences/rose/cover-3000.jpg";
+export const ROSE_OWNER = { name: "Terrainfinity Radio", email: "career@terrainfinity.ca" };
+
+export type RoseFeedFact = { bytes: number; durationSec: number };
+
+function foldTitle(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+export function isRoseMp3(url: string): boolean {
+  return url.split("?")[0].toLowerCase().endsWith(".mp3");
+}
+
+export function roseFeedCandidates(catalog: Catalog): Track[] {
+  const channel = catalog.channels.find((item) => item.slug === "rose");
   if (!channel || channel.enabled === false) return [];
   const adult = Boolean(channel.nsfw);
-  return channel.tracks.filter(
-    (track) => track.enabled !== false && track.durationSec > 0 && Boolean(track.audioUrl) && (adult || !track.nsfw),
-  );
+  return channel.tracks.filter((track) => track.enabled !== false && Boolean(track.audioUrl) && (adult || !track.nsfw));
+}
+
+/** MP3s only. One row per title, or per identical size and length. Rite order wins. */
+export function selectRoseFeed(tracks: Track[], facts: Record<string, RoseFeedFact> = {}): Track[] {
+  const mp3s = tracks.filter((track) => isRoseMp3(track.audioUrl));
+  const kept: Track[] = [];
+  for (const track of mp3s) {
+    const title = foldTitle(track.title);
+    const fact = facts[track.id];
+    const duplicate = kept.some((other) => {
+      if (title && foldTitle(other.title) === title) return true;
+      const previous = facts[other.id];
+      if (!fact || !previous || fact.bytes < 1 || previous.bytes < 1) return false;
+      return fact.bytes === previous.bytes && Math.abs(fact.durationSec - previous.durationSec) <= 1;
+    });
+    if (!duplicate) kept.push(track);
+  }
+  return kept;
+}
+
+export function roseDuplicateLabel(track: Track, tracks: Track[], facts: Record<string, RoseFeedFact> = {}): string {
+  const title = foldTitle(track.title);
+  const fact = facts[track.id];
+  const siblings = tracks.filter((other) => {
+    if (other.id === track.id) return false;
+    if (title && foldTitle(other.title) === title) return true;
+    const otherFact = facts[other.id];
+    return Boolean(fact && otherFact && fact.bytes > 0 && fact.bytes === otherFact.bytes && Math.abs(fact.durationSec - otherFact.durationSec) <= 1);
+  });
+  if (siblings.length === 0) return "";
+  return title || "same file";
 }
 
 function absolute(origin: string, src: string): string {
@@ -48,13 +96,6 @@ function absolute(origin: string, src: string): string {
   }
 }
 
-function audioType(url: string): string {
-  const path = url.split("?")[0].toLowerCase();
-  if (path.endsWith(".m4a") || path.endsWith(".aac")) return "audio/mp4";
-  if (path.endsWith(".wav")) return "audio/wav";
-  return "audio/mpeg";
-}
-
 function clock(seconds: number): string {
   const total = Math.max(0, Math.round(seconds));
   const h = Math.floor(total / 3600);
@@ -63,7 +104,7 @@ function clock(seconds: number): string {
   return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
 }
 
-function item(track: Track, episode: number, origin: string): string {
+function item(track: Track, episode: number, origin: string, fact: RoseFeedFact): string {
   const file = absolute(origin, track.audioUrl);
   const when = new Date(Date.UTC(2026, 0, episode)).toUTCString();
   const guid = `tag:radio.terrainfinity.ca,2026:rose:${track.id}`;
@@ -73,22 +114,25 @@ function item(track: Track, episode: number, origin: string): string {
       <itunes:episode>${episode}</itunes:episode>
       <itunes:episodeType>full</itunes:episodeType>
       <itunes:author>${xml(track.artist || "Rose")}</itunes:author>
-      <itunes:duration>${clock(track.durationSec)}</itunes:duration>
+      <itunes:duration>${clock(fact.durationSec)}</itunes:duration>
       <itunes:explicit>false</itunes:explicit>
       <guid isPermaLink="false">${xml(guid)}</guid>
       <pubDate>${when}</pubDate>
-      <enclosure url="${xml(file)}" length="0" type="${audioType(file)}" />
+      <enclosure url="${xml(file)}" length="${Math.round(fact.bytes)}" type="audio/mpeg" />
     </item>`;
 }
 
-/** RSS for Apple Podcasts. Track order is the catalog order, which is the rite. */
-export function roseFeedXml(catalog: Catalog, origin: string): string {
+/** RSS for Apple Podcasts. Only probed mp3s are enclosed. Guids stay on the track id. */
+export function roseFeedXml(catalog: Catalog, origin: string, facts: Record<string, RoseFeedFact> = {}): string {
   const root = origin.replace(/\/$/, "") || "https://radio.terrainfinity.ca";
   const channel = catalog.channels.find((item) => item.slug === "rose");
-  const tracks = playable(channel);
+  const tracks = selectRoseFeed(roseFeedCandidates(catalog), facts).filter((track) => {
+    const fact = facts[track.id];
+    return Boolean(fact && fact.bytes > 0 && fact.durationSec > 0);
+  });
   const self = roseFeedUrl(root);
   const page = `${root}/experiences/rose`;
-  const image = absolute(root, "/experiences/rose/hero.jpg");
+  const image = absolute(root, ROSE_COVER_PATH);
   const summary = channel?.description || "Rose is a fixed-order rite. Send it to Podcasts. The phone keeps the list. The Watch copies from the phone while it charges.";
   const title = "Rose";
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -99,7 +143,11 @@ export function roseFeedXml(catalog: Catalog, origin: string): string {
     <atom:link href="${xml(self)}" rel="self" type="application/rss+xml" />
     <language>en</language>
     <description>${xml(summary)}</description>
-    <itunes:author>Terrainfinity Radio</itunes:author>
+    <itunes:author>${xml(ROSE_OWNER.name)}</itunes:author>
+    <itunes:owner>
+      <itunes:name>${xml(ROSE_OWNER.name)}</itunes:name>
+      <itunes:email>${xml(ROSE_OWNER.email)}</itunes:email>
+    </itunes:owner>
     <itunes:summary>${xml(summary)}</itunes:summary>
     <itunes:type>serial</itunes:type>
     <itunes:explicit>false</itunes:explicit>
@@ -110,7 +158,7 @@ export function roseFeedXml(catalog: Catalog, origin: string): string {
       <title>${xml(title)}</title>
       <link>${xml(page)}</link>
     </image>
-${tracks.map((track, index) => item(track, index + 1, root)).join("\n")}
+${tracks.map((track, index) => item(track, index + 1, root, facts[track.id]!)).join("\n")}
   </channel>
 </rss>
 `;

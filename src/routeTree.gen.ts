@@ -34,6 +34,7 @@ import { Route as ApiSsoConsumeRouteImport } from './routes/api/sso/consume'
 import { Route as ApiSsoLoginRouteImport } from './routes/api/sso/login'
 import { Route as ApiSsoLogoutRouteImport } from './routes/api/sso/logout'
 import { Route as ApiSsoMeRouteImport } from './routes/api/sso/me'
+import { Route as DeskLibraryRoseRouteImport } from './routes/desk.library.rose'
 import { Route as SyncSlugAddRouteImport } from './routes/sync/$slug.add'
 
 const IndexRoute = IndexRouteImport.update({
@@ -161,6 +162,11 @@ const ApiSsoMeRoute = ApiSsoMeRouteImport.update({
   path: '/api/sso/me',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeskLibraryRoseRoute = DeskLibraryRoseRouteImport.update({
+  id: '/library/rose',
+  path: '/library/rose',
+  getParentRoute: () => DeskRoute,
+} as any)
 const SyncSlugAddRoute = SyncSlugAddRouteImport.update({
   id: '/add',
   path: '/add',
@@ -171,7 +177,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
-  '/desk': typeof DeskRoute
+  '/desk': typeof DeskRouteWithChildren
   '/device-sync': typeof DeviceSyncRoute
   '/experiences': typeof ExperiencesRouteWithChildren
   '/library': typeof LibraryRoute
@@ -193,13 +199,14 @@ export interface FileRoutesByFullPath {
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
   '/api/sso/me': typeof ApiSsoMeRoute
+  '/desk/library/rose': typeof DeskLibraryRoseRoute
   '/sync/$slug/add': typeof SyncSlugAddRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
-  '/desk': typeof DeskRoute
+  '/desk': typeof DeskRouteWithChildren
   '/device-sync': typeof DeviceSyncRoute
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
@@ -220,6 +227,7 @@ export interface FileRoutesByTo {
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
   '/api/sso/me': typeof ApiSsoMeRoute
+  '/desk/library/rose': typeof DeskLibraryRoseRoute
   '/sync/$slug/add': typeof SyncSlugAddRoute
 }
 export interface FileRoutesById {
@@ -227,7 +235,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
-  '/desk': typeof DeskRoute
+  '/desk': typeof DeskRouteWithChildren
   '/device-sync': typeof DeviceSyncRoute
   '/experiences': typeof ExperiencesRouteWithChildren
   '/library': typeof LibraryRoute
@@ -249,6 +257,7 @@ export interface FileRoutesById {
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
   '/api/sso/me': typeof ApiSsoMeRoute
+  '/desk/library/rose': typeof DeskLibraryRoseRoute
   '/sync/$slug/add': typeof SyncSlugAddRoute
 }
 export interface FileRouteTypes {
@@ -279,6 +288,7 @@ export interface FileRouteTypes {
     | '/api/sso/login'
     | '/api/sso/logout'
     | '/api/sso/me'
+    | '/desk/library/rose'
     | '/sync/$slug/add'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -306,6 +316,7 @@ export interface FileRouteTypes {
     | '/api/sso/login'
     | '/api/sso/logout'
     | '/api/sso/me'
+    | '/desk/library/rose'
     | '/sync/$slug/add'
   id:
     | '__root__'
@@ -334,6 +345,7 @@ export interface FileRouteTypes {
     | '/api/sso/login'
     | '/api/sso/logout'
     | '/api/sso/me'
+    | '/desk/library/rose'
     | '/sync/$slug/add'
   fileRoutesById: FileRoutesById
 }
@@ -341,7 +353,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AliasRoute: typeof AliasRoute
   AboutRoute: typeof AboutRoute
-  DeskRoute: typeof DeskRoute
+  DeskRoute: typeof DeskRouteWithChildren
   DeviceSyncRoute: typeof DeviceSyncRoute
   ExperiencesRoute: typeof ExperiencesRouteWithChildren
   LibraryRoute: typeof LibraryRoute
@@ -540,6 +552,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSsoMeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/desk/library/rose': {
+      id: '/desk/library/rose'
+      path: '/library/rose'
+      fullPath: '/desk/library/rose'
+      preLoaderRoute: typeof DeskLibraryRoseRouteImport
+      parentRoute: typeof DeskRoute
+    }
     '/sync/$slug/add': {
       id: '/sync/$slug/add'
       path: '/add'
@@ -549,6 +568,16 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface DeskRouteChildren {
+  DeskLibraryRoseRoute: typeof DeskLibraryRoseRoute
+}
+
+const DeskRouteChildren: DeskRouteChildren = {
+  DeskLibraryRoseRoute: DeskLibraryRoseRoute,
+}
+
+const DeskRouteWithChildren = DeskRoute._addFileChildren(DeskRouteChildren)
 
 interface ExperiencesRouteChildren {
   ExperiencesSlugRoute: typeof ExperiencesSlugRoute
@@ -580,7 +609,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AliasRoute: AliasRoute,
   AboutRoute: AboutRoute,
-  DeskRoute: DeskRoute,
+  DeskRoute: DeskRouteWithChildren,
   DeviceSyncRoute: DeviceSyncRoute,
   ExperiencesRoute: ExperiencesRouteWithChildren,
   LibraryRoute: LibraryRoute,

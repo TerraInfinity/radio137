@@ -736,3 +736,46 @@ export const completeDeskUpload = createServerFn({ method: "POST" })
     }
     return { ok: true as const, object: { key, url }, kind: video ? ("video" as const) : ("image" as const), ...(await snapshot()) };
   });
+
+export const listRoseLibrary = createServerFn({ method: "GET" })
+  .middleware([adminMiddleware])
+  .handler(async () => {
+    const { applyCatalogEdits } = await import("@/lib/catalog-edits");
+    const { getSeedCatalog } = await import("@/lib/catalog");
+    const { listEdits, listStationEdits } = await import("@/lib/catalog-edits.server");
+    const { isRoseMp3, roseDuplicateLabel, roseFeedCandidates, selectRoseFeed } = await import("@/lib/rose-feed");
+    const { loadRoseFeedFacts } = await import("@/lib/rose-feed-probe.server");
+    const { audioExtension, r2KeyFromAudioUrl } = await import("@/lib/file-path");
+    const catalog = applyCatalogEdits(getSeedCatalog(), await listEdits(), await listStationEdits());
+    const tracks = roseFeedCandidates(catalog);
+    const facts = await loadRoseFeedFacts(tracks);
+    const live = new Set(
+      selectRoseFeed(tracks, facts)
+        .filter((track) => {
+          const fact = facts[track.id];
+          return Boolean(fact && fact.bytes > 0 && fact.durationSec > 0 && isRoseMp3(track.audioUrl));
+        })
+        .map((track) => track.id),
+    );
+    return {
+      rows: tracks.map((track) => ({
+        id: track.id,
+        title: track.title,
+        key: r2KeyFromAudioUrl(track.audioUrl) || track.audioUrl,
+        format: audioExtension(track.audioUrl) || "unknown",
+        bytes: facts[track.id]?.bytes ?? 0,
+        durationSec: facts[track.id]?.durationSec ?? 0,
+        inFeed: live.has(track.id),
+        group: roseDuplicateLabel(track, tracks, facts),
+      })),
+    };
+  });
+
+export const convertRoseWav = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) => z.object({ trackId: z.string().min(1) }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { convertRoseWavFile } = await import("@/lib/catalog-edits.server");
+    const converted = await convertRoseWavFile(context.user, data.trackId);
+    return { ...converted, ...(await snapshot()) };
+  });

@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { listEdits, listStationEdits } from "@/lib/catalog-edits.server";
 import { getSeedCatalog } from "@/lib/catalog";
-import { roseFeedXml } from "@/lib/rose-feed";
+import { roseFeedCandidates, roseFeedXml, type RoseFeedFact } from "@/lib/rose-feed";
+import { loadRoseFeedFacts } from "@/lib/rose-feed-probe.server";
 
 export const Route = createFileRoute("/feeds/rose.xml")({
   server: {
@@ -15,13 +16,18 @@ export const Route = createFileRoute("/feeds/rose.xml")({
           /* seed order is the rite */
         }
         const origin = new URL(request.url).origin;
-        return new Response(roseFeedXml(catalog, origin), {
-          headers: {
-            "content-type": "application/rss+xml; charset=utf-8",
-            "cache-control": "public, max-age=300",
-            "access-control-allow-origin": "*",
-          },
-        });
+        const headers = {
+          "content-type": "application/rss+xml; charset=utf-8",
+          "cache-control": "public, max-age=300",
+          "access-control-allow-origin": "*",
+        };
+        let facts: Record<string, RoseFeedFact> = {};
+        try {
+          facts = await loadRoseFeedFacts(roseFeedCandidates(catalog));
+        } catch {
+          /* art still ships if a probe fails */
+        }
+        return new Response(roseFeedXml(catalog, origin, facts), { headers });
       },
     },
   },
