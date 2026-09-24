@@ -21,7 +21,7 @@ function xml(value: string): string {
     .replace(/'/g, "&" + "apos;");
 }
 
-export const ROSE_COVER_PATH = "/experiences/rose/cover-3000.jpg";
+export const ROSE_COVER_PATH = "/experiences/rose/cover-rose-3000.jpg";
 export const ROSE_OWNER = { name: "Terrainfinity Radio", email: "career@terrainfinity.ca" };
 
 export type RoseFeedFact = { bytes: number; durationSec: number };

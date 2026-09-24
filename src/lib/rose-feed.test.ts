@@ -40,7 +40,7 @@ test("rose feed is a serial podcast of probed mp3s", () => {
   const xml = roseFeedXml(catalog, "https://radio.terrainfinity.ca", facts);
   assert.match(xml, /<itunes:type>serial<\/itunes:type>/);
   assert.match(xml, /application\/rss\+xml/);
-  assert.match(xml, /cover-3000\.jpg/);
+  assert.match(xml, /cover-rose-3000\.jpg/);
   assert.equal(xml.includes("hero.jpg"), false);
   assert.equal(xml.includes(".wav"), false);
   assert.match(xml, /<itunes:email>career@terrainfinity\.ca<\/itunes:email>/);
