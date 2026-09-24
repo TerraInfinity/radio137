@@ -1,51 +1,18 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AudioGrabs } from "@/components/audio-grabs";
 import { renderSVG } from "uqr";
 import { getPlayableTracks, publicChannels } from "@/lib/catalog";
 import { appleShowLinks, feedFor, listenFor, offerFor, ROSE_APPLE_SHOW, siriFor } from "@/lib/device-sync";
-import { shortcutImportUrl } from "@/lib/shortcut-file";
-import { detectSyncPath, shortcutsCreateUrl, shortcutsRunUrl, type SyncPath, type SyncTab } from "@/lib/sync-path";
+import { syncPageUrl, type SyncPath, type SyncTab } from "@/lib/sync-path";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 import { zipStore } from "@/lib/zip-store";
 import { enqueueGrabs } from "@/lib/download-queue";
-import { cn } from "@/lib/cn";
-
-const PATHS: { id: SyncPath; label: string }[] = [
-  { id: "apple", label: "iPhone / Watch" },
-  { id: "android", label: "Android" },
-  { id: "computer", label: "Computer" },
-];
 
 function useOrigin() {
   const [origin, setOrigin] = useState("https://radio.terrainfinity.ca");
   useEffect(() => setOrigin(window.location.origin), []);
   return origin;
-}
-
-function useTicks(key: string) {
-  const [ticks, setTicks] = useState<Record<string, boolean>>({});
-  useEffect(() => {
-    try {
-      const parsed = JSON.parse(window.localStorage.getItem(key) || "") as Record<string, boolean>;
-      setTicks(parsed && typeof parsed === "object" ? parsed : {});
-    } catch {
-      setTicks({});
-    }
-  }, [key]);
-
-  function save(field: string, on: boolean) {
-    const next = { ...ticks, [field]: on };
-    setTicks(next);
-    window.localStorage.setItem(key, JSON.stringify(next));
-  }
-
-  function reset() {
-    setTicks({});
-    window.localStorage.removeItem(key);
-  }
-
-  return { ticks, save, reset };
 }
 
 function fileName(title: string, index: number, url: string): string {
@@ -63,14 +30,8 @@ function Qr({ value }: { value: string }) {
   return <div className="mx-auto w-40 [&_svg]:h-auto [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
-const SHORTCUTS = "https://apps.apple.com/app/shortcuts/id915249334";
-
 export function DeviceSync({
   slug,
-  path,
-  tab,
-  onPath,
-  onTab,
 }: {
   slug: string;
   path?: SyncPath;
@@ -90,16 +51,10 @@ export function DeviceSync({
   const title = channel?.name || (slug === "rose" ? "Rose" : slug);
   const say = siriFor(title, slug, offer);
   const listen = channel ? listenFor(origin, channel) : `${origin}/channel/${slug}`;
-  const appleShow = offer.appleUrl;
-  const detected = useMemo(() => detectSyncPath(typeof navigator === "undefined" ? "" : navigator.userAgent), []);
   const iphone = useMemo(() => /iPhone|iPod/.test(typeof navigator === "undefined" ? "" : navigator.userAgent), []);
-  const selected = path ?? detected;
-  const appleTab = tab === "radio" || tab === "siri" ? tab : "offline";
   const [note, setNote] = useState("");
   const [packOpen, setPackOpen] = useState(false);
   const [packing, setPacking] = useState("");
-  const appleTicks = useTicks(`radio.device-sync.${slug}.apple`);
-  const androidTicks = useTicks(`radio.device-sync.${slug}.android`);
   const grabItems = getPlayableTracks(channel).map((track, index) => ({
     title: track.title,
     url: track.audioUrl,
@@ -107,10 +62,8 @@ export function DeviceSync({
   }));
   const catalogUrl = offer.appleUrl || (slug === "rose" ? ROSE_APPLE_SHOW : "");
   const show = appleShowLinks(catalogUrl);
-  const subscribeHref = (iphone ? show?.app : show?.page) || "";
-  const podcastQr = slug === "rose" ? ROSE_APPLE_SHOW : show?.page || "";
-  const runSiri = shortcutsRunUrl(say);
-  const makeSiri = shortcutsCreateUrl();
+  const showPage = (slug === "rose" ? ROSE_APPLE_SHOW : show?.page) || "";
+  const pageQr = syncPageUrl(origin, slug);
 
   async function copyFeed() {
     if (!feed) {
@@ -181,236 +134,44 @@ export function DeviceSync({
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 pb-52">
+    <div className="mx-auto max-w-md px-4 py-10 pb-52">
       <section>
-        <h1 className="font-display text-5xl font-semibold tracking-tight sm:text-6xl">{title}</h1>
-        <p className="mt-3 max-w-prose text-lg text-muted">Tap Add to Podcasts. That opens the subscribe sheet. The code does the same thing from another screen.</p>
+        <h1 className="font-display text-5xl font-semibold tracking-tight">{title}</h1>
+        <p className="mt-3 text-lg text-muted">The scan opens this page. The button opens the show in Podcasts.</p>
         {!offer.enabled && isAdmin ? <p className="mt-2 text-sm text-muted">Guests do not see this until Device sync is on in the station settings.</p> : null}
-        <div className="mt-6 flex max-w-sm flex-col gap-2">
-          <a href={listen} className="inline-flex h-12 items-center justify-center rounded-md border border-line px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-            Play now
-          </a>
-          {subscribeHref ? (
-            <a href={subscribeHref} className="inline-flex h-12 items-center justify-center rounded-md bg-fg px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
-              Add to Podcasts
+        <div className="mt-6 flex flex-col gap-2">
+          {showPage ? (
+            <a href={showPage} className="inline-flex h-14 items-center justify-center rounded-md bg-fg px-3 font-mono text-[12px] uppercase tracking-[0.14em] text-bg">
+              Open in Podcasts
             </a>
           ) : (
-            <button type="button" onClick={() => void enqueueGrabs(slug, grabItems)} className="inline-flex h-12 items-center justify-center rounded-md bg-fg px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
+            <button type="button" onClick={() => void enqueueGrabs(slug, grabItems)} className="inline-flex h-14 items-center justify-center rounded-md bg-fg px-3 font-mono text-[12px] uppercase tracking-[0.14em] text-bg">
               Download the audio
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              onPath("apple");
-              onTab("siri");
-            }}
-            className="inline-flex h-12 items-center justify-center rounded-md border border-line px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
-          >
-            Set up {say}
-          </button>
+          <a href={listen} className="inline-flex h-12 items-center justify-center rounded-md border border-line px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+            Play now
+          </a>
         </div>
-        {iphone || !podcastQr ? null : (
-          <div className="mt-8 hidden w-40 sm:block">
-            <Qr value={podcastQr} />
-            <p className="mt-2 break-all text-sm text-muted">{podcastQr.replace(/^https:\/\//, "")}</p>
+        {iphone ? null : (
+          <div className="mt-8 w-44">
+            <Qr value={pageQr} />
+            <p className="mt-2 text-sm text-muted">Scan with the phone. It opens this page, not Podcasts.</p>
           </div>
         )}
+        <p className="mt-6 text-sm text-muted">After it is in Podcasts, say “Hey Siri, {say}”. The Watch copies the show from the phone while it charges.</p>
       </section>
 
-      <div className="mt-16">
-        <div className="flex flex-wrap gap-2" role="tablist" aria-label="After it is on the phone">
-          {(
-            [
-              ["offline", "Save offline"],
-              ["siri", "Hey Siri"],
-              ["radio", "Play live"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={appleTab === id}
-              onClick={() => onTab(id)}
-              className={cn(
-                "inline-flex h-11 items-center rounded-full px-4 font-mono text-[11px] uppercase tracking-[0.14em]",
-                appleTab === id ? "bg-fg text-bg" : "bg-bg-elevated text-muted",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label="How to send it">
-          {PATHS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={selected === item.id}
-              onClick={() => onPath(item.id)}
-              className={cn(
-                "inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em]",
-                selected === item.id ? "text-gold" : "text-subtle",
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-
-      {selected === "apple" || appleTab === "radio" ? (
-        <section className="mt-8">
-          {appleTab === "siri" && selected === "apple" ? (
-            <>
-              <p className="text-sm text-muted">The iPhone and the Watch use the same words. Siri plays the podcast. It does not need a Shortcut unless it opens the wrong app.</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {subscribeHref ? (
-                  <a href={subscribeHref} className="inline-flex h-12 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
-                    Add to Podcasts
-                  </a>
-                ) : null}
-                {show ? (
-                  <a href={shortcutImportUrl(`${origin}/sync/${encodeURIComponent(slug)}/play.shortcut`, say)} className="inline-flex h-12 items-center rounded-md border border-line px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-                    Add {say}
-                  </a>
-                ) : (
-                  <a href={makeSiri} className="inline-flex h-12 items-center rounded-md border border-line px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-                    Open Shortcuts
-                  </a>
-                )}
-                <a href={runSiri} className="inline-flex h-12 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-                  Run {say}
-                </a>
-                {appleShow ? (
-                  <a href={appleShow} className="inline-flex h-12 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">
-                    Show in Podcasts
-                  </a>
-                ) : null}
-              </div>
-              <Steps
-                ticks={appleTicks.ticks}
-                onToggle={appleTicks.save}
-                onReset={appleTicks.reset}
-                items={[
-                  ["subscribe", "Subscribe, then stay on Wi‑Fi until the episodes finish downloading"],
-                  ["watch", "Watch app → My Watch → Podcasts → add the show → charge on Wi‑Fi"],
-                  ["speak", `Say “Hey Siri, ${say}” on the phone or the Watch`],
-                ]}
-              />
-              <SiriBlock>
-                <p className="mt-3 text-sm text-muted">Only if Siri misses. Do not use Play Music.</p>
-                <ol className="mt-3 grid gap-2 text-sm text-muted">
-                  <li>Open Shortcuts. Add action → Play Podcast → show {title}.</li>
-                  <li>Name the Shortcut exactly {say}.</li>
-                  <li>Watch app → Shortcuts → show {say} on the Watch.</li>
-                </ol>
-                <p className="mt-3 text-sm text-muted">Add {say} opens Shortcuts and asks you to tap Add. iOS will not create it with no confirmation. If it refuses, Shortcuts → Settings → Advanced → Allow Untrusted Shortcuts, then tap again.</p>
-              </SiriBlock>
-            </>
-          ) : appleTab === "offline" && selected === "apple" ? (
-            <>
-              <p className="text-sm text-muted">Podcasts keeps the playlist. The Watch copies from the phone.</p>
-              <Steps
-                ticks={appleTicks.ticks}
-                onToggle={appleTicks.save}
-                onReset={appleTicks.reset}
-                items={[
-                  ["subscribe", "Subscribe"],
-                  ["settings", "Show settings: Auto-download On, Keep all episodes, Remove played downloads Off"],
-                  ["watch", `Watch app → My Watch → Podcasts → add ${title} → charge on Wi‑Fi.`],
-                ]}
-              />
-              <SiriBlock>
-                <ol className="mt-3 grid gap-2 text-sm text-muted">
-                  <li>After the show is in Podcasts, try “Hey Siri, {say}” on the Watch. No Shortcut yet.</li>
-                  <li>If Siri misses: iPhone Shortcuts → Play Podcast → show {title} → name the Shortcut {say} → Watch app → Shortcuts → add it.</li>
-                </ol>
-                <p className="mt-3 text-sm text-muted">Do not use Play Music. Test with “Hey Siri, {say}.”</p>
-              </SiriBlock>
-            </>
-          ) : appleTab === "radio" ? (
-            <>
-              <SiriBlock>
-                <p className="mt-3 text-sm text-muted">Live needs a Shortcut. Siri will not learn a stream by itself.</p>
-                <ol className="mt-3 grid gap-2 text-sm text-muted">
-                  <li>iPhone Shortcuts → Open URLs → paste the Listen-now address → name it Play and a short word → Watch app → Shortcuts → add it.</li>
-                </ol>
-                <p className="mt-3 text-sm text-muted">One Shortcut for this station. Name the live one {say} live, so it does not steal the podcast name {say}.</p>
-                <p className="mt-2 text-sm text-muted">This opens the site player. It is not Apple Music Radio. The Watch cannot add a radio URL. Safari on the phone starts it. Audio can go to Watch Bluetooth, or the phone can stay the player.</p>
-              </SiriBlock>
-              <div className="mt-4 rounded-xl bg-bg-elevated px-4 py-3 text-sm">
-                <p className="font-display text-lg">{say}</p>
-                <p className="mt-1 break-all font-mono text-[10px] uppercase tracking-[0.08em] text-subtle">{listen.replace(/^https:\/\//, "")}</p>
-                <button
-                  type="button"
-                  onClick={() => void navigator.clipboard?.writeText(listen).then(() => setNote(`${say} live address copied. Paste it into Open URLs.`)).catch(() => setNote(listen))}
-                  className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
-                >
-                  Copy Listen-now
-                </button>
-                <a href={makeSiri} className="mt-3 inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-                  Open Shortcuts
-                </a>
-              </div>
-            </>
-          ) : null}
-        </section>
-      ) : null}
-
-      {appleTab === "offline" && selected === "android" ? (
-        <section className="mt-8">
-          <details className="mt-6">
-            <summary className="cursor-pointer font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">Copy RSS</summary>
-            <p className="mt-2 text-sm text-muted">For an app that asks for a feed. Apple Podcasts does not use this.</p>
-            <button
-              type="button"
-              disabled={!hasFeed}
-              onClick={() => void copyFeed()}
-              className="mt-3 inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold disabled:opacity-40"
-            >
-              Copy
-            </button>
-          </details>
+      <details className="mt-10">
+        <summary className="cursor-pointer font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">More</summary>
+        <div className="mt-4">
+          <AudioGrabs slug={slug} items={grabItems} />
           {hasFeed ? (
-            <a
-              href={`pktc://subscribe/${encodeURIComponent(feed)}`}
-              className="ml-3 inline-flex h-12 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
-            >
-              Pocket Casts
-            </a>
-          ) : null}
-          <ol className="mt-4 grid gap-2 text-sm text-muted">
-            <li>Subscribe in your podcast app.</li>
-            <li>Download all episodes on Wi‑Fi.</li>
-            <li>Play offline in that app.</li>
-          </ol>
-          <Steps
-            ticks={androidTicks.ticks}
-            onToggle={androidTicks.save}
-            onReset={androidTicks.reset}
-            items={[
-              ["subscribe", "Subscribe"],
-              ["download", "Download all episodes on Wi‑Fi"],
-              ["offline", "Play offline in that app"],
-            ]}
-          />
-        </section>
-      ) : null}
-
-      {appleTab === "offline" && selected === "computer" ? (
-        <section className="mt-8">
-          <details className="mt-4">
-            <summary className="cursor-pointer font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">Copy RSS</summary>
-            <p className="mt-2 text-sm text-muted">For an app that asks for a feed. Apple Podcasts does not use this.</p>
-            <button type="button" onClick={() => void copyFeed()} className="mt-3 inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-              Copy
+            <button type="button" onClick={() => void copyFeed()} className="mt-4 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+              Copy RSS
             </button>
-          </details>
-          <div className="mt-6 border-t border-line pt-4">
+          ) : null}
+          <div className="mt-4">
             <button type="button" onClick={() => setPackOpen((value) => !value)} className="font-mono text-[11px] uppercase tracking-[0.14em] text-subtle" aria-expanded={packOpen}>
               {packOpen ? "Hide pack" : "Pack MP3s"}
             </button>
@@ -429,63 +190,9 @@ export function DeviceSync({
               </div>
             ) : null}
           </div>
-          <p className="mt-6 text-sm">
-            <a href={listen} className="text-gold">
-              Play on site
-            </a>
-          </p>
-        </section>
-      ) : null}
-
-      {appleTab === "offline" ? <AudioGrabs slug={slug} items={grabItems} /> : null}
-
+        </div>
+      </details>
       {note ? <p className="mt-4 text-sm text-muted">{note}</p> : null}
-    </div>
-  );
-}
-
-function SiriBlock({ children }: { children: ReactNode }) {
-  return (
-    <div className="mt-8 rounded-2xl bg-bg-elevated p-4">
-      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold">Siri on Watch</p>
-      <p className="mt-2 text-sm text-muted">Make the Shortcut on the iPhone. An iPhone 12 or Air is the same. The Watch only runs the name.</p>
-      {children}
-      <a href={SHORTCUTS} className="mt-4 inline-flex font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-        Shortcuts app
-      </a>
-    </div>
-  );
-}
-
-function Steps({
-  items,
-  ticks,
-  onToggle,
-  onReset,
-}: {
-  items: [string, string][];
-  ticks: Record<string, boolean>;
-  onToggle: (field: string, on: boolean) => void;
-  onReset: () => void;
-}) {
-  return (
-    <div className="mt-6">
-      <div className="flex items-end justify-between">
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold">On this device</p>
-        <button type="button" onClick={onReset} className="font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">
-          Reset
-        </button>
-      </div>
-      <ul className="mt-3 grid gap-2">
-        {items.map(([key, label]) => (
-          <li key={key}>
-            <label className="flex min-h-12 items-center gap-3 rounded-xl bg-bg-elevated px-4 py-3 text-sm">
-              <input type="checkbox" checked={ticks[key] === true} onChange={(event) => onToggle(key, event.target.checked)} />
-              {label}
-            </label>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
