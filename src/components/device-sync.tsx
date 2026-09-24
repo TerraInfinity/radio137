@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { AudioGrabs } from "@/components/audio-grabs";
 import { renderSVG } from "uqr";
 import { getPlayableTracks, publicChannels } from "@/lib/catalog";
 import { feedFor, listenFor, offerFor, siriFor } from "@/lib/device-sync";
@@ -7,6 +8,7 @@ import { detectSyncPath, shortcutsCreateUrl, shortcutsRunUrl, syncAddUrl, syncPa
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 import { zipStore } from "@/lib/zip-store";
+import { enqueueGrabs } from "@/lib/download-queue";
 import { cn } from "@/lib/cn";
 
 const PATHS: { id: SyncPath; label: string }[] = [
@@ -98,6 +100,11 @@ export function DeviceSync({
   const [packing, setPacking] = useState("");
   const appleTicks = useTicks(`radio.device-sync.${slug}.apple`);
   const androidTicks = useTicks(`radio.device-sync.${slug}.android`);
+  const grabItems = getPlayableTracks(channel).map((track, index) => ({
+    title: track.title,
+    url: track.audioUrl,
+    fileName: fileName(track.title, index + 1, track.audioUrl),
+  }));
   const podcastQr = hasFeed ? syncAddUrl(origin, slug) : "";
   const siriQr = syncPageUrl(origin, slug, "apple", "siri");
   const runSiri = shortcutsRunUrl(say);
@@ -208,7 +215,7 @@ export function DeviceSync({
               scan=""
               qr=""
               action={
-                <button type="button" onClick={() => void pack()} className="inline-flex h-12 w-full items-center justify-center rounded-md bg-fg px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
+                <button type="button" onClick={() => void enqueueGrabs(slug, grabItems)} className="inline-flex h-12 w-full items-center justify-center rounded-md bg-fg px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
                   Download
                 </button>
               }
@@ -440,19 +447,7 @@ export function DeviceSync({
         </section>
       ) : null}
 
-      {appleTab === "offline" ? (
-        <section className="mt-8">
-          <button
-            type="button"
-            disabled={packing.startsWith("Packing")}
-            onClick={() => void pack()}
-            className="inline-flex h-12 items-center rounded-md border border-line px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-gold disabled:opacity-40"
-          >
-            Download the audio
-          </button>
-          {packing ? <p className="mt-2 text-sm text-muted">{packing}</p> : <p className="mt-2 text-sm text-muted">A zip of this station, in playlist order.</p>}
-        </section>
-      ) : null}
+      {appleTab === "offline" ? <AudioGrabs slug={slug} items={grabItems} /> : null}
 
       {note ? <p className="mt-4 text-sm text-muted">{note}</p> : null}
     </div>
