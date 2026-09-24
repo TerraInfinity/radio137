@@ -87,9 +87,10 @@ export async function deleteR2Key(key: string): Promise<void> {
   await client().send(new DeleteObjectCommand({ Bucket: bucket(), Key: cleanKey(key) }));
 }
 
-export async function moveR2Key(from: string, to: string): Promise<R2Object> {
+export async function copyR2Key(from: string, to: string): Promise<R2Object> {
   const source = cleanKey(from);
   const dest = cleanKey(to);
+  if (source === dest) return { key: dest, size: 0, url: publicUrlForKey(dest) };
   await client().send(
     new CopyObjectCommand({
       Bucket: bucket(),
@@ -97,8 +98,14 @@ export async function moveR2Key(from: string, to: string): Promise<R2Object> {
       Key: dest,
     }),
   );
-  if (source !== dest) await deleteR2Key(source);
   return { key: dest, size: 0, url: publicUrlForKey(dest) };
+}
+
+export async function moveR2Key(from: string, to: string): Promise<R2Object> {
+  const object = await copyR2Key(from, to);
+  const source = cleanKey(from);
+  if (source !== object.key) await deleteR2Key(source);
+  return object;
 }
 
 export function defaultPrefixForSlug(slug: string): string {

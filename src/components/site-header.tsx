@@ -1,6 +1,6 @@
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Menu, Search, X } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { Menu, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { AuthSlot } from "@/components/auth-slot";
 import { ListenModeLamp } from "@/components/listen-mode-lamp";
@@ -31,20 +31,11 @@ export function SiteHeader() {
   const { isAdmin, user } = useRadioUser();
   const channel = slug ? getChannel(slug) : undefined;
   const onGlaum = Boolean(channel && stationSkin(channel) === "glaum");
-  const navigate = useNavigate();
-  const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
-
-  function goSearch(event: FormEvent) {
-    event.preventDefault();
-    const next = q.trim();
-    setOpen(false);
-    void navigate({ to: "/", search: { q: next || undefined } });
-  }
 
   const gold = driving?.own ? "text-buzz" : "text-gold";
 
@@ -95,21 +86,10 @@ export function SiteHeader() {
             </p>
           </Link>
         </div>
-        <nav className="ml-1 hidden min-w-0 items-center xl:flex">
+        <nav className="ml-1 hidden min-w-0 items-center lg:flex">
           <NavLinks />
         </nav>
         <div className="min-w-0 flex-1" />
-        <form onSubmit={goSearch} className="relative hidden min-w-0 w-40 xl:block 2xl:w-52">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-subtle" />
-          <input
-            className="input h-10 w-full pl-8 text-sm"
-            value={q}
-            onChange={(event) => setQ(event.target.value)}
-            placeholder="Search"
-            type="search"
-            aria-label="Search songs and stations"
-          />
-        </form>
         {ready && visited ? (
           <p className="hidden shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle 2xl:block">
             {points} pts{onGlaum || glaumules > 0 ? ` · ${glaumules} glåümules` : ""}
@@ -120,7 +100,7 @@ export function SiteHeader() {
         <AuthSlot />
         <button
           type="button"
-          className="inline-flex size-11 shrink-0 items-center justify-center text-gold xl:hidden"
+          className="inline-flex size-11 shrink-0 items-center justify-center text-gold lg:hidden"
           aria-expanded={open}
           aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((value) => !value)}
@@ -129,21 +109,10 @@ export function SiteHeader() {
         </button>
       </div>
       {open ? (
-        <div className="max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-t border-line bg-bg px-3 py-3 xl:hidden">
+        <div className="max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-t border-line bg-bg px-3 py-3 lg:hidden">
           <nav className="flex flex-col">
             <NavLinks onPick={() => setOpen(false)} />
           </nav>
-          <form onSubmit={goSearch} className="relative mt-2">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-subtle" />
-            <input
-              className="input h-11 pl-8 text-sm"
-              value={q}
-              onChange={(event) => setQ(event.target.value)}
-              placeholder="Songs, stations"
-              type="search"
-              aria-label="Search songs and stations"
-            />
-          </form>
           {user ? (
             <a href="/logout" className="mt-2 inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">
               Sign out

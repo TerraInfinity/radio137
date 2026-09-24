@@ -687,3 +687,78 @@ export async function shareSongAudioFile(
   }
   return { url: targetUrl, key, updated, matched: matches.length, converted, reused };
 }
+
+function foldTitle(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+export async function renameSongCopies(
+  user: RadioUser,
+  input: { title: string; members: { channelSlug: string; trackId: string }[] },
+): Promise<{ updated: number }> {
+  const title = input.title.trim();
+  if (!title) throw new Error("Title is empty");
+  const catalog = await liveCatalog();
+  let updated = 0;
+  for (const member of input.members) {
+    const channel = catalog.channels.find((item) => item.slug === member.channelSlug);
+    if (!channel?.tracks.some((item) => item.id === member.trackId)) continue;
+    await upsertEdit(user, { channelSlug: member.channelSlug, trackId: member.trackId, title });
+    updated += 1;
+  }
+  if (updated === 0) throw new Error("None of those songs are in the catalog");
+  return { updated };
+}
+
+/** Copy one mp3 into radio/library and point every listed playlist row at it. Old files stay. */
+export async function shelveLibraryFile(
+  user: RadioUser,
+  input: { channelSlug: string; trackId: string; members: { channelSlug: string; trackId: string }[] },
+): Promise<{ key: string; url: string; updated: number; copied: boolean }> {
+  const catalog = await liveCatalog();
+  const channel = catalog.channels.find((item) => item.slug === input.channelSlug);
+  const source = channel?.tracks.find((item) => item.id === input.trackId);
+  if (!source?.audioUrl) throw new Error("No audio file on this song");
+  const from = normalizeR2Key(r2KeyFromAudioUrl(source.audioUrl) || "");
+  if (!from) throw new Error("That file is not on R2");
+  if (!from.toLowerCase().endsWith(".mp3")) throw new Error("Only an mp3 can be shelved. Convert the wav first.");
+  const { libraryKeyFor } = await import("@/lib/library-map");
+  const { copyR2Key, r2Configured } = await import("@/lib/r2.server");
+  if (!r2Configured()) throw new Error("R2 keys are not set");
+  const fold = foldTitle(source.title);
+  const members = input.members.filter((member) => {
+    const desk = catalog.channels.find((item) => item.slug === member.channelSlug);
+    const track = desk?.tracks.find((item) => item.id === member.trackId);
+    return Boolean(track && foldTitle(track.title) === fold);
+  });
+  if (!members.some((member) => member.channelSlug === input.channelSlug && member.trackId === input.trackId)) {
+    members.push({ channelSlug: input.channelSlug, trackId: input.trackId });
+  }
+  let key = libraryKeyFor(source.title);
+  const owned = new Set(members.map((member) => `${member.channelSlug}:${member.trackId}`));
+  const taken = catalog.channels.some((desk) =>
+    desk.tracks.some((item) => {
+      if (owned.has(`${desk.slug}:${item.id}`)) return false;
+      return normalizeR2Key(r2KeyFromAudioUrl(item.audioUrl) || "").toLowerCase() === key.toLowerCase();
+    }),
+  );
+  if (taken) key = key.replace(/\.mp3$/i, ` ${channel?.slug || "shared"}.mp3`);
+  const copied = from.toLowerCase() !== key.toLowerCase();
+  const object = copied ? await copyR2Key(from, key) : { key, size: 0, url: source.audioUrl };
+  let updated = 0;
+  for (const member of members) {
+    const desk = catalog.channels.find((item) => item.slug === member.channelSlug);
+    const track = desk?.tracks.find((item) => item.id === member.trackId);
+    if (!track) continue;
+    if (normalizeR2Key(r2KeyFromAudioUrl(track.audioUrl) || "").toLowerCase() === object.key.toLowerCase()) continue;
+    await upsertEdit(user, { channelSlug: member.channelSlug, trackId: member.trackId, audioUrl: object.url, r2Key: object.key });
+    updated += 1;
+  }
+  return { key: object.key, url: object.url, updated, copied };
+}
+

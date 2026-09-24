@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { DialSearch } from "@/components/dial-search";
+import { LibraryShelf, SongRename, useLibrary } from "@/components/song-desk";
 import { listPublicSongs } from "@/lib/catalog";
 import { collapseByCanonical, listCutCopies } from "@/lib/cuts";
 import { formatClock } from "@/lib/cn";
 import { durationOf } from "@/lib/playback";
 import { qSearch } from "@/lib/search";
 import { songKey } from "@/lib/song-url";
+import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 
 export const Route = createFileRoute("/player/")({
@@ -17,10 +19,12 @@ export const Route = createFileRoute("/player/")({
 function PlayerIndex() {
   const catalog = usePlayerStore((s) => s.catalog);
   const groups = usePlayerStore((s) => s.cutGroups);
+  const { isAdmin } = useRadioUser();
   const { q = "" } = Route.useSearch();
   const navigate = Route.useNavigate();
   const searching = q.trim().length >= 2;
   const songs = collapseByCanonical(listPublicSongs(catalog), listCutCopies(catalog), groups);
+  const library = useLibrary(catalog);
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 pb-52">
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Library</p>
@@ -34,19 +38,29 @@ function PlayerIndex() {
           heading="Find a song"
         />
       </div>
+      {isAdmin ? <LibraryShelf rows={library.rows} /> : null}
       {searching ? null : (
         <>
           <p className="mt-6 text-sm text-muted">{songs.length} public songs.</p>
           <ul className="mt-4 divide-y divide-line">
-            {songs.map(({ track, channel }) => (
-              <li key={track.id} className="flex items-center gap-3 py-3">
-                <Link to="/player/$id" params={{ id: songKey(track) }} className="min-w-0 flex-1 truncate font-display text-lg">
-                  {track.title}
-                </Link>
-                <span className="hidden truncate text-sm text-muted sm:inline">{channel.name}</span>
-                <span className="font-mono text-[11px] tabular-nums text-subtle">{formatClock(durationOf(track))}</span>
-              </li>
-            ))}
+            {songs.map(({ track, channel }) => {
+              const mapped = library.byTrack.get(track.id);
+              return (
+                <li key={track.id} className="flex flex-wrap items-center gap-3 py-3">
+                  <Link to="/player/$id" params={{ id: songKey(track) }} className="min-w-0 flex-1 truncate font-display text-lg">
+                    {track.title}
+                  </Link>
+                  <span className="hidden truncate text-sm text-muted sm:inline">{channel.name}</span>
+                  <span className="font-mono text-[11px] tabular-nums text-subtle">{formatClock(durationOf(track))}</span>
+                  {isAdmin && mapped ? (
+                    <div className="flex basis-full flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="text-sm text-muted">{mapped.playlists.map((item) => item.name).join(" · ")}</span>
+                      <SongRename row={mapped} />
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

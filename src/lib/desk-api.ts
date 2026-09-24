@@ -310,6 +310,28 @@ export const shareSongAudio = createServerFn({ method: "POST" })
     return { ...shared, ...(await snapshot()) };
   });
 
+const songMembers = z.object({ channelSlug: z.string().min(1), trackId: z.string().min(1) });
+
+export const renameSongCopies = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) => z.object({ title: z.string().min(1).max(160), members: z.array(songMembers).min(1).max(40) }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { renameSongCopies: rename } = await import("@/lib/catalog-edits.server");
+    const result = await rename(context.user, data);
+    return { ...result, ...(await snapshot()) };
+  });
+
+export const shelveLibrarySong = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z.object({ channelSlug: z.string().min(1), trackId: z.string().min(1), members: z.array(songMembers).min(1).max(40) }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { shelveLibraryFile } = await import("@/lib/catalog-edits.server");
+    const result = await shelveLibraryFile(context.user, data);
+    return { ...result, ...(await snapshot()) };
+  });
+
 export const reorderStationTracks = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
   .validator((input: unknown) =>
