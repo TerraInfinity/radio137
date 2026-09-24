@@ -11,6 +11,12 @@ function fold(value: string): string {
     .trim();
 }
 
+/** Drop a leading playlist number. "6 Helicopter … Ad 2" stays distinct from "… Ad 1". */
+export function cleanSongTitle(title: string): string {
+  const stripped = title.replace(/^\d{1,2}[\s._-]+/, "").replace(/\s+/g, " ").trim();
+  return stripped || title.trim();
+}
+
 export function libraryFileName(title: string): string {
   const stem = title.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "track";
   return `${stem}.mp3`;
@@ -43,14 +49,15 @@ export type LibraryRow = {
 export function mapLibrary(copies: CutCopy[]): LibraryRow[] {
   const bags = new Map<string, CutCopy[]>();
   for (const copy of copies) {
-    const id = fold(copy.track.title) || copy.track.id;
+    const id = fold(cleanSongTitle(copy.track.title)) || copy.track.id;
     const bag = bags.get(id);
     if (bag) bag.push(copy);
     else bags.set(id, [copy]);
   }
   const rows: LibraryRow[] = [];
   for (const [id, group] of bags) {
-    const title = group[0]?.track.title || id;
+    const bare = group.find((copy) => copy.track.title.trim() === cleanSongTitle(copy.track.title));
+    const title = bare?.track.title.trim() || cleanSongTitle(group[0]?.track.title || id);
     const playlists: { slug: string; name: string }[] = [];
     const seen = new Set<string>();
     const files = new Set<string>();

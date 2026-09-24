@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { consolidationPlans, libraryKeyFor, mapLibrary } from "./library-map.ts";
+import { cleanSongTitle, consolidationPlans, libraryKeyFor, mapLibrary } from "./library-map.ts";
 
 function copy(title: string, slug: string, url: string) {
   const filename = url.split("/").pop() || url;
@@ -27,6 +27,19 @@ test("one song maps every playlist and proposes a library file", () => {
 test("a song already in the library folder is shelved", () => {
   const rows = mapLibrary([copy("Rose", "rose", "radio/library/Rose.mp3")] as never);
   assert.equal(rows[0]?.shelved, true);
+});
+
+test("a leading playlist number is not part of the title, and ad 1 is not ad 2", () => {
+  assert.equal(cleanSongTitle("6 Helicopter Time Share Shrimp Ad 2"), "Helicopter Time Share Shrimp Ad 2");
+  const rows = mapLibrary([
+    copy("6 Helicopter Time Share Shrimp Ad 2", "glaum", "radio/official-glaum-frequency/glaum/6 Helicopter Time Share Shrimp Ad 2.mp3"),
+    copy("Helicopter Time Share Shrimp Ad 2", "rose", "radio/rose/Helicopter Time Share Shrimp Ad 2.mp3"),
+    copy("Helicopter Time Share Shrimp Ad 1", "rose", "radio/rose/Helicopter Time Share Shrimp Ad 1.mp3"),
+  ] as never);
+  assert.equal(rows.length, 2);
+  assert.equal(rows.find((row) => row.title.includes("Ad 2"))?.title, "Helicopter Time Share Shrimp Ad 2");
+  assert.equal(rows.find((row) => row.title.includes("Ad 2"))?.copies.length, 2);
+  assert.equal(rows.find((row) => row.title.includes("Ad 1"))?.copies.length, 1);
 });
 
 test("the keeper is the mp3, and a wav is left behind", () => {
