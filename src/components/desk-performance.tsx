@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { convertWavOnThisDevice } from "@/lib/convert-wav";
 import { shareSongAudio } from "@/lib/desk-api";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getSeedCatalog } from "@/lib/catalog";
@@ -20,9 +21,17 @@ export function DeskPerformance({ channels }: { channels: Channel[] }) {
     setBusyId(note.id);
     setHint("");
     try {
-      const result = await shareSongAudio({
-        data: { channelSlug: note.action.channelSlug, trackId: note.action.trackId, convert: note.action.kind === "convert" },
-      });
+      const result =
+        note.action.kind === "convert"
+          ? await convertWavOnThisDevice({
+              channelSlug: note.action.channelSlug,
+              trackId: note.action.trackId,
+              audioUrl: note.action.audioUrl,
+              onProgress: setHint,
+            })
+          : await shareSongAudio({
+              data: { channelSlug: note.action.channelSlug, trackId: note.action.trackId, convert: false },
+            });
       if (result.tracks) {
         usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), result.tracks, result.stations ?? []));
       }

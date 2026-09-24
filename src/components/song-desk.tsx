@@ -11,6 +11,19 @@ function take(result: { tracks: Parameters<typeof applyCatalogEdits>[1]; station
   usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), result.tracks, result.stations ?? []));
 }
 
+function paintTitles(members: { channelSlug: string; trackId: string }[], title: string) {
+  const catalog = usePlayerStore.getState().catalog;
+  usePlayerStore.getState().replaceCatalog({
+    ...catalog,
+    channels: catalog.channels.map((channel) => ({
+      ...channel,
+      tracks: channel.tracks.map((track) =>
+        members.some((member) => member.channelSlug === channel.slug && member.trackId === track.id) ? { ...track, title } : track,
+      ),
+    })),
+  });
+}
+
 function fail(error: unknown) {
   window.alert(error instanceof Error ? error.message : "Library save failed");
 }
@@ -53,6 +66,13 @@ function NameReview({ rows }: { rows: LibraryRow[] }) {
       return fix.copies.map((copy) => ({ channelSlug: copy.slug, trackId: copy.trackId, title }));
     });
     if (items.length === 0) return;
+    const byTitle = new Map<string, { channelSlug: string; trackId: string }[]>();
+    for (const item of items) {
+      const bag = byTitle.get(item.title) ?? [];
+      bag.push({ channelSlug: item.channelSlug, trackId: item.trackId });
+      byTitle.set(item.title, bag);
+    }
+    for (const [title, members] of byTitle) paintTitles(members, title);
     setBusy(true);
     try {
       const result = await cleanSongTitles({ data: { items: items.slice(0, 500) } });
@@ -290,22 +310,51 @@ export function LibraryShelf({ rows }: { rows: LibraryRow[] }) {
   );
 }
 
+export function TitleUse({ title, copies }: { title: string; copies: LibraryCopy[] }) {
+  const next = cleanSongTitle(title);
+  const [busy, setBusy] = useState(false);
+  if (!next || next === title.trim()) return null;
+  const targets = copies.filter((copy) => copy.title.trim() === title.trim());
+
+  async function apply() {
+    if (targets.length === 0) return;
+    const members = targets.map((copy) => ({ channelSlug: copy.slug, trackId: copy.trackId }));
+    paintTitles(members, next);
+    setBusy(true);
+    try {
+      const result = await renameSongCopies({ data: { title: next, members } });
+      take(result);
+    } catch (error) {
+      fail(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button type="button" disabled={busy} onClick={() => void apply()} className="font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
+      {busy ? "Saving…" : `Use “${next}”`}
+    </button>
+  );
+}
+
 export function SongRename({ row }: { row: LibraryRow }) {
+  const raw = row.copies.find((copy) => copy.title.trim() !== row.title)?.title ?? row.title;
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState(row.title);
+  const [value, setValue] = useState(raw);
   const [busy, setBusy] = useState(false);
 
   async function save() {
     const title = value.trim();
-    if (!title || title === row.title) {
+    const members = row.copies.map((copy) => ({ channelSlug: copy.slug, trackId: copy.trackId }));
+    if (!title || row.copies.every((copy) => copy.title.trim() === title)) {
       setOpen(false);
       return;
     }
+    paintTitles(members, title);
     setBusy(true);
     try {
-      const result = await renameSongCopies({
-        data: { title, members: row.copies.map((copy) => ({ channelSlug: copy.slug, trackId: copy.trackId })) },
-      });
+      const result = await renameSongCopies({ data: { title, members } });
       take(result);
       setOpen(false);
     } catch (error) {
@@ -317,7 +366,7 @@ export function SongRename({ row }: { row: LibraryRow }) {
 
   if (!open) {
     return (
-      <button type="button" onClick={() => { setValue(row.title); setOpen(true); }} className="font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
+      <button type="button" onClick={() => { setValue(raw); setOpen(true); }} className="font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
         Rename
       </button>
     );

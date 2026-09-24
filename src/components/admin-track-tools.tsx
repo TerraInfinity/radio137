@@ -5,6 +5,7 @@ import { audioExtension, audioPathParts, fileLocationLabel, r2KeyFromAudioUrl } 
 import { sameSongTitle } from "@/lib/rose-rite";
 import { getSeedCatalog } from "@/lib/catalog";
 import { directDeskUpload } from "@/lib/direct-upload";
+import { convertWavOnThisDevice } from "@/lib/convert-wav";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 import { cn, slugify } from "@/lib/cn";
@@ -160,12 +161,24 @@ export function AdminTrackTools({ slug, track, compact = false }: { slug: string
   async function shareAudio(convert: boolean) {
     const where = desks.size > 1 ? `${copies.length} copies on ${desks.size} desks` : `${copies.length} ${copies.length === 1 ? "copy" : "copies"}`;
     const message = convert
-      ? `Turn this ${ext || "file"} into an mp3 in radio/rose/ and point ${where} of “${track.title}” at it?\n\nThe original file stays on R2.`
+      ? `Turn this ${ext || "file"} into an mp3 next to it and point ${where} of “${track.title}” at it?\n\nEncoding happens in this browser, with a progress line. The wav stays on R2.`
       : `Point ${where} of “${track.title}” at this audio file?\n\nOther files stay on R2. Titles stay as they are.`;
     if (!window.confirm(message)) return;
     setBusy("share");
-    setHint(convert ? "Converting to mp3…" : "Sharing this file…");
+    setHint(convert ? "Downloading the wav…" : "Sharing this file…");
     try {
+      if (convert) {
+        const result = await convertWavOnThisDevice({
+          channelSlug: slug,
+          trackId: track.id,
+          audioUrl: track.audioUrl,
+          onProgress: setHint,
+        });
+        applySnapshot(result.tracks, result.stations, playingId, next);
+        if (result.url) setAudioUrl(result.url);
+        setHint(`Mp3 is beside the wav. ${result.updated} ${result.updated === 1 ? "copy now uses" : "copies now use"} it.`);
+        return;
+      }
       const result = await shareSongAudio({ data: { channelSlug: slug, trackId: track.id, convert } });
       applySnapshot(result.tracks, result.stations, playingId, next);
       if (result.url) setAudioUrl(result.url);

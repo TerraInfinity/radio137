@@ -5,6 +5,7 @@ export type PerfAction = {
   kind: "convert" | "share";
   channelSlug: string;
   trackId: string;
+  audioUrl: string;
 };
 
 export type PerfNote = {
@@ -44,7 +45,7 @@ export function performanceNotes(channels: Channel[]): PerfNote[] {
         title: `${track.title} is a ${ext}`,
         detail: `${channel.name} waits on the whole ${ext} before the song can start. An mp3 starts while the rest is still coming in.`,
         steps: "Convert it once. The original file stays on R2. Every copy of this name then plays the mp3.",
-        action: { kind: "convert", channelSlug: channel.slug, trackId: track.id },
+        action: { kind: "convert", channelSlug: channel.slug, trackId: track.id, audioUrl: track.audioUrl },
       });
     }
   }
@@ -76,6 +77,7 @@ export function performanceNotes(channels: Channel[]): PerfNote[] {
         kind: shareMp3 ? "share" : "convert",
         channelSlug: mp3.channel.slug,
         trackId: mp3.track.id,
+        audioUrl: mp3.track.audioUrl,
       },
     });
   }

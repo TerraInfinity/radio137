@@ -688,6 +688,64 @@ export async function shareSongAudioFile(
   return { url: targetUrl, key, updated, matched: matches.length, converted, reused };
 }
 
+/** A put link for the mp3 that will sit beside this wav. The browser encodes; the server does not download the wav. */
+export async function stageSongMp3(input: { channelSlug: string; trackId: string }): Promise<{ putUrl: string; url: string; key: string }> {
+  const catalog = await liveCatalog();
+  const channel = catalog.channels.find((item) => item.slug === input.channelSlug);
+  const source = channel?.tracks.find((item) => item.id === input.trackId);
+  if (!source?.audioUrl) throw new Error("No audio file on this song");
+  const { isMp3Name } = await import("@/lib/audio-transcode.server");
+  if (isMp3Name(source.audioUrl)) throw new Error("That file is already an mp3");
+  const { presignR2Put, r2Configured, sanitizeUploadName } = await import("@/lib/r2.server");
+  if (!r2Configured()) throw new Error("R2 keys are not set");
+  const from = normalizeR2Key(r2KeyFromAudioUrl(source.audioUrl) || "");
+  const slash = from.lastIndexOf("/");
+  const folder = slash >= 0 ? from.slice(0, slash) : `radio/${input.channelSlug}`;
+  const base = (slash >= 0 ? from.slice(slash + 1) : sanitizeUploadName(source.title)).replace(/\.[a-z0-9]{2,5}$/i, "") || "track";
+  const key = `${folder}/${base}.mp3`;
+  const signed = await presignR2Put(key, "audio/mpeg", 3600);
+  return { putUrl: signed.putUrl, url: signed.url, key: signed.key };
+}
+
+/** Point every copy of this title at the mp3 the browser just uploaded. The wav stays. */
+export async function commitSongMp3(
+  user: RadioUser,
+  input: { channelSlug: string; trackId: string; url: string; key: string; durationSec?: number },
+): Promise<{ url: string; updated: number }> {
+  const catalog = await liveCatalog();
+  const channel = catalog.channels.find((item) => item.slug === input.channelSlug);
+  const source = channel?.tracks.find((item) => item.id === input.trackId);
+  if (!source) throw new Error("That song is not in the catalog");
+  const { sameSongTitle } = await import("@/lib/rose-rite");
+  const durationSec = input.durationSec && input.durationSec > 1 ? Math.round(input.durationSec) : undefined;
+  let updated = 0;
+  for (const desk of catalog.channels) {
+    for (const item of desk.tracks) {
+      if (item.enabled === false) continue;
+      if (!sameSongTitle(item.title, source.title)) continue;
+      await upsertEdit(user, {
+        channelSlug: desk.slug,
+        trackId: item.id,
+        audioUrl: input.url,
+        r2Key: input.key,
+        ...(durationSec ? { durationSec } : {}),
+      });
+      updated += 1;
+    }
+  }
+  if (updated === 0) {
+    await upsertEdit(user, {
+      channelSlug: input.channelSlug,
+      trackId: input.trackId,
+      audioUrl: input.url,
+      r2Key: input.key,
+      ...(durationSec ? { durationSec } : {}),
+    });
+    updated = 1;
+  }
+  return { url: input.url, updated };
+}
+
 function foldTitle(value: string): string {
   return value
     .toLowerCase()

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { DialSearch } from "@/components/dial-search";
-import { LibraryShelf, SongRename, useLibrary } from "@/components/song-desk";
+import { LibraryShelf, SongRename, TitleUse, useLibrary } from "@/components/song-desk";
 import { listPublicSongs } from "@/lib/catalog";
 import { collapseByCanonical, listCutCopies } from "@/lib/cuts";
 import { formatClock } from "@/lib/cn";
@@ -55,6 +55,7 @@ function PlayerIndex() {
                   {isAdmin && mapped ? (
                     <div className="flex basis-full flex-wrap items-center gap-x-3 gap-y-1">
                       <span className="text-sm text-muted">{mapped.playlists.map((item) => item.name).join(" · ")}</span>
+                      <TitleUse title={track.title} copies={mapped.copies} />
                       <SongRename row={mapped} />
                     </div>
                   ) : null}

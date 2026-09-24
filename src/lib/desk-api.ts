@@ -310,6 +310,33 @@ export const shareSongAudio = createServerFn({ method: "POST" })
     return { ...shared, ...(await snapshot()) };
   });
 
+export const stageSongMp3 = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) => z.object({ channelSlug: z.string().min(1), trackId: z.string().min(1) }).parse(input))
+  .handler(async ({ data }) => {
+    const { stageSongMp3: stage } = await import("@/lib/catalog-edits.server");
+    return stage(data);
+  });
+
+export const commitSongMp3 = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z
+      .object({
+        channelSlug: z.string().min(1),
+        trackId: z.string().min(1),
+        url: z.string().url(),
+        key: z.string().min(1),
+        durationSec: z.number().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { commitSongMp3: commit } = await import("@/lib/catalog-edits.server");
+    const result = await commit(context.user, data);
+    return { ...result, ...(await snapshot()) };
+  });
+
 const songMembers = z.object({ channelSlug: z.string().min(1), trackId: z.string().min(1) });
 
 export const renameSongCopies = createServerFn({ method: "POST" })

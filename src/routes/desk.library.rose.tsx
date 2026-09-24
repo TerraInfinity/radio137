@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { convertRoseWav, hideStationTrack, listRoseLibrary, reprobeRoseTrack } from "@/lib/desk-api";
+import { convertWavOnThisDevice } from "@/lib/convert-wav";
+import { hideStationTrack, listRoseLibrary, reprobeRoseTrack } from "@/lib/desk-api";
 import { formatClock } from "@/lib/cn";
 import { useRadioUser } from "@/lib/radio-user";
 
@@ -41,7 +42,19 @@ function RoseLibraryPage() {
     setBusy(row.id);
     setError("");
     try {
-      await convertRoseWav({ data: { trackId: row.id } });
+      const result = await convertWavOnThisDevice({
+        channelSlug: "rose",
+        trackId: row.id,
+        audioUrl: row.audioUrl,
+        onProgress: setError,
+      });
+      if (result.tracks) {
+        const { applyCatalogEdits } = await import("@/lib/catalog-edits");
+        const { getSeedCatalog } = await import("@/lib/catalog");
+        const { usePlayerStore } = await import("@/lib/player-store");
+        usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), result.tracks, result.stations));
+      }
+      setError("");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not convert");
@@ -121,7 +134,7 @@ function RoseLibraryPage() {
                 onClick={() => void convert(row)}
                 className="mt-1 inline-flex h-10 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold disabled:opacity-40"
               >
-                {busy === row.id ? "Converting…" : "Convert WAV → MP3"}
+                {busy === row.id ? "Encoding…" : "Convert WAV → MP3"}
               </button>
             ) : null}
             <button
