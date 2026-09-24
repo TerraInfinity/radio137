@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { libraryKeyFor, mapLibrary } from "./library-map.ts";
+import { consolidationPlans, libraryKeyFor, mapLibrary } from "./library-map.ts";
 
 function copy(title: string, slug: string, url: string) {
   const filename = url.split("/").pop() || url;
@@ -27,4 +27,15 @@ test("one song maps every playlist and proposes a library file", () => {
 test("a song already in the library folder is shelved", () => {
   const rows = mapLibrary([copy("Rose", "rose", "radio/library/Rose.mp3")] as never);
   assert.equal(rows[0]?.shelved, true);
+});
+
+test("the keeper is the mp3, and a wav is left behind", () => {
+  const rows = mapLibrary([
+    copy("Soft Shell", "glaum", "radio/glaum/Soft Shell.wav"),
+    copy("Soft Shell", "rose", "radio/rose/Soft Shell.mp3"),
+  ] as never);
+  const plan = consolidationPlans(rows)[0];
+  assert.equal(plan?.keep.filename, "Soft Shell.mp3");
+  assert.equal(plan?.left.length, 1);
+  assert.match(plan?.because ?? "", /mp3/);
 });

@@ -89,3 +89,53 @@ export function libraryByTrack(rows: LibraryRow[]): Map<string, LibraryRow> {
   for (const row of rows) for (const copy of row.copies) map.set(copy.trackId, row);
   return map;
 }
+
+function keeperScore(copy: LibraryCopy): number {
+  const file = copy.filename.toLowerCase();
+  const folder = copy.folder.toLowerCase();
+  let score = 0;
+  if (folder === LIBRARY_ROOT || folder.startsWith(`${LIBRARY_ROOT}/`)) score += 100;
+  if (file.endsWith(".mp3")) score += 40;
+  else if (file.endsWith(".wav")) score -= 30;
+  if (folder.includes("official")) score += 8;
+  if (folder.startsWith("radio/rose")) score += 4;
+  score -= Math.min(folder.length, 80) / 100;
+  return score;
+}
+
+export function pickKeeper(copies: LibraryCopy[]): LibraryCopy {
+  return [...copies].sort((a, b) => keeperScore(b) - keeperScore(a) || a.filename.localeCompare(b.filename))[0] ?? copies[0];
+}
+
+export function keeperReason(copy: LibraryCopy): string {
+  const file = copy.filename.toLowerCase();
+  const folder = copy.folder.toLowerCase();
+  const parts: string[] = [];
+  if (folder === LIBRARY_ROOT || folder.startsWith(`${LIBRARY_ROOT}/`)) parts.push("already in the library");
+  if (file.endsWith(".mp3")) parts.push("mp3");
+  else if (file.endsWith(".wav")) parts.push("wav, no mp3 to prefer");
+  if (folder.includes("official")) parts.push("official station copy");
+  else if (folder.startsWith("radio/rose")) parts.push("Rose copy");
+  return parts.join(" · ") || "first copy";
+}
+
+export type LibraryPlan = {
+  row: LibraryRow;
+  keep: LibraryCopy;
+  because: string;
+  left: LibraryCopy[];
+};
+
+/** Songs that still have more than one file. One keeper. The others stay on R2. */
+export function consolidationPlans(rows: LibraryRow[]): LibraryPlan[] {
+  const plans: LibraryPlan[] = [];
+  for (const row of rows) {
+    if (row.files < 2) continue;
+    const keep = pickKeeper(row.copies);
+    const keepUrl = keep.audioUrl.split("?")[0];
+    const left = row.copies.filter((copy) => copy.audioUrl.split("?")[0] !== keepUrl);
+    if (left.length === 0) continue;
+    plans.push({ row, keep, because: keeperReason(keep), left });
+  }
+  return plans;
+}
