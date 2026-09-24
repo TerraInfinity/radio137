@@ -11,10 +11,20 @@ function fold(value: string): string {
     .trim();
 }
 
-/** Drop a leading playlist number. "6 Helicopter … Ad 2" stays distinct from "… Ad 1". */
+/**
+ * Take junk off a title and leave the song.
+ * A leading 03 or 2.5 goes. "3 6 9" stays. Ad 1 stays distinct from Ad 2.
+ */
 export function cleanSongTitle(title: string): string {
-  const stripped = title.replace(/^\d{1,2}[\s._-]+/, "").replace(/\s+/g, " ").trim();
-  return stripped || title.trim();
+  let next = title.replace(/\s+/g, " ").trim();
+  next = next.replace(/^azeirf\s*\(the bambi cloud podcast\)\s*/i, "");
+  next = next.replace(/\(\s*spotisaver\s*\)/gi, "");
+  next = next.replace(/\(\s*draft\s*\)/gi, "");
+  next = next.replace(/\s+[—–-]\s+azeirf\s*$/i, "");
+  next = next.replace(/^\d+\^\d+\s+/, "");
+  if (/^\d{1,2}(?:\.\d+)?\s+\D/.test(next)) next = next.replace(/^\d{1,2}(?:\.\d+)?\s+/, "");
+  next = next.replace(/\s+/g, " ").trim();
+  return next || title.trim();
 }
 
 export function libraryFileName(title: string): string {
@@ -95,6 +105,34 @@ export function libraryByTrack(rows: LibraryRow[]): Map<string, LibraryRow> {
   const map = new Map<string, LibraryRow>();
   for (const row of rows) for (const copy of row.copies) map.set(copy.trackId, row);
   return map;
+}
+
+export type TitleFix = {
+  id: string;
+  from: string;
+  to: string;
+  copies: LibraryCopy[];
+};
+
+/** Copies whose stored title still has a playlist number, the Bambi Cloud prefix, or a trailing Azeirf. */
+export function titleFixes(rows: LibraryRow[]): TitleFix[] {
+  const fixes: TitleFix[] = [];
+  for (const row of rows) {
+    const bags = new Map<string, { from: string; to: string; copies: LibraryCopy[] }>();
+    for (const copy of row.copies) {
+      const from = copy.title.trim();
+      const to = cleanSongTitle(from);
+      if (!to || to === from) continue;
+      const key = `${from}\n${to}`;
+      const bag = bags.get(key);
+      if (bag) bag.copies.push(copy);
+      else bags.set(key, { from, to, copies: [copy] });
+    }
+    for (const bag of bags.values()) {
+      fixes.push({ id: `${row.id}:${bag.from}`, from: bag.from, to: bag.to, copies: bag.copies });
+    }
+  }
+  return fixes.sort((a, b) => a.from.localeCompare(b.from));
 }
 
 function keeperScore(copy: LibraryCopy): number {

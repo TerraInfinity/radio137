@@ -715,6 +715,25 @@ export async function renameSongCopies(
   return { updated };
 }
 
+export async function renameSongTitles(
+  user: RadioUser,
+  items: { channelSlug: string; trackId: string; title: string }[],
+): Promise<{ updated: number }> {
+  const catalog = await liveCatalog();
+  let updated = 0;
+  for (const item of items) {
+    const title = item.title.trim();
+    if (!title) continue;
+    const channel = catalog.channels.find((entry) => entry.slug === item.channelSlug);
+    const track = channel?.tracks.find((entry) => entry.id === item.trackId);
+    if (!track || track.title === title) continue;
+    await upsertEdit(user, { channelSlug: item.channelSlug, trackId: item.trackId, title });
+    updated += 1;
+  }
+  if (updated === 0) throw new Error("None of those titles needed a change");
+  return { updated };
+}
+
 /** Copy one mp3 into radio/library and point every listed playlist row at it. Old files stay. */
 export async function shelveLibraryFile(
   user: RadioUser,

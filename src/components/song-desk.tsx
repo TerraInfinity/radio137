@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { applyCatalogEdits } from "@/lib/catalog-edits";
 import { getSeedCatalog } from "@/lib/catalog";
 import { listCutCopies } from "@/lib/cuts";
-import { renameSongCopies, shelveLibrarySong } from "@/lib/desk-api";
-import { libraryByTrack, mapLibrary, consolidationPlans, cleanSongTitle, libraryKeyFor, type LibraryCopy, type LibraryPlan, type LibraryRow } from "@/lib/library-map";
+import { renameSongCopies, shelveLibrarySong, cleanSongTitles } from "@/lib/desk-api";
+import { libraryByTrack, mapLibrary, consolidationPlans, cleanSongTitle, libraryKeyFor, titleFixes, type LibraryCopy, type LibraryPlan, type LibraryRow } from "@/lib/library-map";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Catalog } from "@/lib/types";
 
@@ -35,6 +35,85 @@ function readSkips(): string[] {
 
 function copyKey(copy: LibraryCopy): string {
   return `${copy.slug}:${copy.trackId}`;
+}
+
+function NameReview({ rows }: { rows: LibraryRow[] }) {
+  const fixes = useMemo(() => titleFixes(rows), [rows]);
+  const [open, setOpen] = useState(false);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [off, setOff] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState(false);
+  if (fixes.length === 0) return null;
+  const chosen = fixes.filter((fix) => !off[fix.id]);
+
+  async function apply() {
+    const items = chosen.flatMap((fix) => {
+      const title = (drafts[fix.id] ?? fix.to).trim();
+      if (!title || title === fix.from) return [];
+      return fix.copies.map((copy) => ({ channelSlug: copy.slug, trackId: copy.trackId, title }));
+    });
+    if (items.length === 0) return;
+    setBusy(true);
+    try {
+      const result = await cleanSongTitles({ data: { items: items.slice(0, 500) } });
+      take(result);
+    } catch (error) {
+      fail(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-4">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg"
+      >
+        {open ? "Close names" : `Review names · ${fixes.length}`}
+      </button>
+      {open ? (
+        <div className="mt-4">
+          <p className="max-w-prose text-sm text-muted">
+            Playlist numbers, “Azeirf (The Bambi Cloud Podcast)”, (SPOTISAVER), (draft), and a trailing — Azeirf. Uncheck anything that should stay. 3 6 9 is not in this list.
+          </p>
+          <ul className="mt-3 max-h-[28rem] space-y-2 overflow-y-auto">
+            {fixes.map((fix) => (
+              <li key={fix.id} className="rounded-lg bg-bg p-2">
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={!off[fix.id]}
+                    onChange={() => setOff((current) => ({ ...current, [fix.id]: !current[fix.id] }))}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-subtle line-through">{fix.from}</span>
+                    <input
+                      className="input mt-1 h-10 w-full"
+                      aria-label={`Name for ${fix.from}`}
+                      value={drafts[fix.id] ?? fix.to}
+                      onChange={(event) => setDrafts((current) => ({ ...current, [fix.id]: event.target.value }))}
+                    />
+                    <span className="mt-1 block text-subtle">{fix.copies.map((copy) => copy.name).join(" · ")}</span>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            disabled={busy || chosen.length === 0}
+            onClick={() => void apply()}
+            className="mt-3 inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg disabled:opacity-40"
+          >
+            {busy ? "Saving…" : `Apply ${chosen.length}`}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function LibraryShelf({ rows }: { rows: LibraryRow[] }) {
@@ -127,6 +206,7 @@ export function LibraryShelf({ rows }: { rows: LibraryRow[] }) {
       <p className="mt-2 max-w-prose text-sm text-muted">
         {rows.length} songs · {shelved} already in radio/library · {dupes.length} still split across folders. Nothing is deleted.
       </p>
+      <NameReview rows={rows} />
       <button
         type="button"
         onClick={() => setReview((value) => !value)}

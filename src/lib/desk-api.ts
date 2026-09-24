@@ -321,6 +321,24 @@ export const renameSongCopies = createServerFn({ method: "POST" })
     return { ...result, ...(await snapshot()) };
   });
 
+export const cleanSongTitles = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) =>
+    z
+      .object({
+        items: z
+          .array(z.object({ channelSlug: z.string().min(1), trackId: z.string().min(1), title: z.string().min(1).max(180) }))
+          .min(1)
+          .max(500),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { renameSongTitles } = await import("@/lib/catalog-edits.server");
+    const result = await renameSongTitles(context.user, data.items);
+    return { ...result, ...(await snapshot()) };
+  });
+
 export const shelveLibrarySong = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
   .validator((input: unknown) =>
