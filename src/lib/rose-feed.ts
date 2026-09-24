@@ -1,4 +1,5 @@
 import type { Catalog, Track } from "./types.ts";
+import { roseRiteIndex } from "./rose-rite.ts";
 
 export const ROSE_FEED_PATH = "/feeds/rose.xml";
 const MEDIA_BASE = "https://r2.terrainfinity.ca";
@@ -128,10 +129,15 @@ export function roseFeedXml(catalog: Catalog, origin: string, facts: Record<stri
   const channel = catalog.channels.find((item) => item.slug === "rose");
   const tracks = selectRoseFeed(roseFeedCandidates(catalog), facts).flatMap((track) => {
     const fact = facts[track.id];
-    const durationSec = fact && fact.durationSec > 1 ? fact.durationSec : track.durationSec;
+    const durationSec = fact && fact.durationSec > 1 ? fact.durationSec : track.durationSec === 60 ? 0 : track.durationSec;
     const bytes = fact?.bytes ?? 0;
     if (!(bytes > 0 && durationSec > 0)) return [];
     return [{ track, fact: { bytes, durationSec } }];
+  });
+  tracks.sort((a, b) => {
+    const left = roseRiteIndex(a.track.title);
+    const right = roseRiteIndex(b.track.title);
+    return (left < 0 ? 999 : left) - (right < 0 ? 999 : right);
   });
   const self = roseFeedUrl(root);
   const page = `${root}/experiences/rose`;

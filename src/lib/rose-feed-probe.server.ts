@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { access, constants } from "node:fs/promises";
+import { mp3DurationSec } from "@/lib/mp3-duration";
 import type { RoseFeedFact } from "@/lib/rose-feed";
 
 const TTL = 30 * 60 * 1000;
@@ -24,7 +25,22 @@ function clockToSeconds(text: string): number {
   return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
 }
 
-async function probeDuration(url: string): Promise<number> {
+async function probeDuration(url: string, bytes: number): Promise<number> {
+  if (url.split("?")[0].toLowerCase().endsWith(".mp3")) {
+    try {
+      const response = await fetch(url, {
+        headers: { Range: "bytes=0-262143" },
+        redirect: "follow",
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (response.ok) {
+        const measured = mp3DurationSec(new Uint8Array(await response.arrayBuffer()), bytes || undefined);
+        if (measured > 1) return measured;
+      }
+    } catch {
+      /* header probe failed */
+    }
+  }
   const bin = await ffmpegBin();
   if (!bin) return 0;
   const stderr = await new Promise<string>((resolve) => {
@@ -51,7 +67,7 @@ async function probeOne(url: string): Promise<RoseFeedFact> {
   }
   let durationSec = 0;
   try {
-    durationSec = await probeDuration(url);
+    durationSec = await probeDuration(url, bytes);
   } catch {
     durationSec = 0;
   }

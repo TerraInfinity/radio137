@@ -781,6 +781,20 @@ export async function convertRoseWavFile(user: RadioUser, trackId: string): Prom
   const base = (slash >= 0 ? from.slice(slash + 1) : sanitizeUploadName(track.title)).replace(/\.[a-z0-9]{2,5}$/i, "") || "track";
   const key = `${folder}/${base}.mp3`;
   const object = await putR2Object(key, mp3, "audio/mpeg");
-  await upsertEdit(user, { channelSlug: "rose", trackId, audioUrl: object.url, r2Key: object.key });
+  const { mp3DurationSec } = await import("@/lib/mp3-duration");
+  const durationSec = Math.round(mp3DurationSec(mp3));
+  await upsertEdit(user, {
+    channelSlug: "rose",
+    trackId,
+    audioUrl: object.url,
+    r2Key: object.key,
+    ...(durationSec > 1 ? { durationSec } : {}),
+  });
   return { key: object.key, url: object.url };
+}
+
+export async function saveRoseDuration(user: RadioUser, trackId: string, durationSec: number): Promise<void> {
+  const whole = Math.round(durationSec);
+  if (!(whole > 1)) throw new Error("That probe did not return a duration");
+  await upsertEdit(user, { channelSlug: "rose", trackId, durationSec: whole });
 }

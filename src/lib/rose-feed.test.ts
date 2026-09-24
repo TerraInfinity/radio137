@@ -50,7 +50,7 @@ test("rose feed is a serial podcast of probed mp3s", () => {
   assert.match(xml, /<guid isPermaLink="false">tag:radio\.terrainfinity\.ca,2026:rose:twist<\/guid>/);
   const swoon = xml.indexOf("Swooning");
   const twist = xml.indexOf("twist me intro");
-  assert.ok(twist > 0 && swoon > twist);
+  assert.ok(swoon > 0 && swoon < twist);
   assert.equal(xml.split("twist me intro").length - 1, 2);
   assert.match(xml, /radio\/rose\/twist%20me\.mp3/);
   assert.ok(xml.includes("Pretty eyes " + "&" + "amp; the box"));

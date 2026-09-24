@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { convertRoseWav, listRoseLibrary } from "@/lib/desk-api";
+import { convertRoseWav, hideStationTrack, listRoseLibrary, reprobeRoseTrack } from "@/lib/desk-api";
 import { formatClock } from "@/lib/cn";
 import { useRadioUser } from "@/lib/radio-user";
 
@@ -13,6 +13,7 @@ type Row = {
   durationSec: number;
   inFeed: boolean;
   group: string;
+  audioUrl: string;
 };
 
 export const Route = createFileRoute("/desk/library/rose")({
@@ -44,6 +45,37 @@ function RoseLibraryPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not convert");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function reprobe(row: Row) {
+    setBusy(row.id);
+    setError("");
+    try {
+      await reprobeRoseTrack({ data: { trackId: row.id } });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not probe");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function hide(row: Row) {
+    if (!window.confirm(`Hide “${row.title}” from Rose? The file stays on R2.`)) return;
+    setBusy(row.id);
+    setError("");
+    try {
+      const result = await hideStationTrack({ data: { channelSlug: "rose", trackId: row.id, audioUrl: row.audioUrl } });
+      const { applyCatalogEdits } = await import("@/lib/catalog-edits");
+      const { getSeedCatalog } = await import("@/lib/catalog");
+      const { usePlayerStore } = await import("@/lib/player-store");
+      usePlayerStore.getState().replaceCatalog(applyCatalogEdits(getSeedCatalog(), result.tracks, result.stations));
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not hide");
     } finally {
       setBusy("");
     }
@@ -82,7 +114,7 @@ function RoseLibraryPage() {
               {row.inFeed ? "in the feed" : "hidden from the feed"}
               {row.group ? ` · duplicate ${row.group}` : ""}
             </p>
-            {row.format === "wav" ? (
+            {row.format === "wav" || row.format === "aiff" || row.format === "aif" ? (
               <button
                 type="button"
                 disabled={busy === row.id}
@@ -90,6 +122,24 @@ function RoseLibraryPage() {
                 className="mt-1 inline-flex h-10 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold disabled:opacity-40"
               >
                 {busy === row.id ? "Converting…" : "Convert WAV → MP3"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={busy === row.id}
+              onClick={() => void reprobe(row)}
+              className="inline-flex h-10 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold disabled:opacity-40"
+            >
+              Re-probe
+            </button>
+            {row.group ? (
+              <button
+                type="button"
+                disabled={busy === row.id}
+                onClick={() => void hide(row)}
+                className="inline-flex h-10 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-subtle disabled:opacity-40"
+              >
+                Hide duplicate
               </button>
             ) : null}
           </li>

@@ -767,6 +767,7 @@ export const listRoseLibrary = createServerFn({ method: "GET" })
         durationSec: facts[track.id]?.durationSec ?? 0,
         inFeed: live.has(track.id),
         group: roseDuplicateLabel(track, tracks, facts),
+        audioUrl: track.audioUrl,
       })),
     };
   });
@@ -778,4 +779,21 @@ export const convertRoseWav = createServerFn({ method: "POST" })
     const { convertRoseWavFile } = await import("@/lib/catalog-edits.server");
     const converted = await convertRoseWavFile(context.user, data.trackId);
     return { ...converted, ...(await snapshot()) };
+  });
+
+export const reprobeRoseTrack = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .validator((input: unknown) => z.object({ trackId: z.string().min(1) }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { applyCatalogEdits } = await import("@/lib/catalog-edits");
+    const { getSeedCatalog } = await import("@/lib/catalog");
+    const { listEdits, listStationEdits, saveRoseDuration } = await import("@/lib/catalog-edits.server");
+    const { loadRoseFeedFacts } = await import("@/lib/rose-feed-probe.server");
+    const catalog = applyCatalogEdits(getSeedCatalog(), await listEdits(), await listStationEdits());
+    const track = catalog.channels.find((item) => item.slug === "rose")?.tracks.find((item) => item.id === data.trackId);
+    if (!track?.audioUrl) throw new Error("That Rose song is not in the catalog");
+    const facts = await loadRoseFeedFacts([track]);
+    const durationSec = facts[track.id]?.durationSec ?? 0;
+    await saveRoseDuration(context.user, data.trackId, durationSec);
+    return { durationSec, ...(await snapshot()) };
   });
