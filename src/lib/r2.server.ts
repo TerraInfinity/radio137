@@ -9,7 +9,10 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 function required(name: string): string {
-  const value = process.env[name]?.trim();
+  let value = process.env[name]?.trim() ?? "";
+  if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
+    value = value.slice(1, -1).trim();
+  }
   if (!value) throw new Error(`${name} is not set`);
   return value;
 }
@@ -44,6 +47,9 @@ function client(): S3Client {
       accessKeyId: required("R2_ACCESS_KEY_ID"),
       secretAccessKey: required("R2_SECRET_ACCESS_KEY"),
     },
+    // SDK 3.1125 signs a CRC32 checksum by default. R2 does not, and the signatures no longer match.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   });
 }
 
@@ -94,7 +100,7 @@ export async function copyR2Key(from: string, to: string): Promise<R2Object> {
   await client().send(
     new CopyObjectCommand({
       Bucket: bucket(),
-      CopySource: `/${bucket()}/${source}`,
+      CopySource: `/${bucket()}/${source.split("/").map(encodeURIComponent).join("/")}`,
       Key: dest,
     }),
   );
