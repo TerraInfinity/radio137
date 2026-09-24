@@ -73,7 +73,7 @@ function DeskPage() {
     }
   }
 
-  if (isPending) {
+  if (isPending && !user) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-8">
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Station desk</p>

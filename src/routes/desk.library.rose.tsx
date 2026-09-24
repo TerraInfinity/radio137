@@ -80,7 +80,7 @@ function RoseLibraryPage() {
     }
   }
 
-  if (isPending) return <p className="px-4 py-10 font-mono text-[11px] uppercase tracking-[0.16em] text-muted">Checking the door.</p>;
+  if (isPending && !user) return <p className="px-4 py-10 font-mono text-[11px] uppercase tracking-[0.16em] text-muted">Checking the door.</p>;
   if (!user || !isAdmin) {
     return (
       <div className="mx-auto max-w-xl px-4 py-10">

@@ -1,5 +1,6 @@
-/** Pages that own the desk: do not restore lastSlug from another station. */
+/** Pages that own the screen. Coming back must not retune the last station over them. */
 export function pageCuesPlayback(pathname: string): boolean {
+  if (pathname === "/desk" || pathname.startsWith("/desk/")) return true;
   if (pathname.startsWith("/channel/")) return true;
   if (experienceSlugFromPath(pathname)) return true;
   if (pathname.startsWith("/player/") && pathname.length > "/player/".length) return true;

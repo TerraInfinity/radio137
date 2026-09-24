@@ -30,6 +30,7 @@ export function useRadioUser() {
     lamps: EnvLamp[];
   } | null>(null);
   const [remotePending, setRemotePending] = useState(true);
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -62,6 +63,10 @@ export function useRadioUser() {
     };
   }, [ba.user?.id]);
 
+  useEffect(() => {
+    if (!ba.isPending && !remotePending) setSettled(true);
+  }, [ba.isPending, remotePending]);
+
   const user = useMemo(() => {
     if (remote?.user) return remote.user;
     if (ba.user) return fromAppUser(ba.user);
@@ -73,7 +78,7 @@ export function useRadioUser() {
     isAdmin: Boolean(user?.isAdmin),
     r2Configured: Boolean(remote?.r2Configured),
     lamps: remote?.lamps ?? [],
-    isPending: ba.isPending || remotePending,
+    isPending: settled ? false : ba.isPending || remotePending,
   };
 }
 

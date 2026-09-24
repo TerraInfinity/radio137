@@ -21,6 +21,8 @@ describe("playback page", () => {
   it("still cues station and player pages, not the library", () => {
     assert.equal(pageCuesPlayback("/channel/official-glaum-frequency"), true);
     assert.equal(pageCuesPlayback("/library"), false);
+    assert.equal(pageCuesPlayback("/desk"), true);
+    assert.equal(pageCuesPlayback("/desk/library/rose"), true);
     assert.equal(pageCuesPlayback("/"), false);
   });
 });
