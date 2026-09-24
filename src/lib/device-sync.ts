@@ -6,6 +6,19 @@ const PREFIX = "sync.v1.";
 
 export const ROSE_APPLE_SHOW = "https://podcasts.apple.com/us/podcast/rose/id6815476712";
 
+/** Catalog page, and the iOS scheme that opens Podcasts instead of Safari. */
+export function appleShowLinks(catalogUrl: string): { page: string; app: string } | null {
+  try {
+    const url = new URL(catalogUrl.trim());
+    if (url.protocol !== "https:" || !url.hostname.endsWith("podcasts.apple.com")) return null;
+    const id = url.pathname.match(/id(\d+)/)?.[1];
+    if (!id) return null;
+    return { page: url.toString(), app: `podcasts://podcasts.apple.com/podcast/id${id}` };
+  } catch {
+    return null;
+  }
+}
+
 export type DeviceSyncOffer = {
   enabled: boolean;
   appleUrl: string;

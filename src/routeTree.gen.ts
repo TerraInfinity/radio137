@@ -36,6 +36,7 @@ import { Route as ApiSsoLogoutRouteImport } from './routes/api/sso/logout'
 import { Route as ApiSsoMeRouteImport } from './routes/api/sso/me'
 import { Route as DeskLibraryRoseRouteImport } from './routes/desk.library.rose'
 import { Route as SyncSlugAddRouteImport } from './routes/sync/$slug.add'
+import { Route as SyncSlugPlayDotshortcutRouteImport } from './routes/sync/$slug.play[.]shortcut'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -172,6 +173,11 @@ const SyncSlugAddRoute = SyncSlugAddRouteImport.update({
   path: '/add',
   getParentRoute: () => SyncSlugRoute,
 } as any)
+const SyncSlugPlayDotshortcutRoute = SyncSlugPlayDotshortcutRouteImport.update({
+  id: '/play.shortcut',
+  path: '/play.shortcut',
+  getParentRoute: () => SyncSlugRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -201,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/api/sso/me': typeof ApiSsoMeRoute
   '/desk/library/rose': typeof DeskLibraryRoseRoute
   '/sync/$slug/add': typeof SyncSlugAddRoute
+  '/sync/$slug/play.shortcut': typeof SyncSlugPlayDotshortcutRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -229,6 +236,7 @@ export interface FileRoutesByTo {
   '/api/sso/me': typeof ApiSsoMeRoute
   '/desk/library/rose': typeof DeskLibraryRoseRoute
   '/sync/$slug/add': typeof SyncSlugAddRoute
+  '/sync/$slug/play.shortcut': typeof SyncSlugPlayDotshortcutRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -259,6 +267,7 @@ export interface FileRoutesById {
   '/api/sso/me': typeof ApiSsoMeRoute
   '/desk/library/rose': typeof DeskLibraryRoseRoute
   '/sync/$slug/add': typeof SyncSlugAddRoute
+  '/sync/$slug/play.shortcut': typeof SyncSlugPlayDotshortcutRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -290,6 +299,7 @@ export interface FileRouteTypes {
     | '/api/sso/me'
     | '/desk/library/rose'
     | '/sync/$slug/add'
+    | '/sync/$slug/play.shortcut'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -318,6 +328,7 @@ export interface FileRouteTypes {
     | '/api/sso/me'
     | '/desk/library/rose'
     | '/sync/$slug/add'
+    | '/sync/$slug/play.shortcut'
   id:
     | '__root__'
     | '/'
@@ -347,6 +358,7 @@ export interface FileRouteTypes {
     | '/api/sso/me'
     | '/desk/library/rose'
     | '/sync/$slug/add'
+    | '/sync/$slug/play.shortcut'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -566,6 +578,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SyncSlugAddRouteImport
       parentRoute: typeof SyncSlugRoute
     }
+    '/sync/$slug/play.shortcut': {
+      id: '/sync/$slug/play.shortcut'
+      path: '/play.shortcut'
+      fullPath: '/sync/$slug/play.shortcut'
+      preLoaderRoute: typeof SyncSlugPlayDotshortcutRouteImport
+      parentRoute: typeof SyncSlugRoute
+    }
   }
 }
 
@@ -595,10 +614,12 @@ const ExperiencesRouteWithChildren = ExperiencesRoute._addFileChildren(
 
 interface SyncSlugRouteChildren {
   SyncSlugAddRoute: typeof SyncSlugAddRoute
+  SyncSlugPlayDotshortcutRoute: typeof SyncSlugPlayDotshortcutRoute
 }
 
 const SyncSlugRouteChildren: SyncSlugRouteChildren = {
   SyncSlugAddRoute: SyncSlugAddRoute,
+  SyncSlugPlayDotshortcutRoute: SyncSlugPlayDotshortcutRoute,
 }
 
 const SyncSlugRouteWithChildren = SyncSlugRoute._addFileChildren(

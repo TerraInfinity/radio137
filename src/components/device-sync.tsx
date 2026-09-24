@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AudioGrabs } from "@/components/audio-grabs";
 import { renderSVG } from "uqr";
 import { getPlayableTracks, publicChannels } from "@/lib/catalog";
-import { feedFor, listenFor, offerFor, siriFor } from "@/lib/device-sync";
-import { applePodcastUrl } from "@/lib/rose-feed";
-import { detectSyncPath, shortcutsCreateUrl, shortcutsRunUrl, syncAddUrl, type SyncPath, type SyncTab } from "@/lib/sync-path";
+import { appleShowLinks, feedFor, listenFor, offerFor, ROSE_APPLE_SHOW, siriFor } from "@/lib/device-sync";
+import { shortcutImportUrl } from "@/lib/shortcut-file";
+import { detectSyncPath, shortcutsCreateUrl, shortcutsRunUrl, type SyncPath, type SyncTab } from "@/lib/sync-path";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
 import { zipStore } from "@/lib/zip-store";
@@ -105,7 +105,10 @@ export function DeviceSync({
     url: track.audioUrl,
     fileName: fileName(track.title, index + 1, track.audioUrl),
   }));
-  const podcastQr = hasFeed ? syncAddUrl(origin, slug) : "";
+  const catalogUrl = offer.appleUrl || (slug === "rose" ? ROSE_APPLE_SHOW : "");
+  const show = appleShowLinks(catalogUrl);
+  const subscribeHref = (iphone ? show?.app : show?.page) || "";
+  const podcastQr = show?.page || "";
   const runSiri = shortcutsRunUrl(say);
   const makeSiri = shortcutsCreateUrl();
 
@@ -187,8 +190,8 @@ export function DeviceSync({
           <a href={listen} className="inline-flex h-12 items-center justify-center rounded-md border border-line px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
             Play now
           </a>
-          {hasFeed ? (
-            <a href={applePodcastUrl(feed)} className="inline-flex h-12 items-center justify-center rounded-md bg-fg px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
+          {subscribeHref ? (
+            <a href={subscribeHref} className="inline-flex h-12 items-center justify-center rounded-md bg-fg px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
               Add to Podcasts
             </a>
           ) : (
@@ -210,7 +213,7 @@ export function DeviceSync({
         {iphone || !podcastQr ? null : (
           <div className="mt-8 hidden w-40 sm:block">
             <Qr value={podcastQr} />
-            <p className="mt-2 text-sm text-muted">Scan with the iPhone. It opens Add to Podcasts, not this page.</p>
+            <p className="mt-2 text-sm text-muted">Scan with the iPhone. Podcasts opens the show. It does not download a file.</p>
           </div>
         )}
       </section>
@@ -265,14 +268,20 @@ export function DeviceSync({
             <>
               <p className="text-sm text-muted">The iPhone and the Watch use the same words. Siri plays the podcast. It does not need a Shortcut unless it opens the wrong app.</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {hasFeed ? (
-                  <a href={applePodcastUrl(feed)} className="inline-flex h-12 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
+                {subscribeHref ? (
+                  <a href={subscribeHref} className="inline-flex h-12 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
                     Add to Podcasts
                   </a>
                 ) : null}
-                <a href={makeSiri} className="inline-flex h-12 items-center rounded-md border border-line px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-                  Open Shortcuts
-                </a>
+                {show ? (
+                  <a href={shortcutImportUrl(`${origin}/sync/${encodeURIComponent(slug)}/play.shortcut`, say)} className="inline-flex h-12 items-center rounded-md border border-line px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+                    Add {say}
+                  </a>
+                ) : (
+                  <a href={makeSiri} className="inline-flex h-12 items-center rounded-md border border-line px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+                    Open Shortcuts
+                  </a>
+                )}
                 <a href={runSiri} className="inline-flex h-12 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
                   Run {say}
                 </a>
@@ -299,7 +308,7 @@ export function DeviceSync({
                   <li>Name the Shortcut exactly {say}.</li>
                   <li>Watch app → Shortcuts → show {say} on the Watch.</li>
                 </ol>
-                <p className="mt-3 text-sm text-muted">A website cannot write the Shortcut for you. Those buttons open the app. You confirm the last tap.</p>
+                <p className="mt-3 text-sm text-muted">Add {say} opens Shortcuts and asks you to tap Add. iOS will not create it with no confirmation. If it refuses, Shortcuts → Settings → Advanced → Allow Untrusted Shortcuts, then tap again.</p>
               </SiriBlock>
             </>
           ) : appleTab === "offline" && selected === "apple" ? (
@@ -354,14 +363,18 @@ export function DeviceSync({
 
       {appleTab === "offline" && selected === "android" ? (
         <section className="mt-8">
-          <button
-            type="button"
-            disabled={!hasFeed}
-            onClick={() => void copyFeed()}
-            className="inline-flex h-12 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg disabled:opacity-40"
-          >
-            Copy RSS feed
-          </button>
+          <details className="mt-6">
+            <summary className="cursor-pointer font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">Copy RSS</summary>
+            <p className="mt-2 text-sm text-muted">For an app that asks for a feed. Apple Podcasts does not use this.</p>
+            <button
+              type="button"
+              disabled={!hasFeed}
+              onClick={() => void copyFeed()}
+              className="mt-3 inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold disabled:opacity-40"
+            >
+              Copy
+            </button>
+          </details>
           {hasFeed ? (
             <a
               href={`pktc://subscribe/${encodeURIComponent(feed)}`}
@@ -390,9 +403,13 @@ export function DeviceSync({
 
       {appleTab === "offline" && selected === "computer" ? (
         <section className="mt-8">
-          <button type="button" onClick={() => void copyFeed()} className="inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
-            Copy feed URL
-          </button>
+          <details className="mt-4">
+            <summary className="cursor-pointer font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">Copy RSS</summary>
+            <p className="mt-2 text-sm text-muted">For an app that asks for a feed. Apple Podcasts does not use this.</p>
+            <button type="button" onClick={() => void copyFeed()} className="mt-3 inline-flex h-11 items-center font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+              Copy
+            </button>
+          </details>
           <div className="mt-6 border-t border-line pt-4">
             <button type="button" onClick={() => setPackOpen((value) => !value)} className="font-mono text-[11px] uppercase tracking-[0.14em] text-subtle" aria-expanded={packOpen}>
               {packOpen ? "Hide pack" : "Pack MP3s"}
