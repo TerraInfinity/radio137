@@ -1,7 +1,12 @@
 export type SyncPath = "apple" | "android" | "computer";
+export type SyncTab = "offline" | "radio";
 
 export function parseSyncPath(value: unknown): SyncPath | undefined {
   return value === "apple" || value === "android" || value === "computer" ? value : undefined;
+}
+
+export function parseSyncTab(value: unknown): SyncTab | undefined {
+  return value === "offline" || value === "radio" ? value : undefined;
 }
 
 export function detectSyncPath(ua: string): SyncPath {
@@ -11,8 +16,12 @@ export function detectSyncPath(ua: string): SyncPath {
 }
 
 /** Page a phone should open. Never the feed. */
-export function syncPageUrl(origin: string, slug: string, path?: SyncPath): string {
+export function syncPageUrl(origin: string, slug: string, path?: SyncPath, tab?: SyncTab): string {
   const root = origin.replace(/\/$/, "") || "https://radio.terrainfinity.ca";
   const page = `${root}/sync/${encodeURIComponent(slug)}`;
-  return path ? `${page}?path=${path}` : page;
+  const params = new URLSearchParams();
+  if (path) params.set("path", path);
+  if (tab === "radio") params.set("tab", "radio");
+  const query = params.toString();
+  return query ? `${page}?${query}` : page;
 }

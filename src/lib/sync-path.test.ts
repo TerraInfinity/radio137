@@ -10,5 +10,9 @@ test("sync path detects the device and never points a QR at the feed", () => {
   assert.equal(parseSyncPath("xml"), undefined);
   assert.equal(syncPageUrl("https://radio.terrainfinity.ca/", "rose"), "https://radio.terrainfinity.ca/sync/rose");
   assert.equal(syncPageUrl("https://radio.terrainfinity.ca", "rose", "apple"), "https://radio.terrainfinity.ca/sync/rose?path=apple");
+  assert.equal(
+    syncPageUrl("https://radio.terrainfinity.ca", "rose", "apple", "radio"),
+    "https://radio.terrainfinity.ca/sync/rose?path=apple&tab=radio",
+  );
   assert.equal(syncPageUrl("https://radio.terrainfinity.ca", "rose", "android").includes("rose.xml"), false);
 });

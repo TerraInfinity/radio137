@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { DeviceSync } from "@/components/device-sync";
-import { parseSyncPath, type SyncPath } from "@/lib/sync-path";
+import { parseSyncPath, parseSyncTab, type SyncPath, type SyncTab } from "@/lib/sync-path";
 
-function syncSearch(search: Record<string, unknown>): { path?: SyncPath } {
+function syncSearch(search: Record<string, unknown>): { path?: SyncPath; tab?: SyncTab } {
   const path = parseSyncPath(search.path);
-  return path ? { path } : {};
+  const tab = parseSyncTab(search.tab);
+  return { ...(path ? { path } : {}), ...(tab ? { tab } : {}) };
 }
 
 export const Route = createFileRoute("/sync/$slug")({
@@ -15,7 +16,15 @@ export const Route = createFileRoute("/sync/$slug")({
 
 function SyncPage() {
   const { slug } = Route.useParams();
-  const { path } = Route.useSearch();
+  const { path, tab } = Route.useSearch();
   const navigate = Route.useNavigate();
-  return <DeviceSync slug={slug} path={path} onPath={(next) => void navigate({ search: { path: next }, replace: true })} />;
+  return (
+    <DeviceSync
+      slug={slug}
+      path={path}
+      tab={tab}
+      onPath={(next) => void navigate({ search: (prev) => ({ ...prev, path: next }), replace: true })}
+      onTab={(next) => void navigate({ search: (prev) => ({ ...prev, path: prev.path ?? "apple", tab: next === "radio" ? "radio" : undefined }), replace: true })}
+    />
+  );
 }

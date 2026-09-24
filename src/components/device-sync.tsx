@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { renderSVG } from "uqr";
 import { useRoseFeed } from "@/components/rose-apple";
 import { getPlayableTracks, publicChannels } from "@/lib/catalog";
 import { applePodcastUrl } from "@/lib/rose-feed";
-import { detectSyncPath, syncPageUrl, type SyncPath } from "@/lib/sync-path";
+import { detectSyncPath, syncPageUrl, type SyncPath, type SyncTab } from "@/lib/sync-path";
 import { usePlayerStore } from "@/lib/player-store";
 import { zipStore } from "@/lib/zip-store";
 import { cn } from "@/lib/cn";
@@ -60,7 +60,26 @@ function Qr({ value, big }: { value: string; big?: boolean }) {
   return <div className={big ? "w-56" : "w-36"} dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
-export function DeviceSync({ slug, path, onPath }: { slug: string; path?: SyncPath; onPath: (path: SyncPath) => void }) {
+const SHORTCUTS = "https://apps.apple.com/app/shortcuts/id915249334";
+
+const LIVE_NAMES = [
+  { say: "Play Glaum", slug: "official-glaum-frequency" },
+  { say: "Play Athens", slug: "cyber-athens-frequency" },
+] as const;
+
+export function DeviceSync({
+  slug,
+  path,
+  tab,
+  onPath,
+  onTab,
+}: {
+  slug: string;
+  path?: SyncPath;
+  tab?: SyncTab;
+  onPath: (path: SyncPath) => void;
+  onTab: (tab: SyncTab) => void;
+}) {
   const catalog = usePlayerStore((s) => s.catalog);
   const channels = catalog.channels.length ? catalog.channels : publicChannels();
   const origin = useOrigin();
@@ -70,6 +89,7 @@ export function DeviceSync({ slug, path, onPath }: { slug: string; path?: SyncPa
   const title = slug === "rose" ? "Rose" : channel?.name || slug;
   const detected = useMemo(() => detectSyncPath(typeof navigator === "undefined" ? "" : navigator.userAgent), []);
   const selected = path ?? detected;
+  const appleTab = tab === "radio" ? "radio" : "offline";
   const [note, setNote] = useState("");
   const [qrLock, setQrLock] = useState<SyncPath | undefined>(undefined);
   const [packOpen, setPackOpen] = useState(false);
@@ -79,7 +99,7 @@ export function DeviceSync({ slug, path, onPath }: { slug: string; path?: SyncPa
   const page = syncPageUrl(origin, slug);
   const qr =
     selected === "apple"
-      ? syncPageUrl(origin, slug, "apple")
+      ? syncPageUrl(origin, slug, "apple", appleTab)
       : selected === "android"
         ? syncPageUrl(origin, slug, "android")
         : syncPageUrl(origin, slug, qrLock);
@@ -155,38 +175,106 @@ export function DeviceSync({ slug, path, onPath }: { slug: string; path?: SyncPa
 
       {selected === "apple" ? (
         <section className="mt-8">
-          <a
-            href={ready ? applePodcastUrl(feed) : undefined}
-            className={cn(
-              "inline-flex h-12 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg",
-              !ready && "pointer-events-none opacity-40",
-            )}
-            onClick={(event) => {
-              if (!ready) {
-                event.preventDefault();
-                return;
-              }
-              const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
-              if (ios) return;
-              event.preventDefault();
-              void navigator.clipboard?.writeText(feed).catch(() => undefined);
-              setNote("Podcasts → Library → + → Add a Show by URL → paste the https feed.");
-            }}
-          >
-            Add {title} to Podcasts
-          </a>
-          <p className="mt-3 text-sm text-muted">Podcasts → Library → + → Add a Show by URL → paste the https feed.</p>
-          <p className="mt-2 text-sm text-muted">Podcasts keeps the playlist. The Watch copies from the phone.</p>
-          <Steps
-            ticks={appleTicks.ticks}
-            onToggle={appleTicks.save}
-            onReset={appleTicks.reset}
-            items={[
-              ["subscribe", "Subscribe"],
-              ["settings", "Show settings: Auto-download On, Keep all episodes, Remove played downloads Off"],
-              ["watch", `Watch app → My Watch → Podcasts → add ${title} → charge on Wi‑Fi. “Hey Siri, play ${title}.”`],
-            ]}
-          />
+          <div className="flex gap-2" role="tablist" aria-label="Siri on Watch">
+            {(
+              [
+                ["offline", "Offline"],
+                ["radio", "Radio"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={appleTab === id}
+                onClick={() => onTab(id)}
+                className={cn(
+                  "inline-flex h-10 items-center rounded-full px-3 font-mono text-[11px] uppercase tracking-[0.14em]",
+                  appleTab === id ? "text-gold" : "text-subtle",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {appleTab === "offline" ? (
+            <>
+              <a
+                href={ready ? applePodcastUrl(feed) : undefined}
+                className={cn(
+                  "mt-4 inline-flex h-12 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg",
+                  !ready && "pointer-events-none opacity-40",
+                )}
+                onClick={(event) => {
+                  if (!ready) {
+                    event.preventDefault();
+                    return;
+                  }
+                  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+                  if (ios) return;
+                  event.preventDefault();
+                  void navigator.clipboard?.writeText(feed).catch(() => undefined);
+                  setNote("Podcasts → Library → + → Add a Show by URL → paste the https feed.");
+                }}
+              >
+                Add {title} to Podcasts
+              </a>
+              <p className="mt-3 text-sm text-muted">Podcasts → Library → + → Add a Show by URL → paste the https feed.</p>
+              <p className="mt-2 text-sm text-muted">Podcasts keeps the playlist. The Watch copies from the phone.</p>
+              <Steps
+                ticks={appleTicks.ticks}
+                onToggle={appleTicks.save}
+                onReset={appleTicks.reset}
+                items={[
+                  ["subscribe", "Subscribe"],
+                  ["settings", "Show settings: Auto-download On, Keep all episodes, Remove played downloads Off"],
+                  ["watch", `Watch app → My Watch → Podcasts → add ${title} → charge on Wi‑Fi.`],
+                ]}
+              />
+              <SiriBlock>
+                <ol className="mt-3 grid gap-2 text-sm text-muted">
+                  <li>After the show is in Podcasts, try “Hey Siri, play Rose” on the Watch. No Shortcut yet.</li>
+                  <li>If Siri misses: iPhone Shortcuts → Play Podcast → show Rose → name the Shortcut Play Rose → Watch app → Shortcuts → add it.</li>
+                </ol>
+                <p className="mt-3 text-sm text-muted">Do not use Play Music. Test with “Hey Siri, Play Rose.”</p>
+              </SiriBlock>
+            </>
+          ) : (
+            <>
+              <SiriBlock>
+                <p className="mt-3 text-sm text-muted">Live needs a Shortcut. Siri will not learn a stream by itself.</p>
+                <ol className="mt-3 grid gap-2 text-sm text-muted">
+                  <li>iPhone Shortcuts → Open URLs → paste the Listen-now address → name it Play and a short word → Watch app → Shortcuts → add it.</li>
+                </ol>
+                <p className="mt-3 text-sm text-muted">One Shortcut per station. Do not reuse Play Rose. That name is the podcast.</p>
+                <p className="mt-2 text-sm text-muted">This opens the site player. It is not Apple Music Radio. The Watch cannot add a radio URL. Safari on the phone starts it. Audio can go to Watch Bluetooth, or the phone can stay the player.</p>
+              </SiriBlock>
+              <ul className="mt-4 grid gap-2">
+                <li className="rounded-xl bg-bg-elevated px-4 py-3 text-sm">
+                  <p className="font-display text-lg">Play Rose</p>
+                  <p className="text-muted">Podcasts only. Do not point this name at a stream.</p>
+                </li>
+                {LIVE_NAMES.map((item) => {
+                  const listen = `${origin}/channel/${item.slug}`;
+                  return (
+                    <li key={item.say} className="rounded-xl bg-bg-elevated px-4 py-3 text-sm">
+                      <p className="font-display text-lg">{item.say}</p>
+                      <p className="mt-1 break-all font-mono text-[10px] uppercase tracking-[0.08em] text-subtle">{listen.replace(/^https:\/\//, "")}</p>
+                      <button
+                        type="button"
+                        onClick={() => void navigator.clipboard?.writeText(listen).then(() => setNote(`${item.say} address copied. Paste it into Open URLs.`)).catch(() => setNote(listen))}
+                        className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
+                      >
+                        Copy Listen-now
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+
           <div className="mt-6">
             <Qr value={qr} />
             <p className="mt-2 text-sm text-subtle">Scan opens this page on iPhone. It does not save a file.</p>
@@ -287,6 +375,19 @@ export function DeviceSync({ slug, path, onPath }: { slug: string; path?: SyncPa
       ) : null}
 
       {note ? <p className="mt-4 text-sm text-muted">{note}</p> : null}
+    </div>
+  );
+}
+
+function SiriBlock({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-8 rounded-2xl bg-bg-elevated p-4">
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold">Siri on Watch</p>
+      <p className="mt-2 text-sm text-muted">Make the Shortcut on the iPhone. An iPhone 12 or Air is the same. The Watch only runs the name.</p>
+      {children}
+      <a href={SHORTCUTS} className="mt-4 inline-flex font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+        Shortcuts app
+      </a>
     </div>
   );
 }
