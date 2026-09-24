@@ -24,7 +24,7 @@ function SyncPage() {
       path={path}
       tab={tab}
       onPath={(next) => void navigate({ search: (prev) => ({ ...prev, path: next }), replace: true })}
-      onTab={(next) => void navigate({ search: (prev) => ({ ...prev, path: prev.path ?? "apple", tab: next === "radio" ? "radio" : undefined }), replace: true })}
+      onTab={(next) => void navigate({ search: (prev) => ({ ...prev, path: prev.path ?? "apple", tab: next === "offline" ? undefined : next }), replace: true })}
     />
   );
 }
