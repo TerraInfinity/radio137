@@ -4,8 +4,10 @@ import {
   consumeHandoffHref,
   consumeReturnTo,
   hubStartUrl,
+  isEphemeralDeployHost,
   isRelativeNext,
   normalizeHubOrigin,
+  pickPublicHostHeader,
   publicOriginFromHost,
   safeNext,
   ssoCookieDomain,
@@ -30,6 +32,21 @@ describe("sso helpers", () => {
     assert.equal(publicOriginFromHost("radio.terrainfinity.ca", "https"), "https://radio.terrainfinity.ca");
     assert.equal(publicOriginFromHost("radio.cyber-athens.ca", "http"), "https://radio.cyber-athens.ca");
     assert.equal(publicOriginFromHost("localhost:8080", "http"), "http://localhost:8080");
+    assert.equal(publicOriginFromHost("radio137.grok.me", "https"), "https://radio137.grok.me");
+    assert.equal(
+      publicOriginFromHost("01a04c14-6383-7a73-8107-e7d42bfd5768-ctrb4u4kd-xai-org.vercel.app", "https"),
+      "https://radio137.grok.me",
+    );
+    assert.equal(
+      publicOriginFromHost("01a04c14-6383-7a73-8107-e7d42bfd5768-ctrb4u4kd-xai-org.vercel.app", "https", "https://radio.cyber-athens.ca"),
+      "https://radio.cyber-athens.ca",
+    );
+    assert.equal(isEphemeralDeployHost("radio137.vercel.app"), false);
+    assert.equal(isEphemeralDeployHost("foo-xai-org.vercel.app"), true);
+    assert.equal(
+      pickPublicHostHeader(["foo-xai-org.vercel.app", "radio137.grok.me"]),
+      "radio137.grok.me",
+    );
   });
 
   it("applies the shared cookie only on terrainfinity hosts", () => {
