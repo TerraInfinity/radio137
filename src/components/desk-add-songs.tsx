@@ -281,7 +281,13 @@ export function AddSongsPanel({
         r2Cache.clear();
         const extraName = alsoSlug ? others.find((item) => item.slug === alsoSlug)?.name : "";
         setUploads((current) => current.map((item, index) => (index === i ? { ...item, state: "ok", ratio: 1 } : item)));
-        setHint(extraName ? `On ${channel.name} and ${extraName}. Same list for the station and its experience.` : `On ${channel.name}. The experience uses this same list.`);
+        setHint(
+          channel.slug === "rose"
+            ? `On ${channel.name}, after the rite.${extraName ? ` Also on ${extraName}.` : ""}`
+            : extraName
+              ? `On ${channel.name} and ${extraName}. The experience uses this same list.`
+              : `On ${channel.name}. The experience uses this same list.`,
+        );
       } catch (error) {
         failed = true;
         const detail = error instanceof Error ? error.message : "Upload failed";

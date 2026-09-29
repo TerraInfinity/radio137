@@ -116,8 +116,8 @@ export function sortRoseRite<T extends Named>(tracks: T[]): T[] {
 }
 
 /**
- * Playlist order. Rose is only the rite list — a desk Arrange lock can
- * reorder those songs, but Time War, The Basilisk, and anything else are dropped.
+ * Playlist order. Rose keeps the rite first. A song added from the desk
+ * stays after it. Seed extras such as Time War stay off this station.
  * Other fixed stations keep the order they were saved in.
  */
 export function orderStationTracks<T extends Named>(
@@ -129,7 +129,10 @@ export function orderStationTracks<T extends Named>(
   const hasOrder = orderById ? [...orderById.values()].some((n) => n != null) : false;
   if (slug === "rose") {
     const rite = tracks.filter((track) => roseRiteIndex(track.title) >= 0);
-    return hasOrder ? sortPlaylistTracks(rite, orderById) : sortRoseRite(rite);
+    const added = tracks.filter((track) => roseRiteIndex(track.title) < 0 && track.id.startsWith("desk-"));
+    const orderedRite = hasOrder ? sortPlaylistTracks(rite, orderById) : sortRoseRite(rite);
+    const orderedAdded = hasOrder ? sortPlaylistTracks(added, orderById) : added;
+    return [...orderedRite, ...orderedAdded];
   }
   if (hasOrder) return sortPlaylistTracks(tracks, orderById);
   if (kind === "fixed") return [...tracks];

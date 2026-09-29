@@ -520,6 +520,9 @@ function Playlist({ channel, others, r2Configured }: { channel: Channel; others:
             {hidden.length ? ` · ${hidden.length} removed` : ""}
             {busy ? " · Saving…" : ""}
           </p>
+          {channel.slug === "rose" ? (
+            <p className="mt-1 max-w-prose text-sm text-muted">The rite stays first. A song you add sits after it. Older extras that were never part of the rite stay off this list.</p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <button

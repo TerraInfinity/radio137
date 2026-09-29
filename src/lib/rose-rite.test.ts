@@ -43,6 +43,14 @@ describe("rose rite order", () => {
       ["swoon", "twist", "elf"],
     );
     assert.deepEqual(
+      orderStationTracks("rose", "fixed", [
+        ...tracks,
+        row("desk-rose-new", "A brand new cut"),
+        row("war", "Time War 2137"),
+      ]).map((item) => item.id),
+      ["swoon", "twist", "elf", "desk-rose-new"],
+    );
+    assert.deepEqual(
       orderStationTracks(
         "rose",
         "fixed",

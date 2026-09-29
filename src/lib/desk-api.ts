@@ -527,21 +527,36 @@ export const importR2Tracks = createServerFn({ method: "POST" })
     const { getSeedCatalog } = await import("@/lib/catalog");
     const { applyCatalogEdits } = await import("@/lib/catalog-edits");
     const { listEdits, listStationEdits } = await import("@/lib/catalog-edits.server");
-    const { titleFromR2Key } = await import("@/lib/file-path");
+    const { titleFromR2Key, normalizeR2Key } = await import("@/lib/file-path");
+    const { copyR2Key, defaultPrefixForSlug, sanitizeUploadName } = await import("@/lib/r2.server");
     const catalog = applyCatalogEdits(getSeedCatalog(), await listEdits(), await listStationEdits());
     let added = 0;
     let skipped = 0;
     for (const slug of data.channelSlugs) {
       const dest = catalog.channels.find((channel) => channel.slug === slug);
       if (!dest) throw new Error(`Station not found: ${slug}`);
+      const prefix = defaultPrefixForSlug(slug);
       for (const item of data.items) {
+        let key = item.key;
+        let url = item.url;
+        const normalized = normalizeR2Key(item.key);
+        if (normalized && !normalized.startsWith(prefix)) {
+          try {
+            const name = sanitizeUploadName(normalized.split("/").pop() || "track.mp3");
+            const object = await copyR2Key(item.key, `${prefix}${name}`);
+            key = object.key;
+            url = object.url;
+          } catch {
+            /* The original file still plays. The station folder copy can be retried. */
+          }
+        }
         try {
           await addTrack(context.user, {
             channelSlug: slug,
-            title: (item.title || titleFromR2Key(item.key)).slice(0, 180),
-            audioUrl: item.url,
+            title: (item.title || titleFromR2Key(key)).slice(0, 180),
+            audioUrl: url,
             coverUrl: dest.cover,
-            r2Key: item.key,
+            r2Key: key,
             durationSec: item.durationSec,
           });
           added += 1;
