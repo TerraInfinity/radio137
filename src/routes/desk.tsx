@@ -105,37 +105,56 @@ function DeskPage() {
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">C · God desk</p>
       <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight">Station desk</h1>
       <p className="mt-3 max-w-prose text-muted">
-        Pick a station, add songs, keep the rest folded. R2 scans in the background so the desk stays light.{" "}
+        Pick a station and drop an mp3. It is stored and added to that playlist. The experience uses the same list.{" "}
         <Link to="/desk/library/rose" className="text-gold">
           Rose library
         </Link>
       </p>
       <DeskOverview channels={channels} reviewOpen={reviewOpen} />
-      <DeskPerformance channels={channels} />
+      <details className="mt-4">
+        <summary className="cursor-pointer font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">Performance notes</summary>
+        <DeskPerformance channels={channels} />
+      </details>
       <div className="mt-6 flex flex-wrap gap-1">
-        {(
-          [
-            ["stations", "Stations"],
-            ["experiences", "Experiences"],
-            ["grok", "Grok"],
-            ["directory", "Directory"],
-            ["review", reviewOpen ? `Review (${reviewOpen})` : "Review"],
-            ["r2", "R2"],
-            ["services", "Services"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => pickTab(id)}
-            className={cn(
-              "inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em]",
-              tab === id ? "bg-fg text-bg" : "text-gold",
-            )}
-          >
-            {label}
-          </button>
-        ))}
+        <button
+          type="button"
+          onClick={() => pickTab("stations")}
+          className={cn(
+            "inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em]",
+            tab === "stations" ? "bg-fg text-bg" : "text-gold",
+          )}
+        >
+          Stations
+        </button>
+        <details className="relative" open={tab !== "stations" ? true : undefined}>
+          <summary className="inline-flex h-11 cursor-pointer list-none items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+            More
+          </summary>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {(
+              [
+                ["experiences", "Experiences"],
+                ["directory", "Directory"],
+                ["review", reviewOpen ? `Review (${reviewOpen})` : "Review"],
+                ["grok", "Grok"],
+                ["r2", "Files"],
+                ["services", "Services"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => pickTab(id)}
+                className={cn(
+                  "inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em]",
+                  tab === id ? "bg-fg text-bg" : "text-gold",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </details>
       </div>
       {tab === "stations" ? <DeskStations channels={channels} r2Configured={r2Configured} /> : null}
       {tab === "experiences" ? <DeskExperiences channels={channels} /> : null}
@@ -182,13 +201,17 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
   const [objects, setObjects] = useState<Array<{ key: string; size: number; url: string }>>([]);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [assign, setAssign] = useState<string[]>(channels[0]?.slug ? [channels[0].slug] : []);
+  const [assign, setAssign] = useState("");
+  const [rowNote, setRowNote] = useState<Record<string, string>>({});
   const [picked, setPicked] = useState<string[]>([]);
   const [onlyNew, setOnlyNew] = useState(true);
   const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState(false);
 
   function refresh(nextPrefix = prefix) {
+    const match = nextPrefix.match(/^radio\/([^/]+)\/?$/);
+    const slug = match ? channels.find((channel) => channel.slug === match[1])?.slug : "";
+    if (slug) setAssign(slug);
     setStatus("loading");
     void listStationR2({ data: { prefix: nextPrefix, maxKeys: 800 } })
       .then((result) => {
@@ -202,8 +225,8 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
       });
   }
 
-  function toggleAssign(slug: string) {
-    setAssign((current) => (current.includes(slug) ? current.filter((item) => item !== slug) : [...current, slug]));
+  function stationName(slug: string) {
+    return channels.find((channel) => channel.slug === slug)?.name || slug;
   }
 
   function togglePick(key: string) {
@@ -230,26 +253,35 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
   }, [objects, keyIndex, onlyNew, filter]);
 
   async function importKeys(keys: string[]) {
+    const target = assign;
     const items = objects
       .filter((object) => keys.includes(object.key) && isAudioKey(object.key))
       .map((object) => ({ key: object.key, url: object.url, title: titleFromR2Key(object.key) }));
-    if (!items.length || assign.length === 0) {
-      window.alert(assign.length === 0 ? "Pick at least one station." : "Pick audio files to import.");
+    if (!items.length || !target) {
+      window.alert(!target ? "Choose the station these files should join." : "Pick audio files to import.");
       return;
     }
     setBusy(true);
     try {
-      const result = await importR2Tracks({ data: { channelSlugs: assign, items } });
+      const result = await importR2Tracks({ data: { channelSlugs: [target], items } });
       applySnapshot(result.tracks, result.stations);
       setPicked([]);
-      window.alert(
-        result.added
-          ? `Added ${result.added} song${result.added === 1 ? "" : "s"}${result.skipped ? ` · ${result.skipped} already listed` : ""}`
-          : "Those files are already on the selected station(s).",
-      );
+      const note = result.added
+        ? `Added to ${stationName(target)}`
+        : `Already on ${stationName(target)}`;
+      setRowNote((current) => {
+        const next = { ...current };
+        for (const item of items) next[item.key] = note;
+        return next;
+      });
       refresh();
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Import failed");
+      const message = err instanceof Error ? err.message : "Import failed";
+      setRowNote((current) => {
+        const next = { ...current };
+        for (const item of items) next[item.key] = message;
+        return next;
+      });
     } finally {
       setBusy(false);
     }
@@ -269,47 +301,42 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
       <p className="max-w-prose text-sm text-muted">
         Pick a station folder to scan. The whole bucket is too large to list on open — this tab waits until you ask.
       </p>
-      <div className="mt-3 flex flex-wrap gap-1">
-        <button
-          type="button"
-          onClick={() => {
-            setPrefix("radio/");
-            refresh("radio/");
+      <div className="mt-3 flex flex-wrap gap-2">
+        <select
+          className="input min-w-56 flex-1"
+          value={prefix}
+          onChange={(event) => {
+            const next = event.target.value;
+            setPrefix(next);
+            refresh(next);
           }}
-          className={cn("inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em]", prefix === "radio/" ? "bg-fg text-bg" : "text-gold")}
         >
-          All radio/
-        </button>
-        {channels.map((channel) => {
-          const folder = `radio/${channel.slug}/`;
-          return (
-            <button
-              key={channel.slug}
-              type="button"
-              onClick={() => {
-                setPrefix(folder);
-                setAssign([channel.slug]);
-                refresh(folder);
-              }}
-              className={cn("inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em]", prefix === folder ? "bg-fg text-bg" : "text-gold")}
-            >
+          <option value="radio/">All of radio/</option>
+          {channels.map((channel) => (
+            <option key={channel.slug} value={`radio/${channel.slug}/`}>
               {channel.name}
-            </button>
-          );
-        })}
-      </div>
-      <form
-        className="mt-3 flex flex-wrap gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          refresh(prefix);
-        }}
-      >
-        <input className="input min-w-64 flex-1" value={prefix} onChange={(event) => setPrefix(event.target.value)} />
-        <button type="submit" className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
+            </option>
+          ))}
+        </select>
+        <button type="button" onClick={() => refresh(prefix)} className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
           List
         </button>
-      </form>
+      </div>
+      <details className="mt-3">
+        <summary className="cursor-pointer font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">Custom folder</summary>
+        <form
+          className="mt-3 flex flex-wrap gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            refresh(prefix);
+          }}
+        >
+          <input className="input min-w-64 flex-1" value={prefix} onChange={(event) => setPrefix(event.target.value)} />
+          <button type="submit" className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg">
+            List
+          </button>
+        </form>
+      </details>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -320,22 +347,18 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
         </button>
         <input className="input min-w-48 flex-1" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter keys" />
       </div>
-      <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">Import onto</p>
-      <div className="mt-1 flex flex-wrap gap-1">
-        {channels.map((channel) => (
-          <button
-            key={channel.slug}
-            type="button"
-            onClick={() => toggleAssign(channel.slug)}
-            className={cn(
-              "inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em]",
-              assign.includes(channel.slug) ? "bg-fg text-bg" : "text-gold",
-            )}
-          >
-            {channel.name}
-          </button>
-        ))}
-      </div>
+      <label className="mt-4 block max-w-sm text-sm text-muted">
+        Add selected files to
+        <select className="input mt-1" value={assign} onChange={(event) => setAssign(event.target.value)}>
+          <option value="">Choose a station</option>
+          {channels.map((channel) => (
+            <option key={channel.slug} value={channel.slug}>
+              {channel.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="mt-2 text-sm text-muted">The station and its experience share this playlist. A file already on that station is left as it is.</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
@@ -343,7 +366,7 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
           onClick={() => void importKeys(picked)}
           className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg"
         >
-          {busy ? "Importing…" : `Import selected (${picked.length})`}
+          {busy ? "Adding…" : `Add to ${assign ? stationName(assign) : "station"} (${picked.length})`}
         </button>
         <button
           type="button"
@@ -403,11 +426,11 @@ function R2Board({ channels, r2Configured }: { channels: Channel[]; r2Configured
             {object.audio ? (
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || Boolean(assign && object.desks.includes(assign))}
                 onClick={() => void importKeys([object.key])}
-                className="inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+                className="inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold disabled:opacity-40"
               >
-                Import
+                {rowNote[object.key] || (assign && object.desks.includes(assign) ? `Already on ${stationName(assign)}` : "Add")}
               </button>
             ) : null}
             <button

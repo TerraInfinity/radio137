@@ -146,7 +146,6 @@ export async function presignR2Put(key: string, contentType: string, expiresIn =
       Bucket: bucket(),
       Key: cleaned,
       ContentType: contentType || "application/octet-stream",
-      CacheControl: "public, max-age=86400, stale-while-revalidate=604800",
     }),
     { expiresIn },
   );

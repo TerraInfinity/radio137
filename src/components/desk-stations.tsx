@@ -428,12 +428,12 @@ function StationWorkspace({
       </FoldSection>
 
       <FoldSection
-        title="Add songs"
-        hint="Search R2"
+        title="Find an existing file"
+        hint="Search"
         className="mt-4"
         titleClassName="text-gold"
         defaultOpen
-        persist={`add:${channel.slug}`}
+        persist={`intake:${channel.slug}`}
       >
         <AddSongsPanel channel={channel} channels={channels} r2Configured={r2Configured} />
       </FoldSection>
@@ -444,6 +444,7 @@ function StationWorkspace({
         className="mt-4"
         titleClassName="text-gold"
         persist={`plist:${channel.slug}`}
+        defaultOpen
       >
         <Playlist channel={channel} others={others} r2Configured={r2Configured} />
       </FoldSection>

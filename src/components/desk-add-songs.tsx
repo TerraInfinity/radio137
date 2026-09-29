@@ -64,7 +64,8 @@ export function AddSongsPanel({
   const [title, setTitle] = useState("");
   const [audioUrl, setAudioUrl] = useState("");
   const [urlBusy, setUrlBusy] = useState(false);
-  const [uploads, setUploads] = useState<Array<{ name: string; state: "up" | "ok" | "err"; detail?: string }>>([]);
+  const [uploads, setUploads] = useState<Array<{ name: string; state: "up" | "ok" | "err"; detail?: string; ratio: number }>>([]);
+  const [alsoSlug, setAlsoSlug] = useState("");
   const [hot, setHot] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const stationPrefix = `radio/${channel.slug}/`;
@@ -241,30 +242,54 @@ export function AddSongsPanel({
       setHint("Audio only (mp3, wav, flac, m4a, ogg, aac)");
       return;
     }
-    setUploads(audio.map((file) => ({ name: file.name, state: "up" })));
+    setUploads(audio.map((file) => ({ name: file.name, state: "up", ratio: 0 })));
+    let failed = false;
     for (let i = 0; i < audio.length; i++) {
       const file = audio[i];
+      const songTitle = titleFromR2Key(file.name);
       setHint(`Uploading ${file.name}…`);
       try {
-        const durationSec = await probeAudioDuration(file).catch(() => undefined);
         const result = await directDeskUpload({
           kind: "audio",
           slug: channel.slug,
           file,
-          title: titleFromR2Key(file.name),
+          title: songTitle,
           coverUrl: channel.cover,
-          durationSec,
+          onProgress: (loaded, total) => {
+            const ratio = total > 0 ? loaded / total : 0;
+            setUploads((current) => current.map((item, index) => (index === i ? { ...item, ratio } : item)));
+          },
         });
         if (result.tracks) applySnapshot(result.tracks, result.stations ?? []);
+        if (alsoSlug && result.object?.url) {
+          try {
+            const extra = await addStationTrack({
+              data: {
+                channelSlug: alsoSlug,
+                title: songTitle,
+                audioUrl: result.object.url,
+                coverUrl: channel.cover,
+                r2Key: result.object.key,
+              },
+            });
+            applySnapshot(extra.tracks, extra.stations);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "";
+            if (!/already on/i.test(message)) throw error;
+          }
+        }
         r2Cache.clear();
-        setUploads((current) => current.map((item, index) => (index === i ? { ...item, state: "ok" } : item)));
+        const extraName = alsoSlug ? others.find((item) => item.slug === alsoSlug)?.name : "";
+        setUploads((current) => current.map((item, index) => (index === i ? { ...item, state: "ok", ratio: 1 } : item)));
+        setHint(extraName ? `On ${channel.name} and ${extraName}. Same list for the station and its experience.` : `On ${channel.name}. The experience uses this same list.`);
       } catch (error) {
+        failed = true;
         const detail = error instanceof Error ? error.message : "Upload failed";
         setUploads((current) => current.map((item, index) => (index === i ? { ...item, state: "err", detail } : item)));
         setHint(detail);
       }
     }
-    setHint((current) => (current.startsWith("Uploading") ? "Upload finished" : current));
+    if (!failed) setHint((current) => (current.startsWith("Uploading") ? `On ${channel.name}` : current));
   }
 
   const showR2 = r2Configured && (searching || r2Hits.length > 0);
@@ -273,8 +298,80 @@ export function AddSongsPanel({
   return (
     <div>
       <p className="max-w-prose text-sm text-muted">
-        Search this folder first. Type two letters to look across R2 and other desks. Upload and URLs stay folded until you need them.
+        Drop a file. It is stored and added to {channel.name}. The station and its experience share this playlist.
       </p>
+      {r2Configured ? (
+        <div
+          className={cn("desk-add-drop mt-4", hot && "desk-add-drop-hot")}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setHot(true);
+          }}
+          onDragLeave={() => setHot(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setHot(false);
+            const files = [...event.dataTransfer.files];
+            if (files.length) void sendFiles(files);
+          }}
+        >
+          <Upload className="size-4 text-gold" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-muted">mp3, wav, flac, or m4a. Up to 250 MB. It lands on this playlist, not only in storage.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="inline-flex h-11 shrink-0 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg"
+          >
+            Choose files
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            accept="audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/ogg,audio/aac,.mp3,.wav,.flac,.m4a,.ogg,.aac"
+            className="sr-only"
+            onChange={(event) => {
+              const files = [...(event.target.files ?? [])];
+              event.target.value = "";
+              if (files.length) void sendFiles(files);
+            }}
+          />
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-muted">Uploads need R2 keys — open More, then Services.</p>
+      )}
+      {others.length > 0 ? (
+        <label className="mt-3 block text-sm text-muted">
+          Also copy onto
+          <select className="input mt-1" value={alsoSlug} onChange={(event) => setAlsoSlug(event.target.value)}>
+            <option value="">This station only</option>
+            {others.map((item) => (
+              <option key={item.slug} value={item.slug}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {uploads.length > 0 ? (
+        <ul className="mt-3 space-y-2">
+          {uploads.map((item) => (
+            <li key={item.name} className="text-sm">
+              <span className={item.state === "err" ? "text-ember" : item.state === "ok" ? "text-gold" : "text-muted"}>
+                {item.state === "up" ? `Sending ${Math.round(item.ratio * 100)}%` : item.state === "ok" ? "On the playlist" : "Failed"} · {item.name}
+              </span>
+              {item.state === "up" ? (
+                <span className="mt-1 block h-1 overflow-hidden rounded-full bg-bg">
+                  <span className="block h-full bg-gold" style={{ width: `${Math.round(item.ratio * 100)}%` }} />
+                </span>
+              ) : null}
+              {item.detail ? <span className="mt-1 block text-ember">{item.detail}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       <label className="relative mt-4 block">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" />
@@ -354,62 +451,7 @@ export function AddSongsPanel({
           })}
         </ul>
       ) : null}
-      {emptySearch ? <p className="mt-3 text-sm text-muted">No matches yet. Keep typing, or upload / paste a URL below.</p> : null}
-
-      <FoldDetails title="Upload from this device" hint="Open" persist={`upload:${channel.slug}`}>
-        {r2Configured ? (
-          <div
-            className={cn("desk-add-drop", hot && "desk-add-drop-hot")}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setHot(true);
-            }}
-            onDragLeave={() => setHot(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setHot(false);
-              const files = [...event.dataTransfer.files];
-              if (files.length) void sendFiles(files);
-            }}
-          >
-            <Upload className="size-4 text-gold" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-muted">Drop mp3 / wav / flac / m4a, or choose files. They land in this folder and on the playlist.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="inline-flex h-11 shrink-0 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg"
-            >
-              Choose files
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              accept="audio/mpeg,audio/wav,audio/flac,audio/mp4,audio/ogg,audio/aac,.mp3,.wav,.flac,.m4a,.ogg,.aac"
-              className="sr-only"
-              onChange={(event) => {
-                const files = [...(event.target.files ?? [])];
-                event.target.value = "";
-                if (files.length) void sendFiles(files);
-              }}
-            />
-          </div>
-        ) : (
-          <p className="text-sm text-muted">Uploads need R2 keys — use the Services tab.</p>
-        )}
-        {uploads.length > 0 ? (
-          <ul className="space-y-1 font-mono text-[11px] uppercase tracking-[0.12em]">
-            {uploads.map((item) => (
-              <li key={item.name} className={item.state === "err" ? "text-ember" : item.state === "ok" ? "text-gold" : "text-subtle"}>
-                {item.state === "up" ? "Uploading" : item.state === "ok" ? "Added" : "Failed"} · {item.name}
-                {item.detail ? ` — ${item.detail}` : ""}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </FoldDetails>
+      {emptySearch ? <p className="mt-3 text-sm text-muted">No matches yet. Keep typing, or paste a URL below.</p> : null}
 
       <FoldDetails title="Paste a URL" hint="Open" persist={`url:${channel.slug}`}>
         <form className="grid gap-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto]" onSubmit={(event) => void addUrl(event)}>

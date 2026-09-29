@@ -1,16 +1,47 @@
 import { completeDeskUpload, mintDeskUpload } from "@/lib/desk-api";
 
-export async function putFileToR2(putUrl: string, file: Blob, contentType: string, signal?: AbortSignal) {
-  const res = await fetch(putUrl, {
-    method: "PUT",
-    body: file,
-    headers: { "Content-Type": contentType },
-    signal,
-  });
-  if (!res.ok) {
-    const why = res.status === 403 ? "R2 rejected the upload. The link may have expired, or the bucket is blocking this browser." : "Upload to storage failed";
-    throw new Error(`${why} (${res.status} ${res.statusText || "no status"})`);
+export function putFileToR2(
+  putUrl: string,
+  file: Blob,
+  contentType: string,
+  signal?: AbortSignal,
+  onProgress?: (loaded: number, total: number) => void,
+) {
+  if (!onProgress) {
+    return fetch(putUrl, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": contentType },
+      signal,
+    }).then((res) => {
+      if (!res.ok) throw uploadError(res.status, res.statusText);
+    });
   }
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", putUrl);
+    xhr.setRequestHeader("Content-Type", contentType);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded, event.total);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(uploadError(xhr.status, xhr.statusText));
+    };
+    xhr.onerror = () => reject(new Error("Upload to storage failed. The browser could not reach R2."));
+    xhr.onabort = () => reject(new Error("Upload cancelled"));
+    const abort = () => xhr.abort();
+    signal?.addEventListener("abort", abort, { once: true });
+    xhr.send(file);
+  });
+}
+
+function uploadError(status: number, statusText: string) {
+  const why =
+    status === 403
+      ? "R2 rejected the upload. The signed link did not match, or the bucket is blocking this browser."
+      : "Upload to storage failed";
+  return new Error(`${why} (${status} ${statusText || "no status"})`);
 }
 
 export async function directDeskUpload(input: {
@@ -21,6 +52,7 @@ export async function directDeskUpload(input: {
   title?: string;
   coverUrl?: string;
   durationSec?: number;
+  onProgress?: (loaded: number, total: number) => void;
 }) {
   const minted = await mintDeskUpload({
     data: {
@@ -32,7 +64,7 @@ export async function directDeskUpload(input: {
       trackId: input.trackId,
     },
   });
-  await putFileToR2(minted.putUrl, input.file, minted.contentType);
+  await putFileToR2(minted.putUrl, input.file, minted.contentType, undefined, input.onProgress);
   return completeDeskUpload({
     data: {
       kind: input.kind,

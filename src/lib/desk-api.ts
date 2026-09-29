@@ -680,7 +680,7 @@ export const pingServices = createServerFn({ method: "GET" })
 
 const AUDIO_NAME = /\.(mp3|wav|flac|m4a|ogg|aac)$/i;
 const ART_NAME = /\.(jpe?g|png|webp|gif|avif|mp4|webm|mov|m4v)$/i;
-const AUDIO_MAX = 80 * 1024 * 1024;
+const AUDIO_MAX = 250 * 1024 * 1024;
 
 export const mintDeskUpload = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
@@ -705,7 +705,7 @@ export const mintDeskUpload = createServerFn({ method: "POST" })
     const size = data.size ?? 0;
     if (data.kind === "audio") {
       if (!AUDIO_NAME.test(name)) throw new Error("Audio only (mp3, wav, flac, m4a, ogg, aac)");
-      if (size > AUDIO_MAX) throw new Error("File is larger than 80 MB");
+      if (size > AUDIO_MAX) throw new Error("File is larger than 250 MB. Split it or upload it from a computer with the R2 tool.");
     } else {
       if (!ART_NAME.test(name) && !type.startsWith("image/") && !type.startsWith("video/")) {
         throw new Error("Art only (photo or a short mp4 / webm / mov)");
