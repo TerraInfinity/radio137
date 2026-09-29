@@ -19,19 +19,12 @@ export function experienceSlugFromPath(pathname: string): string | null {
   }
 }
 
-/** Rose stays on the arrival preview until Begin the rite. Never the first playlist song. */
+/** Rose holds the arrival preview only on the experience. The station page just plays. */
 export function shouldHoldRosePreview(
   pathname: string,
   slug: string | null | undefined,
   roseRite: boolean,
 ): boolean {
   if (roseRite || slug !== "rose") return false;
-  if (experienceSlugFromPath(pathname) === "rose") return true;
-  const parts = pathname.split("/").filter(Boolean);
-  if (parts[0] !== "channel" || !parts[1]) return false;
-  try {
-    return decodeURIComponent(parts[1]).toLowerCase() === "rose";
-  } catch {
-    return parts[1].toLowerCase() === "rose";
-  }
+  return experienceSlugFromPath(pathname) === "rose";
 }

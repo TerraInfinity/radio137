@@ -1,5 +1,4 @@
 import { slugify } from "@/lib/cn";
-import { experienceFromChannel } from "@/lib/experiences";
 import type { Catalog, Channel, Track } from "@/lib/types";
 
 function asKey(value: string | null | undefined): string {
@@ -103,8 +102,6 @@ export function stationPublicSlug(channel: Pick<Channel, "slug" | "publicSlug">)
 }
 
 export function stationPath(channel: Channel): string {
-  const experience = experienceFromChannel(channel);
-  if (experience) return `/experiences/${experience.slug}`;
   return `/channel/${stationPublicSlug(channel)}`;
 }
 

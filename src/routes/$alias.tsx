@@ -1,8 +1,7 @@
-import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChannelView } from "@/components/channel-view";
 import { SongCut } from "@/components/song-cut";
 import { getSongByAlias, getStationByAlias } from "@/lib/catalog";
-import { experienceFromChannel } from "@/lib/experiences";
 import { ensureLiveCatalog } from "@/lib/live-catalog";
 import { aliasPath, isReservedPublicPath } from "@/lib/song-url";
 import { usePlayerStore } from "@/lib/player-store";
@@ -39,8 +38,6 @@ function AliasPage() {
   }
   const station = getStationByAlias(alias);
   if (station) {
-    const experience = experienceFromChannel(station);
-    if (experience) return <Navigate to="/experiences/$slug" params={{ slug: experience.slug }} replace />;
     return <ChannelView channel={station} sharePath={aliasPath(alias)} />;
   }
   return <AliasMiss alias={alias} />;

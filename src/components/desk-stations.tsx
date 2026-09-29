@@ -18,6 +18,7 @@ import {
 } from "@/lib/desk-api";
 import { applyCatalogEdits, type CatalogEdit, type StationEdit } from "@/lib/catalog-edits";
 import { getSeedCatalog, kindHint, kindLabel, normalizeKind } from "@/lib/catalog";
+import { experienceFromChannel } from "@/lib/experiences";
 import { cn, formatClock, slugify } from "@/lib/cn";
 import { durationOf } from "@/lib/playback";
 import { fileLocationLabel, r2KeyFromAudioUrl } from "@/lib/file-path";
@@ -105,31 +106,18 @@ export function DeskStations({ channels, r2Configured }: { channels: Channel[]; 
             <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">Stations</span>
             <input className="input mt-1" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Station or song" />
           </label>
-          <div className="mt-2 flex flex-wrap gap-1">
-            {(
-              [
-                ["all", "All"],
-                ["live", "Live"],
-                ["ondemand", "On demand"],
-                ["fixed", "Fixed"],
-                ["featured", "Featured"],
-                ["off", "Off air"],
-                ["empty", "Empty"],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setKindFilter(id)}
-                className={cn(
-                  "inline-flex h-11 items-center px-2 font-mono text-[10px] uppercase tracking-[0.12em]",
-                  kindFilter === id ? "bg-fg text-bg" : "text-gold",
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <label className="mt-2 block text-sm text-muted">
+            Show
+            <select className="input mt-1" value={kindFilter} onChange={(event) => setKindFilter(event.target.value as typeof kindFilter)}>
+              <option value="all">All stations</option>
+              <option value="featured">Featured</option>
+              <option value="fixed">Fixed playlists</option>
+              <option value="live">Live</option>
+              <option value="ondemand">On demand</option>
+              <option value="empty">Empty</option>
+              <option value="off">Off air</option>
+            </select>
+          </label>
           {playingSlug && channels.some((channel) => channel.slug === playingSlug) ? (
             <button
               type="button"
@@ -169,6 +157,7 @@ export function DeskStations({ channels, r2Configured }: { channels: Channel[]; 
                       <span className="block truncate font-display text-base font-semibold">{channel.name}</span>
                       <span className="block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
                         {kindLabel(channel.kind)} · {songs} {songs === 1 ? "song" : "songs"}
+                        {experienceFromChannel(channel) ? " · has a show" : ""}
                         {channel.featured ? " · featured" : ""}
                         {channel.enabled ? "" : " · off air"}
                         {songs === 0 ? " · empty" : ""}
@@ -383,6 +372,15 @@ function StationWorkspace({
           >
             View station
           </Link>
+          {experienceFromChannel(channel) ? (
+            <Link
+              to="/experiences/$slug"
+              params={{ slug: experienceFromChannel(channel)!.slug }}
+              className="inline-flex h-11 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
+            >
+              Open the experience
+            </Link>
+          ) : null}
           <button
             type="button"
             onClick={() => void usePlayerStore.getState().tuneIn(channel.slug, { forcePlay: true })}

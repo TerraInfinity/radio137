@@ -101,12 +101,21 @@ export function SongCut({
         </button>
         <DownloadLink track={track} />
         <Link
-          to={experienceFromChannel(channel) ? "/experiences/$slug" : "/channel/$slug"}
-          params={{ slug: experienceFromChannel(channel)?.slug ?? channel.slug }}
+          to="/channel/$slug"
+          params={{ slug: channel.slug }}
           className="inline-flex h-12 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
         >
           {channel.name}
         </Link>
+        {experienceFromChannel(channel) ? (
+          <Link
+            to="/experiences/$slug"
+            params={{ slug: experienceFromChannel(channel)!.slug }}
+            className="inline-flex h-12 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
+          >
+            Experience
+          </Link>
+        ) : null}
         <ShareLink path={sharePath} title={track.title} compact />
       </div>
       <SongStations track={track} fromSlug={channel.slug} homes={homes.length ? homes : [channel]} isAdmin={isAdmin} />

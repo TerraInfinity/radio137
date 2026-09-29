@@ -58,21 +58,24 @@ export function DialSearch({
           <ul className="mt-2 divide-y divide-line">
             {results.stations.map(({ channel }) => {
               const experience = experienceFromChannel(channel);
-              const open = experience
-                ? { to: "/experiences/$slug" as const, slug: experience.slug }
-                : { to: "/channel/$slug" as const, slug: channel.slug };
               return (
               <li key={channel.slug} className="py-3">
-                <Link to={open.to} params={{ slug: open.slug }} className="flex items-center gap-3">
-                  <CoverArt src={channel.cover} alt="" className="size-12 shrink-0 rounded-md" />
-                  <span className="min-w-0">
-                    <span className="block truncate font-display text-lg">{channel.name}</span>
-                    <span className="block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-                      {channel.kind} · {channel.energy}
-                      {channel.tags?.length ? ` · ${channel.tags.slice(0, 4).join(" · ")}` : ""}
+                <div className="flex items-center gap-3">
+                  <Link to="/channel/$slug" params={{ slug: channel.slug }} className="flex min-w-0 flex-1 items-center gap-3">
+                    <CoverArt src={channel.cover} alt="" className="size-12 shrink-0 rounded-md" />
+                    <span className="min-w-0">
+                      <span className="block truncate font-display text-lg">{channel.name}</span>
+                      <span className="block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+                        Station · {channel.energy}
+                      </span>
                     </span>
-                  </span>
-                </Link>
+                  </Link>
+                  {experience ? (
+                    <Link to="/experiences/$slug" params={{ slug: experience.slug }} className="shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-gold">
+                      Experience
+                    </Link>
+                  ) : null}
+                </div>
               </li>
               );
             })}

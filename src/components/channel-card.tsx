@@ -13,18 +13,15 @@ export function ChannelCard({ channel }: { channel: Channel }) {
   const playable = getPlayableTracks(channel);
   const skin = stationSkin(channel);
   const experience = experienceFromChannel(channel);
-  const open = experience
-    ? { to: "/experiences/$slug" as const, slug: experience.slug }
-    : { to: "/channel/$slug" as const, slug: channel.slug };
   return (
     <article className={cn("overflow-hidden rounded-xl bg-bg-elevated shadow-[var(--shadow-filigree)]", skin === "glaum" && "skin-glaum", locked && "opacity-60")}>
-      <Link to={open.to} params={{ slug: open.slug }} className="block">
+      <Link to="/channel/$slug" params={{ slug: channel.slug }} className="block">
         <StationVisual channel={channel} className="aspect-[4/3] w-full" />
       </Link>
       <div className="p-3">
         <div className="flex items-start justify-between gap-2">
           <h2 className={cn("min-w-0 truncate font-display text-xl font-semibold", skin === "glaum" && "glaum-title")}>
-            <Link to={open.to} params={{ slug: open.slug }}>
+            <Link to="/channel/$slug" params={{ slug: channel.slug }}>
               {channel.name}
             </Link>
           </h2>
@@ -43,9 +40,14 @@ export function ChannelCard({ channel }: { channel: Channel }) {
           >
             Play
           </button>
-          <Link to={open.to} params={{ slug: open.slug }} className="inline-flex h-11 items-center px-2 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+          <Link to="/channel/$slug" params={{ slug: channel.slug }} className="inline-flex h-11 items-center px-2 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
             Open
           </Link>
+          {experience ? (
+            <Link to="/experiences/$slug" params={{ slug: experience.slug }} className="inline-flex h-11 items-center px-2 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
+              Experience
+            </Link>
+          ) : null}
         </div>
       </div>
     </article>

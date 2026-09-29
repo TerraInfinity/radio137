@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Navigate, Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { AdminStationEdit } from "@/components/admin-track-tools";
 import { FoldSection } from "@/components/fold-section";
 import { GlaumWordBooth } from "@/components/glaum-word-booth";
@@ -53,14 +53,9 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
   const syncOn = offerFor(channel).enabled;
 
   useEffect(() => {
-    if (experience) return;
     if (!ready || !catalogReady || !channel.enabled || playable.length === 0) return;
     void tuneIn(channel.slug);
-  }, [ready, catalogReady, channel.slug, channel.enabled, experience, playable.length, tuneIn]);
-
-  if (experience) {
-    return <Navigate to="/experiences/$slug" params={{ slug: experience.slug }} replace />;
-  }
+  }, [ready, catalogReady, channel.slug, channel.enabled, playable.length, tuneIn]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 pb-52">
@@ -98,6 +93,15 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
         {syncOn ? (
           <Link to="/sync/$slug" params={{ slug: channel.slug }} className="inline-flex h-12 items-center px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
             On your phone
+          </Link>
+        ) : null}
+        {experience ? (
+          <Link
+            to="/experiences/$slug"
+            params={{ slug: experience.slug }}
+            className="inline-flex h-12 items-center rounded-md border border-line px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-gold"
+          >
+            Open the {experience.title} experience
           </Link>
         ) : null}
       </div>

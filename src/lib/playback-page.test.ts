@@ -10,9 +10,9 @@ describe("playback page", () => {
     assert.equal(experienceSlugFromPath("/experiences"), null);
   });
 
-  it("holds the rose preview on the experience and the old channel url", () => {
+  it("holds the rose preview on the experience, not the station", () => {
     assert.equal(shouldHoldRosePreview("/experiences/rose", "rose", false), true);
-    assert.equal(shouldHoldRosePreview("/channel/rose", "rose", false), true);
+    assert.equal(shouldHoldRosePreview("/channel/rose", "rose", false), false);
     assert.equal(shouldHoldRosePreview("/experiences/rose", "rose", true), false);
     assert.equal(shouldHoldRosePreview("/channel/official-glaum-frequency", "rose", false), false);
     assert.equal(shouldHoldRosePreview("/", "rose", false), false);

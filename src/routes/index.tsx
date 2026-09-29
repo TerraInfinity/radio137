@@ -72,10 +72,10 @@ function OnAir() {
         <div className="size-24 shrink-0 overflow-hidden rounded-xl sm:size-28">
         {channel && track ? (
           <Link
-            to={experience ? "/experiences/$slug" : "/channel/$slug"}
-            params={{ slug: experience ? experience.slug : channel.slug }}
+            to="/channel/$slug"
+            params={{ slug: channel.slug }}
             className="block size-full"
-            aria-label={`Open ${experience ? experience.title : channel.name}`}
+            aria-label={`Open ${channel.name}`}
           >
             <CoverArt src={visualSrc(track, channel)} alt="" className="size-full" motion="loop" />
           </Link>
@@ -89,15 +89,17 @@ function OnAir() {
             <>
               <h2 className="mt-1 truncate font-display text-2xl font-semibold">{track.title}</h2>
               <p className="mt-1 truncate text-sm text-muted">
+                <Link to="/channel/$slug" params={{ slug: channel.slug }} className="text-gold">
+                  {channel.name}
+                </Link>
                 {experience ? (
-                  <Link to="/experiences/$slug" params={{ slug: experience.slug }} className="text-gold">
-                    {experience.title}
-                  </Link>
-                ) : (
-                  <Link to="/channel/$slug" params={{ slug: channel.slug }} className="text-gold">
-                    {channel.name}
-                  </Link>
-                )}
+                  <>
+                    {" · "}
+                    <Link to="/experiences/$slug" params={{ slug: experience.slug }} className="text-gold">
+                      Experience
+                    </Link>
+                  </>
+                ) : null}
                 {track.artist ? ` · ${track.artist}` : ""}
               </p>
             </>

@@ -105,10 +105,7 @@ function DeskPage() {
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">C · God desk</p>
       <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight">Station desk</h1>
       <p className="mt-3 max-w-prose text-muted">
-        Pick a station and drop an mp3. It is stored and added to that playlist. The experience uses the same list.{" "}
-        <Link to="/desk/library/rose" className="text-gold">
-          Rose library
-        </Link>
+        A station is the playlist. An experience is that same list with the show. Add songs on the station. Scenes live under More, then Experiences. Files is only for audio that is not on a playlist yet.
       </p>
       <DeskOverview channels={channels} reviewOpen={reviewOpen} />
       <details className="mt-4">
