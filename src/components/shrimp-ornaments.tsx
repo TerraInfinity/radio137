@@ -8,14 +8,14 @@ function OpenHand() {
   return (
     <svg viewBox="0 0 80 96" className="shrimp-hand-svg">
       <g className="shrimp-fingers">
-        <rect className="finger" x="8" y="30" width="11" height="30" rx="5.5" transform="rotate(-18 13 58)" />
-        <rect className="finger" x="22" y="8" width="11" height="40" rx="5.5" />
-        <rect className="finger" x="36" y="4" width="11" height="44" rx="5.5" />
-        <rect className="finger" x="50" y="12" width="11" height="36" rx="5.5" transform="rotate(16 55 48)" />
-        <rect className="finger thumb" x="0" y="46" width="12" height="24" rx="6" transform="rotate(-52 6 58)" />
+        <rect className="finger" x="8" y="30" width="10" height="28" rx="5" transform="rotate(-16 13 56)" />
+        <rect className="finger" x="22" y="10" width="10" height="36" rx="5" />
+        <rect className="finger" x="36" y="6" width="10" height="40" rx="5" />
+        <rect className="finger" x="50" y="14" width="10" height="32" rx="5" transform="rotate(14 55 46)" />
+        <rect className="finger thumb" x="2" y="48" width="11" height="22" rx="5.5" transform="rotate(-50 8 58)" />
       </g>
-      <ellipse className="palm" cx="40" cy="64" rx="24" ry="18" />
-      <path className="wrist" d="M24 78c2 12 8 16 16 16s14-4 16-16" />
+      <ellipse className="palm" cx="40" cy="64" rx="22" ry="16" />
+      <path className="wrist" d="M26 76c2 12 7 16 14 16s12-4 14-16" />
     </svg>
   );
 }
@@ -39,8 +39,35 @@ function CuteShrimp() {
   );
 }
 
-function hits(x: number, y: number, w: number, h: number, boxes: Array<{ l: number; t: number; r: number; b: number }>) {
+type Box = { l: number; t: number; r: number; b: number };
+type Gesture = "rest" | "wave" | "beckon";
+type Hand = {
+  el: HTMLDivElement;
+  fingers: SVGGElement | null;
+  x: number;
+  y: number;
+  tx: number;
+  ty: number;
+  side: 1 | -1;
+  phase: number;
+  gesture: Gesture;
+  until: number;
+  next: number;
+};
+
+function hits(x: number, y: number, w: number, h: number, boxes: Box[]) {
   return boxes.some((box) => x < box.r && x + w > box.l && y < box.b && y + h > box.t);
+}
+
+function gutterSpot(width: number, height: number, side: 1 | -1, boxes: Box[]) {
+  let x = side < 0 ? 10 : width - 46;
+  let y = 24;
+  for (let tryNo = 0; tryNo < 10; tryNo += 1) {
+    x = side < 0 ? 6 + Math.random() * 22 : width - 48 - Math.random() * 18;
+    y = 12 + Math.random() * Math.max(20, height - 70);
+    if (!hits(x, y, 36, 44, boxes)) break;
+  }
+  return { x, y };
 }
 
 export function ShrimpOrnaments() {
@@ -53,11 +80,29 @@ export function ShrimpOrnaments() {
     const shrimp = shrimpRef.current;
     if (!root || !shrimp) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let boxes: Array<{ l: number; t: number; r: number; b: number }> = [];
+    let boxes: Box[] = [];
+    const hands: Hand[] = handsRef.current.flatMap((el, index) => {
+      if (!el) return [];
+      return [
+        {
+          el,
+          fingers: el.querySelector(".shrimp-fingers"),
+          x: 8,
+          y: 30 + index * 80,
+          tx: 8,
+          ty: 30 + index * 80,
+          side: index % 2 === 0 ? -1 : 1,
+          phase: index * 1.3,
+          gesture: "rest" as Gesture,
+          until: 0,
+          next: 1800 + index * 900,
+        },
+      ];
+    });
 
     const measure = () => {
       const host = root.getBoundingClientRect();
-      const next: typeof boxes = [];
+      const next: Box[] = [];
       document
         .querySelectorAll(".radio-main h1, .radio-main h2, .radio-main p, .radio-main a, .radio-main button, .radio-main input, .radio-main section, .radio-main li, .radio-main form, .glaum-cabinet, .satire-card")
         .forEach((el) => {
@@ -71,45 +116,49 @@ export function ShrimpOrnaments() {
           });
         });
       boxes = next;
-    };
-
-    const placeHands = (wave: boolean) => {
-      const host = root.getBoundingClientRect();
-      handsRef.current.forEach((hand, index) => {
-        if (!hand) return;
-        let x = 12;
-        let y = 24 + index * 70;
-        for (let tryNo = 0; tryNo < 14; tryNo += 1) {
-          const gutter = Math.random() < 0.72;
-          x = gutter ? (Math.random() < 0.5 ? 6 : host.width - 48) : Math.random() * Math.max(8, host.width - 48);
-          y = 8 + Math.random() * Math.max(8, host.height - 90);
-          if (!hits(x, y, 40, 48, boxes)) break;
-        }
-        hand.style.left = `${x}px`;
-        hand.style.top = `${y}px`;
-        if (wave && !reduce && Math.random() < 0.6) {
-          hand.classList.remove("is-waving");
-          void hand.offsetWidth;
-          hand.classList.add("is-waving");
-        }
+      hands.forEach((hand) => {
+        const spot = gutterSpot(host.width, host.height, hand.side, boxes);
+        hand.x = spot.x;
+        hand.y = spot.y;
+        hand.tx = spot.x;
+        hand.ty = spot.y;
       });
     };
 
     measure();
-    placeHands(false);
     if (reduce) {
+      hands.forEach((hand) => {
+        hand.el.style.transform = `translate(${hand.x}px, ${hand.y}px)`;
+      });
       shrimp.style.transform = "translate(16px, 24px)";
       return;
     }
 
-    const measureTimer = window.setInterval(measure, 900);
-    const handTimer = window.setInterval(() => placeHands(true), 5200);
+    const measureTimer = window.setInterval(() => {
+      const host = root.getBoundingClientRect();
+      const next: Box[] = [];
+      document
+        .querySelectorAll(".radio-main h1, .radio-main h2, .radio-main p, .radio-main a, .radio-main button, .radio-main input, .radio-main section, .radio-main li, .radio-main form, .glaum-cabinet, .satire-card")
+        .forEach((el) => {
+          const rect = el.getBoundingClientRect();
+          if (rect.width < 12 || rect.height < 12) return;
+          next.push({
+            l: rect.left - host.left - 16,
+            t: rect.top - host.top - 14,
+            r: rect.right - host.left + 16,
+            b: rect.bottom - host.top + 14,
+          });
+        });
+      boxes = next;
+    }, 900);
+
     let x = 20;
     let y = 36;
     let vx = 0.85;
     let vy = 0.28;
     let raf = 0;
-    const swim = () => {
+    let greeted = -1;
+    const swim = (now: number) => {
       if (!document.hidden) {
         const host = root.getBoundingClientRect();
         const w = 64;
@@ -130,6 +179,53 @@ export function ShrimpOrnaments() {
           y = ny;
         }
         shrimp.style.transform = `translate(${x}px, ${y}px) scaleX(${vx >= 0 ? 1 : -1}) rotate(${vy * 14}deg)`;
+
+        let nearest = -1;
+        let nearestDist = 150;
+        hands.forEach((hand, index) => {
+          const dist = Math.hypot(x + 32 - (hand.x + 18), y + 15 - (hand.y + 22));
+          if (dist < nearestDist) {
+            nearest = index;
+            nearestDist = dist;
+          }
+          if (now > hand.next) {
+            hand.gesture = Math.random() < 0.55 ? "wave" : "beckon";
+            hand.until = now + 1100 + Math.random() * 500;
+            hand.next = now + 4200 + Math.random() * 5200;
+            const spot = gutterSpot(host.width, host.height, hand.side, boxes);
+            hand.tx = spot.x;
+            hand.ty = spot.y;
+          }
+          hand.x += (hand.tx - hand.x) * 0.02;
+          hand.y += (hand.ty - hand.y) * 0.02;
+        });
+        if (nearest >= 0 && nearest !== greeted && nearestDist < 130) {
+          const hand = hands[nearest];
+          if (hand && now > hand.until) {
+            hand.gesture = "wave";
+            hand.until = now + 900;
+            greeted = nearest;
+          }
+        }
+        if (nearest < 0 || nearestDist > 180) greeted = -1;
+
+        hands.forEach((hand) => {
+          const active = now < hand.until;
+          const bob = Math.sin(now / 980 + hand.phase) * 3.5;
+          const sway = Math.sin(now / 1600 + hand.phase) * 5;
+          const toward = Math.atan2(y + 15 - (hand.y + 30), x + 32 - (hand.x + 18)) * (180 / Math.PI);
+          const lean = nearestDist < 180 && hands[nearest] === hand ? toward * 0.08 : 0;
+          let finger = sway * 0.15;
+          let curl = 1;
+          if (active && hand.gesture === "wave") finger = Math.sin(now / 130) * 18;
+          if (active && hand.gesture === "beckon") {
+            finger = -10 + Math.sin(now / 200) * 8;
+            curl = 0.82 + Math.sin(now / 200) * 0.08;
+          }
+          if (hand.fingers) hand.fingers.style.transform = `rotate(${finger}deg) scaleY(${curl})`;
+          const face = x + 32 > hand.x ? 1 : -1;
+          hand.el.style.transform = `translate(${hand.x}px, ${hand.y + bob}px) rotate(${sway + lean}deg) scaleX(${face})`;
+        });
       }
       raf = window.requestAnimationFrame(swim);
     };
@@ -137,7 +233,6 @@ export function ShrimpOrnaments() {
     return () => {
       window.cancelAnimationFrame(raf);
       window.clearInterval(measureTimer);
-      window.clearInterval(handTimer);
     };
   }, []);
 
@@ -155,7 +250,6 @@ export function ShrimpOrnaments() {
           ref={(node) => {
             handsRef.current[id] = node;
           }}
-          style={{ left: id % 2 ? "auto" : 8, right: id % 2 ? 8 : "auto", top: 36 + id * 90 }}
         >
           <OpenHand />
         </div>
