@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "@/lib/cn";
 import { useSetShrimp, useShrimp } from "@/components/shrimp-context";
+import { hostWantsShrimp } from "@/lib/shrimpify";
 
 export function ShrimpToggle() {
   const shrimp = useShrimp();
@@ -17,6 +18,10 @@ export function ShrimpToggle() {
     }
     const next = !shrimp;
     setShrimp(next);
+    if (!next && typeof window !== "undefined" && hostWantsShrimp(window.location.hostname)) {
+      window.location.assign("https://radio.terrainfinity.ca/");
+      return;
+    }
     void navigate({ to: next ? "/stations" : "/" });
   }
 

@@ -12,6 +12,7 @@ import { heldClaim } from "@/lib/claim";
 import { cn } from "@/lib/cn";
 import { useRadioUser } from "@/lib/radio-user";
 import { usePlayerStore } from "@/lib/player-store";
+import { hostWantsShrimp } from "@/lib/shrimpify";
 
 const links = [
   { to: "/stations", params: undefined, label: "Stations", match: (path: string) => path === "/stations" || path.startsWith("/channel/") },
@@ -84,7 +85,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-1.5 px-3 sm:gap-2 sm:px-4">
         <div className="flex min-w-0 shrink-0 items-center gap-2">
           <TiNetworkMark size={36} />
-          <Link to="/" className="min-w-0" onClick={() => { setOpen(false); setShrimp(false); }} aria-label="Radio home">
+          <Link to="/" className="min-w-0" onClick={() => { setOpen(false); if (typeof window === "undefined" || !hostWantsShrimp(window.location.hostname)) setShrimp(false); }} aria-label="Radio home">
             <p className={cn("mark-radio font-display text-base font-semibold leading-none tracking-[0.22em] sm:text-lg sm:tracking-[0.28em]", gold, shrimp && "font-glaum tracking-[0.14em]")}>
               {shrimp ? "Glåüm" : "Radio"}
             </p>

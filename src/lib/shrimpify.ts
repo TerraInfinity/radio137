@@ -4,8 +4,8 @@ export const GLAUM_STATION = "official-glaum-frequency";
 export const SHRIMP_COOKIE = "radio_shrimp";
 
 export function hostWantsShrimp(host: string): boolean {
-  const name = host.toLowerCase().replace(/:\d+$/, "").replace(/\.$/, "");
-  return name === "shrimpify.com" || name === "www.shrimpify.com";
+  const name = host.toLowerCase().split(",")[0].trim().replace(/:\d+$/, "").replace(/\.$/, "");
+  return name === "shrimpify.com" || name === "www.shrimpify.com" || name === "shrimpify.ca" || name === "www.shrimpify.ca";
 }
 
 export function shrimpFromCookie(cookie: string): boolean | null {

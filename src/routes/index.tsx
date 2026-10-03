@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { Pause, Play } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { CoverArt } from "@/components/cover-art";
@@ -7,12 +7,17 @@ import { FeatureBoard } from "@/components/feature-board";
 import { useSetShrimp } from "@/components/shrimp-context";
 import { publicChannels } from "@/lib/catalog";
 import { experienceFromChannel } from "@/lib/experiences";
+import { hostWantsShrimp } from "@/lib/shrimpify";
 import { homeFeatured } from "@/lib/feature-rows";
 import { visualSrc } from "@/lib/media";
 import { qSearch } from "@/lib/search";
 import { usePlayerStore } from "@/lib/player-store";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: async () => {
+    const host = typeof window !== "undefined" ? window.location.hostname : await (await import("@/lib/shrimp-visit")).readVisitHost();
+    if (hostWantsShrimp(host)) throw redirect({ to: "/stations", replace: true });
+  },
   component: Home,
   validateSearch: qSearch,
   head: () => ({ meta: [{ title: "Radio" }] }),

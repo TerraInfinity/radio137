@@ -11,5 +11,9 @@ test("home is full Radio, and the station set is Shrimpify", () => {
   assert.equal(shrimpForVisit("radio.cyber-athens.ca", "radio_shrimp=1", "/"), false);
   assert.equal(shrimpForVisit("radio.terrainfinity.ca", "radio_shrimp=1", "/stations"), true);
   assert.equal(shrimpForVisit("localhost", "", "/albums"), false);
+  assert.equal(shrimpForVisit("www.shrimpify.ca", "", "/stations"), true);
+  assert.equal(shrimpForVisit("shrimpify.ca", "radio_shrimp=0", "/stations"), true);
+  assert.equal(hostWantsShrimp("www.shrimpify.ca"), true);
+  assert.equal(hostWantsShrimp("shrimpify.ca"), true);
   assert.equal(hostWantsShrimp("radio.terrainfinity.ca"), false);
 });

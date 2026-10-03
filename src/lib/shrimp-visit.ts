@@ -13,3 +13,14 @@ export const readShrimpVisit = createServerFn({ method: "GET" }).handler(async (
     return { shrimp: false };
   }
 });
+
+/** Host of this request. Used to send shrimpify.ca straight to the station set. */
+export const readVisitHost = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const request = getRequest();
+    return request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
+  } catch {
+    return "";
+  }
+});
