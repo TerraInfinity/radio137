@@ -1584,26 +1584,50 @@ body:has(.player-stage) .desk-chat {
 .bubble-d { width: 18px; height: 18px; right: 8%; bottom: -16%; animation-duration: 11s; animation-delay: -2s; }
 .shrimp-hand {
   position: absolute;
-  width: 28px;
-  height: 28px;
-  fill: #ffd6ea;
-  stroke: #b820d4;
-  stroke-width: 1.1;
-  stroke-linejoin: round;
-  opacity: 0.72;
-  animation: shrimp-ebb 8s ease-in-out infinite alternate;
+  width: 58px;
+  height: 70px;
+  transition: left 3.6s ease, top 3.6s ease;
 }
-.hand-a { top: 12%; left: 4%; width: 34px; height: 34px; }
-.hand-b { top: 28%; right: 7%; transform: rotate(18deg); animation-delay: -2s; }
-.hand-c { top: 48%; left: 2%; width: 22px; height: 22px; transform: rotate(-24deg); animation-delay: -4s; }
-.hand-d { bottom: 28%; right: 5%; width: 36px; height: 36px; transform: rotate(12deg); animation-delay: -1s; }
-.hand-e { bottom: 16%; left: 10%; width: 24px; height: 24px; transform: rotate(-8deg); animation-delay: -6s; }
-.hand-f { top: 18%; left: 28%; width: 18px; height: 18px; opacity: 0.45; animation-delay: -3s; }
-.hand-g { bottom: 36%; left: 18%; width: 20px; height: 20px; transform: rotate(30deg); animation-delay: -5s; }
-.hand-h { top: 62%; right: 22%; width: 16px; height: 16px; opacity: 0.4; animation-delay: -7s; }
-@keyframes shrimp-ebb {
-  from { opacity: 0.28; }
-  to { opacity: 0.8; }
+.shrimp-hand-svg { width: 100%; height: 100%; overflow: visible; }
+.shrimp-hand .finger,
+.shrimp-hand .palm,
+.shrimp-hand .wrist {
+  fill: #ffd0e6;
+  stroke: #9a2468;
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+}
+.shrimp-hand .palm { fill: #ffe4f2; }
+.shrimp-hand .wrist { fill: none; }
+.shrimp-hand .thumb { fill: #ffb3d4; }
+.shrimp-fingers { transform-origin: 40px 72px; }
+.shrimp-hand.is-waving .shrimp-fingers {
+  animation: hand-wave 0.42s ease-in-out 5;
+}
+@keyframes hand-wave {
+  0%, 100% { transform: rotate(-14deg); }
+  50% { transform: rotate(18deg); }
+}
+.shrimp-swimmer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 92px;
+  height: 42px;
+  transform-origin: center center;
+}
+.shrimp-swim-svg { width: 100%; height: 100%; overflow: visible; }
+.shrimp-swim-body { fill: #ff8fa3; stroke: #9a2468; stroke-width: 1.6; stroke-linejoin: round; }
+.shrimp-swim-band,
+.shrimp-swim-feel,
+.shrimp-swim-smile,
+.shrimp-tail { fill: none; stroke: #9a2468; stroke-width: 1.7; stroke-linecap: round; }
+.shrimp-swim-eye { fill: #2a1836; stroke: none; }
+.shrimp-swim-glint { fill: #fff; stroke: none; }
+.shrimp-tail { transform-origin: 14px 22px; animation: shrimp-tail 0.7s ease-in-out infinite; }
+@keyframes shrimp-tail {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(10deg); }
 }
 @keyframes shrimp-rise {
   from { transform: translateY(0) scale(1); opacity: 0; }
@@ -1822,9 +1846,10 @@ body:has(.player-stage) .desk-chat {
   .shrimp-mark.is-in,
   .shrimp-mark.is-out,
   .shrimp-mark.is-live,
-  .shrimp-hand,
+  .shrimp-hand.is-waving .shrimp-fingers,
   .shrimp-bubble,
   .shrimp-dial,
+  .shrimp-tail,
   .on-air-dot {
     animation: none;
   }
