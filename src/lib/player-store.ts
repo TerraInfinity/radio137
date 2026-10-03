@@ -27,6 +27,7 @@ import { mediaUrl } from "@/lib/media";
 import { loadPersisted, savePersisted } from "@/lib/storage";
 import { playbackLock, thisTabOwnsClock, type PlaybackPeer } from "@/lib/playback-lock";
 import { isLandingLocation } from "@/lib/landing";
+import { armRoseUnload, saveRosePlace } from "@/lib/rose-place";
 import type { Catalog, Channel, ClaimRecord, Identity, Track } from "@/lib/types";
 
 export type PlayerStatus = "idle" | "loading" | "playing" | "paused" | "missing" | "off-air";
@@ -127,6 +128,19 @@ function persist() {
     favorites: s.favorites,
     shuffleBySlug: s.shuffleBySlug,
     listenMode: s.listenMode,
+    roseRite: s.roseRite,
+  });
+  noteRosePlace(s);
+}
+
+function noteRosePlace(s: PlayerState) {
+  if (typeof window === "undefined") return;
+  if (experienceSlugFromPath(window.location.pathname) !== "rose") return;
+  const trackId = s.track?.id ?? (s.lastSlug === "rose" ? s.lastTrackId : null);
+  if (!trackId) return;
+  saveRosePlace({
+    trackId,
+    offset: s.track ? s.currentTime : s.lastOffsetSec,
     roseRite: s.roseRite,
   });
 }
@@ -248,6 +262,7 @@ async function wakeDeck() {
 function bindEngine() {
   if (engineBound || typeof window === "undefined") return;
   engineBound = true;
+  armRoseUnload();
   bindPlaybackLock();
   ignoreHidePause();
   claimPlaybackSession();

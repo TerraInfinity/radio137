@@ -277,8 +277,12 @@ export function RoseOpera({
   }
 
   useEffect(() => {
-    if (roseRite) setHoldingPreview(false);
-  }, [roseRite]);
+    if (experience.slug !== "rose") {
+      if (roseRite) setHoldingPreview(false);
+      return;
+    }
+    setHoldingPreview(!roseRite);
+  }, [experience.slug, roseRite]);
 
   useEffect(() => {
     setOverrideId(null);

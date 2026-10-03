@@ -6,6 +6,7 @@ import { getCatalog, getPlayableTracks } from "@/lib/catalog";
 import { ensureLiveCatalog } from "@/lib/live-catalog";
 import { previewTrackOf } from "@/lib/phenomena";
 import { usePlayerStore } from "@/lib/player-store";
+import { markRoseLeft, takeRoseResume } from "@/lib/rose-place";
 
 export const Route = createFileRoute("/experiences/$slug")({
   beforeLoad: async () => {
@@ -35,21 +36,49 @@ function ExperiencePage() {
   const trackId = usePlayerStore((s) => s.track?.id ?? null);
   const channelSlug = usePlayerStore((s) => s.channelSlug);
   const arrived = useRef(false);
+  const roseSettled = useRef(false);
+
+  useEffect(() => {
+    if (slug !== "rose") return;
+    return () => markRoseLeft();
+  }, [slug]);
+
+  useEffect(() => {
+    if (slug !== "rose" || !stationSlug) return;
+    const onShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      roseSettled.current = true;
+      usePlayerStore.setState({ roseRite: false, lastOffsetSec: 0 });
+      const channel = usePlayerStore.getState().catalog.channels.find((item) => item.slug === stationSlug);
+      const preview = previewTrackOf(getPlayableTracks(channel));
+      if (preview) void cueTrack(stationSlug, preview.id, { play: false, hold: true, offsetSec: 0 });
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, [cueTrack, slug, stationSlug]);
 
   useEffect(() => {
     if (!ready || !catalogReady || !stationSlug || !experience) return;
     const state = usePlayerStore.getState();
     if (experience.slug === "rose") {
-      if (state.channelSlug === stationSlug && state.track) return;
-      if (state.roseRite && state.lastSlug === stationSlug && state.lastTrackId) {
+      if (roseSettled.current) return;
+      roseSettled.current = true;
+      const place = takeRoseResume();
+      const channel = catalog.channels.find((item) => item.slug === stationSlug);
+      const preview = previewTrackOf(getPlayableTracks(channel));
+      if (place?.roseRite && place.trackId) {
+        usePlayerStore.setState({
+          roseRite: true,
+          lastSlug: stationSlug,
+          lastTrackId: place.trackId,
+          lastOffsetSec: place.offset,
+        });
         void tuneIn(stationSlug, { play: false });
         return;
       }
-      const channel = catalog.channels.find((item) => item.slug === stationSlug);
-      const preview = previewTrackOf(getPlayableTracks(channel));
+      const offset = place && preview && place.trackId === preview.id ? place.offset : 0;
+      usePlayerStore.setState({ roseRite: false, lastOffsetSec: offset });
       if (!preview) return;
-      if (state.channelSlug === stationSlug && state.track?.id === preview.id) return;
-      const offset = state.lastSlug === stationSlug && state.lastTrackId === preview.id ? state.lastOffsetSec : 0;
       void cueTrack(stationSlug, preview.id, { play: false, hold: true, offsetSec: offset });
       return;
     }
