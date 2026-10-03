@@ -14,7 +14,7 @@ import { UnallocateControl } from "@/components/unallocate-control";
 import { getChannel, kindLabel, normalizeKind, stationSkin } from "@/lib/catalog";
 import { cn, formatClock } from "@/lib/cn";
 import { isOnDemandOverlay, listenModeLabel } from "@/lib/listen-mode";
-import { songPortrait, visualSrc } from "@/lib/media";
+import { isLoopingVisual, songPortrait, visualSrc } from "@/lib/media";
 import { useRadioUser } from "@/lib/radio-user";
 import { songPath } from "@/lib/song-url";
 import { cacheUsage, clearCachedAudio, subscribeAudioCache, audioCacheGeneration } from "@/lib/audio-cache";
@@ -415,6 +415,8 @@ export function MiniPlayer() {
   const deskKind = normalizeKind(channel.kind || channel.mode);
   const liveSync = listenMode === "stream" && deskKind === "live" && !overlay;
   const art = visualSrc(track, channel);
+  const still = songPortrait(track, channel);
+  const poster = still && !isLoopingVisual(still) ? still : channel.cover && !isLoopingVisual(channel.cover) ? channel.cover : undefined;
   const statusLine = status === "loading"
     ? "Tuning…"
     : buffering
@@ -527,16 +529,16 @@ export function MiniPlayer() {
                 <button
                   type="button"
                   onClick={() => isAdmin && setArtOpen(true)}
-                  className="block size-full"
+                  className="absolute inset-0 block"
                   aria-label={isAdmin ? "Replace this song’s art" : track.title}
                 >
-                  <CoverArt src={art} alt="" className="size-full" motion="loop" />
+                  <CoverArt src={art} poster={poster} alt="" className="size-full" motion="loop" />
                 </button>
                 {isAdmin ? (
                   <button
                     type="button"
                     onClick={() => setArtOpen(true)}
-                    className="absolute right-2 top-2 inline-flex size-11 items-center justify-center rounded-md bg-bg/85 text-gold"
+                    className="absolute right-2 top-2 z-10 inline-flex size-11 items-center justify-center rounded-md bg-bg/85 text-gold"
                     aria-label="Replace art"
                   >
                     <Camera className="size-4" />
@@ -612,7 +614,7 @@ export function MiniPlayer() {
             className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
             aria-label="Expand player"
           >
-            <CoverArt src={songPortrait(track, channel) || art} alt="" className="size-12 shrink-0 overflow-hidden rounded-md" motion="still" />
+            <CoverArt src={still || poster || art} poster={poster} alt="" className="size-12 shrink-0 overflow-hidden rounded-md" motion="still" />
             <span className="min-w-0 flex-1 overflow-hidden">
               <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
                 {track.artist ? `${track.artist} · ` : ""}

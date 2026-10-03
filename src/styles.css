@@ -503,11 +503,12 @@ body:before {
 .player-stage-art-frame {
   aspect-ratio: 1;
   border-radius: var(--radius-lg);
-  width: min(100%, 28rem, 52dvh);
+  width: min(100%, 26rem, 42dvh);
   max-height: 100%;
   box-shadow: var(--shadow-filigree);
   position: relative;
   overflow: hidden;
+  flex: none;
 }
 .player-stage-copy {
   flex-direction: column;
