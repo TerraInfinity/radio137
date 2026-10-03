@@ -8,12 +8,14 @@ export function CoverArt({
   className,
   motion = "still",
   poster,
+  fit = "contain",
 }: {
   src?: string | null;
   alt: string;
   className?: string;
   motion?: "still" | "loop";
   poster?: string | null;
+  fit?: "contain" | "cover";
 }) {
   const resolved = mediaUrl(src);
   const posterSrc = mediaUrl(poster);
@@ -21,14 +23,15 @@ export function CoverArt({
   useEffect(() => {
     setFailed(false);
   }, [resolved]);
-  if (!resolved) return <div className={cn("cover-art", className)} aria-hidden />;
+  if (!resolved) return <div className={cn("cover-art", fit === "cover" && "is-cover", className)} aria-hidden />;
+  const frame = cn("cover-art", fit === "cover" && "is-cover", className);
   const looping = isLoopingVisual(resolved) && !failed;
   const still = failed ? posterSrc : resolved;
   if (!looping) {
-    if (!still || isLoopingVisual(still)) return <div className={cn("cover-art", className)} aria-hidden />;
+    if (!still || isLoopingVisual(still)) return <div className={frame} aria-hidden />;
     return (
-      <span className={cn("cover-art", className)}>
-        <img src={still} alt="" aria-hidden className="cover-art-wash" />
+      <span className={frame}>
+        {fit === "cover" ? null : <img src={still} alt="" aria-hidden className="cover-art-wash" />}
         <img src={still} alt={alt} loading="lazy" decoding="async" className="cover-art-fit" />
       </span>
     );
@@ -36,7 +39,7 @@ export function CoverArt({
   const wash = posterSrc && !isLoopingVisual(posterSrc) ? posterSrc : "";
   if (motion !== "loop" && wash) {
     return (
-      <span className={cn("cover-art", className)}>
+      <span className={frame}>
         <img src={wash} alt="" aria-hidden className="cover-art-wash" />
         <img src={wash} alt={alt} loading="lazy" decoding="async" className="cover-art-fit" />
       </span>
@@ -44,14 +47,14 @@ export function CoverArt({
   }
   if (motion !== "loop") {
     return (
-      <span className={cn("cover-art", className)}>
+      <span className={frame}>
         <StillFilm src={resolved} alt={alt} onError={() => setFailed(true)} />
       </span>
     );
   }
   return (
-    <span className={cn("cover-art", className)}>
-      {wash ? <img src={wash} alt="" aria-hidden className="cover-art-wash" /> : null}
+    <span className={frame}>
+      {fit === "cover" || !wash ? null : <img src={wash} alt="" aria-hidden className="cover-art-wash" />}
       <video
         src={resolved}
         poster={wash || undefined}
