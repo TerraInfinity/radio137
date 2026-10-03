@@ -15,6 +15,7 @@
  *   runtime hook's return value, and `render:html` does not exist in Nitro v3.
  */
 import installPageTemplate from "../../scripts/install-page.html?raw";
+import { hostWantsShrimp } from "../../src/lib/shrimpify";
 import { grokOgIdentity } from "virtual:grok-og-identity";
 import {
   acceptsHtml,
@@ -37,9 +38,19 @@ function requestHost(event: GrokPwaEvent): string {
 }
 
 function injectHeadStreaming(response: Response, host: string): Response {
+  const shrimp = hostWantsShrimp(host);
+  const site = {
+    ...grokOgIdentity.site,
+    card: "custom",
+    image: shrimp ? "/og-glaum.jpg" : grokOgIdentity.site.image || "/og.jpg",
+    title: shrimp ? "Glåüm" : grokOgIdentity.site.title || "Radio",
+    description: shrimp
+      ? "You are listening to Glåüm Radio."
+      : "Welcome to the Light Ages. A radio of frequencies.",
+  };
   const injector = createHeadInjector({
     host,
-    site: grokOgIdentity.site,
+    site,
   });
   const transformed = response.body!.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
