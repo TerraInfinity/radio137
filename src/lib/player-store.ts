@@ -12,7 +12,7 @@ import {
   stationSkin,
   normalizeShuffle,
 } from "@/lib/catalog";
-import { durationOf, neighborTrack, nextForward, nextShuffled, rememberDuration, resolveLivePlayhead, walkFrom } from "@/lib/playback";
+import { durationOf, neighborTrack, nextForward, nextShuffled, rememberDuration, resolveLivePlayhead, stationProgram, walkFrom } from "@/lib/playback";
 import type { CutGroup } from "@/lib/cuts";
 import { endPad, radioEngine } from "@/lib/radio-engine";
 import { effectiveKind, listenModeFromLocation, type ListenMode } from "@/lib/listen-mode";
@@ -1021,9 +1021,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           return true;
         };
         if (kind === "live") {
-          const head = resolveLivePlayhead(playable, Date.now(), slug, current?.id ?? justEndedId);
-          if (await hold(head?.track)) return;
-          if (head) await loadTrack(slug, head.track, head.offsetSec, play, set, 0, "join");
+          const program = stationProgram(playable, slug);
+          const fromId = current?.id ?? justEndedId;
+          const at = program.findIndex((item) => item.id === fromId);
+          const nxt = program.length ? program[at >= 0 ? (at + 1) % program.length : 0] : null;
+          if (await hold(nxt)) return;
+          if (nxt) await loadTrack(slug, nxt, 0, play, set, 0, "flow");
           return;
         }
         if (!mixing && kind === "fixed") {
