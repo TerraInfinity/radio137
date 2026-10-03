@@ -1345,6 +1345,10 @@ body:has(.player-stage) .desk-chat {
 .player-shell-rose input[type="range"] {
   accent-color: var(--color-gold);
 }
+.player-dock {
+  position: relative;
+  overflow: hidden;
+}
 .player-dock.player-shell-rose {
   isolation: isolate;
   overflow: hidden;

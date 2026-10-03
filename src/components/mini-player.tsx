@@ -360,17 +360,6 @@ function TransportButtons({
   );
 }
 
-function RoseRiteOrnament() {
-  return (
-    <span className="player-rose-ornament" aria-hidden>
-      <img className="player-rose-antlers" src="/experiences/rose/antlers.jpg" alt="" />
-      <img className="player-rose-sword is-left" src="/experiences/rose/elven-sword.jpg" alt="" />
-      <img className="player-rose-sword is-right" src="/experiences/rose/elven-sword.jpg" alt="" />
-      <span className="player-rose-sand" />
-    </span>
-  );
-}
-
 export function MiniPlayer() {
   const track = usePlayerStore((s) => s.track);
   const status = usePlayerStore((s) => s.status);
@@ -583,7 +572,6 @@ export function MiniPlayer() {
 
   return (
     <div className={cn("player-dock z-40 border-t border-line bg-bg pb-[max(0.15rem,env(safe-area-inset-bottom))]", shell)}>
-      {skin === "rose" ? <RoseRiteOrnament /> : null}
       <Scrubber currentTime={currentTime} duration={duration} compact health={skin === "rose"} />
       <div className="mx-auto flex max-w-6xl items-center gap-1 px-2 sm:gap-2 sm:px-4">
         <button
