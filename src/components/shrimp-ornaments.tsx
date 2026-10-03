@@ -59,13 +59,13 @@ function hits(x: number, y: number, w: number, h: number, boxes: Box[]) {
   return boxes.some((box) => x < box.r && x + w > box.l && y < box.b && y + h > box.t);
 }
 
-function gutterSpot(width: number, height: number, side: 1 | -1, boxes: Box[]) {
-  let x = side < 0 ? 10 : width - 46;
-  let y = 24;
-  for (let tryNo = 0; tryNo < 10; tryNo += 1) {
-    x = side < 0 ? 6 + Math.random() * 22 : width - 48 - Math.random() * 18;
-    y = 12 + Math.random() * Math.max(20, height - 70);
-    if (!hits(x, y, 36, 44, boxes)) break;
+function openSpot(width: number, height: number, boxes: Box[]) {
+  let x = width * 0.5;
+  let y = height * 0.4;
+  for (let tryNo = 0; tryNo < 16; tryNo += 1) {
+    x = 8 + Math.random() * Math.max(12, width - 52);
+    y = 8 + Math.random() * Math.max(12, height - 60);
+    if (!hits(x, y, 36, 44, boxes)) return { x, y };
   }
   return { x, y };
 }
@@ -91,7 +91,7 @@ export function ShrimpOrnaments() {
           y: 30 + index * 80,
           tx: 8,
           ty: 30 + index * 80,
-          side: index % 2 === 0 ? -1 : 1,
+          side: 1,
           phase: index * 1.3,
           gesture: "rest" as Gesture,
           until: 0,
@@ -116,8 +116,16 @@ export function ShrimpOrnaments() {
           });
         });
       boxes = next;
-      hands.forEach((hand) => {
-        const spot = gutterSpot(host.width, host.height, hand.side, boxes);
+      hands.forEach((hand, index) => {
+        const col = index % 3;
+        const row = Math.floor(index / 3);
+        const cellW = Math.max(40, (host.width - 20) / 3);
+        const cellH = Math.max(40, (host.height - 20) / 2);
+        let spot = {
+          x: 8 + col * cellW + Math.random() * Math.max(8, cellW - 44),
+          y: 8 + row * cellH + Math.random() * Math.max(8, cellH - 52),
+        };
+        if (hits(spot.x, spot.y, 36, 44, boxes)) spot = openSpot(host.width, host.height, boxes);
         hand.x = spot.x;
         hand.y = spot.y;
         hand.tx = spot.x;
@@ -192,7 +200,7 @@ export function ShrimpOrnaments() {
             hand.gesture = Math.random() < 0.55 ? "wave" : "beckon";
             hand.until = now + 1100 + Math.random() * 500;
             hand.next = now + 4200 + Math.random() * 5200;
-            const spot = gutterSpot(host.width, host.height, hand.side, boxes);
+            const spot = openSpot(host.width, host.height, boxes);
             hand.tx = spot.x;
             hand.ty = spot.y;
           }
