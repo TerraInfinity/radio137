@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { isLoopingVisual, mediaUrl } from "@/lib/media";
 
@@ -21,27 +21,79 @@ export function CoverArt({
   useEffect(() => {
     setFailed(false);
   }, [resolved]);
-  if (!resolved) return <div className={cn("bg-bg-elevated", className)} aria-hidden />;
-  const looping = isLoopingVisual(resolved);
-  if (looping && !failed) {
+  if (!resolved) return <div className={cn("cover-art", className)} aria-hidden />;
+  const looping = isLoopingVisual(resolved) && !failed;
+  const still = failed ? posterSrc : resolved;
+  if (!looping) {
+    if (!still || isLoopingVisual(still)) return <div className={cn("cover-art", className)} aria-hidden />;
     return (
+      <span className={cn("cover-art", className)}>
+        <img src={still} alt="" aria-hidden className="cover-art-wash" />
+        <img src={still} alt={alt} loading="lazy" decoding="async" className="cover-art-fit" />
+      </span>
+    );
+  }
+  const wash = posterSrc && !isLoopingVisual(posterSrc) ? posterSrc : "";
+  if (motion !== "loop" && wash) {
+    return (
+      <span className={cn("cover-art", className)}>
+        <img src={wash} alt="" aria-hidden className="cover-art-wash" />
+        <img src={wash} alt={alt} loading="lazy" decoding="async" className="cover-art-fit" />
+      </span>
+    );
+  }
+  if (motion !== "loop") {
+    return (
+      <span className={cn("cover-art", className)}>
+        <StillFilm src={resolved} alt={alt} onError={() => setFailed(true)} />
+      </span>
+    );
+  }
+  return (
+    <span className={cn("cover-art", className)}>
+      {wash ? <img src={wash} alt="" aria-hidden className="cover-art-wash" /> : null}
       <video
         src={resolved}
-        poster={posterSrc && !isLoopingVisual(posterSrc) ? posterSrc : undefined}
-        className={cn("h-full w-full object-cover", className)}
+        poster={wash || undefined}
+        className="cover-art-fit"
         muted
         loop
         playsInline
         autoPlay
-        preload={motion === "loop" ? "auto" : "metadata"}
+        preload="metadata"
         aria-label={alt || undefined}
         onError={() => setFailed(true)}
       />
-    );
-  }
-  const still = failed ? posterSrc : resolved;
-  if (!still || isLoopingVisual(still)) {
-    return <div className={cn("bg-bg-elevated", className)} aria-hidden />;
-  }
-  return <img src={still} alt={alt} loading="lazy" decoding="async" className={cn("h-full w-full object-cover", className)} />;
+    </span>
+  );
+}
+
+function StillFilm({ src, alt, onError }: { src: string; alt: string; onError: () => void }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const paint = () => {
+      try {
+        if (el.currentTime < 0.04) el.currentTime = 0.04;
+      } catch {
+        /* not seekable yet */
+      }
+      el.pause();
+    };
+    el.addEventListener("loadeddata", paint);
+    return () => el.removeEventListener("loadeddata", paint);
+  }, [src]);
+  return (
+    <video
+      ref={ref}
+      src={src}
+      className="cover-art-fit"
+      muted
+      playsInline
+      preload="metadata"
+      aria-label={alt || undefined}
+      onError={onError}
+    />
+  );
 }

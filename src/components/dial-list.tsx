@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Play } from "lucide-react";
 import { useMemo, useState } from "react";
+import { CoverArt } from "@/components/cover-art";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel } from "@/lib/types";
 
@@ -56,8 +57,8 @@ export function DialList({
       <ul className="mt-4 divide-y divide-line overflow-hidden rounded-2xl bg-bg-elevated shadow-[var(--shadow-filigree)]">
         {shown.map((row) => (
           <li key={`${row.kind}-${row.slug}`} className="flex items-center gap-3 px-3 py-2.5">
-            <Link to={row.href} params={{ slug: row.slug }} className="size-14 shrink-0 overflow-hidden rounded-lg">
-              <img src={row.cover || "/covers/ember-frequency.jpg"} alt="" className="size-full object-cover" />
+            <Link to={row.href} params={{ slug: row.slug }} className="relative size-14 shrink-0 overflow-hidden rounded-lg">
+              <CoverArt src={row.cover || "/covers/ember-frequency.jpg"} alt="" className="size-full" />
             </Link>
             <div className="min-w-0 flex-1">
               <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">

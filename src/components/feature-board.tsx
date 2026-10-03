@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Play } from "lucide-react";
 import { StationVisual } from "@/components/station-visual";
+import { CoverArt } from "@/components/cover-art";
 import { usePlayerStore } from "@/lib/player-store";
 import type { DialRow } from "@/components/dial-list";
 
@@ -33,7 +34,7 @@ function FeatureFace({ row, large, onPlay }: { row: DialRow; large?: boolean; on
         {row.channel ? (
           <StationVisual channel={row.channel} size={large ? "hero" : "card"} className="absolute inset-0 size-full" />
         ) : (
-          <img src={row.cover} alt="" className="absolute inset-0 size-full object-cover" />
+          <CoverArt src={row.cover} alt="" className="absolute inset-0 size-full" motion="loop" />
         )}
         <span className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
       </Link>

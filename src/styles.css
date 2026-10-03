@@ -1402,3 +1402,29 @@ body:has(.player-stage) .desk-chat {
     opacity: 0.28;
   }
 }
+
+.cover-art {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: #120c10;
+}
+.cover-art-wash,
+.cover-art-fit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.cover-art-wash {
+  object-fit: cover;
+  transform: scale(1.18);
+  filter: blur(18px);
+}
+.cover-art-fit {
+  z-index: 1;
+  object-fit: contain;
+  object-position: center;
+  background: transparent;
+}

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { publicChannels } from "@/lib/catalog";
 import { experienceRows } from "@/lib/feature-rows";
+import { CoverArt } from "@/components/cover-art";
 import { usePlayerStore } from "@/lib/player-store";
 
 export const Route = createFileRoute("/experiences/")({
@@ -31,7 +32,9 @@ function ExperiencesIndex() {
               params={{ slug: item.slug }}
               className="grid overflow-hidden rounded-2xl bg-bg-elevated shadow-[var(--shadow-filigree)] sm:grid-cols-[14rem_1fr]"
             >
-              <img src={item.cover || "/covers/ember-frequency.jpg"} alt="" className={index === 0 ? "aspect-[4/5] h-full w-full object-cover sm:aspect-auto sm:min-h-56" : "aspect-[3/4] h-full w-full object-cover sm:aspect-auto sm:min-h-48"} />
+              <span className={index === 0 ? "relative block aspect-[4/5] sm:aspect-auto sm:min-h-56" : "relative block aspect-[3/4] sm:aspect-auto sm:min-h-48"}>
+                <CoverArt src={item.cover || "/covers/ember-frequency.jpg"} alt="" className="absolute inset-0 size-full" />
+              </span>
               <span className="flex flex-col justify-center p-5">
                 <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold">
                   {item.featured ? "Featured · " : ""}
