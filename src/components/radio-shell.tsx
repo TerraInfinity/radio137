@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { Atmosphere } from "@/components/atmosphere";
 import { EnterGate } from "@/components/enter-gate";
@@ -28,30 +28,37 @@ export function RadioShell({ children }: { children: React.ReactNode }) {
   const skin = channel ? stationSkin(channel) : "none";
   const shrimp = useShrimp();
   const showGate = ready && !visited && isLandingLocation(pathname, search);
+  const mainRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
   useEffect(() => {
+    mainRef.current?.scrollTo(0, 0);
+  }, [pathname]);
+
+  useEffect(() => {
     applyListenQuery(search, hash);
   }, [applyListenQuery, search, hash]);
 
   return (
-    <div className="relative min-h-dvh">
+    <div className="radio-app relative">
       <SsoCodeCatcher />
       <Atmosphere skin={skin} />
       <LoveLayer />
-      <div className={cn("relative z-10", shrimp && "shrimp-main")}>
+      <div className={cn("radio-frame relative z-10", shrimp && "shrimp-main")}>
         <SiteHeader />
         {shrimp ? <ShrimpOrnaments /> : null}
-        <div className={shrimp ? "xl:pr-72" : undefined}>{children}</div>
-        {shrimp ? <SatireAd slim /> : null}
+        <div ref={mainRef} className={cn("radio-main", shrimp && "xl:pr-72")}>
+          {children}
+          {shrimp ? <SatireAd slim /> : null}
+        </div>
         {shrimp ? <SatireAd /> : null}
+        {ready && !showGate ? <ConvertQueueBar /> : null}
+        {showGate ? <EnterGate /> : null}
       </div>
-      {ready && !showGate ? <ConvertQueueBar /> : null}
       {ready && !showGate ? <MiniPlayer /> : null}
-      {showGate ? <EnterGate /> : null}
     </div>
   );
 }

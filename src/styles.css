@@ -341,11 +341,47 @@ body:before {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.radio-app {
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.radio-frame {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.radio-main {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+html:has(.radio-app),
+body:has(.radio-app) {
+  height: 100%;
+  overflow: hidden;
+}
+.radio-main .pb-52 {
+  padding-bottom: 2.5rem;
+}
+body:has(.rose-opera-full) .player-dock,
+body:has(.rose-opera-full) .player-sliver {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+body:has(.rose-opera-full) .radio-main .pb-52 {
+  padding-bottom: 13rem;
+}
+body:has(.rose-opera-full) .player-shell-rose {
+  box-shadow: 0 -18px 44px #00000080;
+}
 .player-stage {
   z-index: 40;
   overscroll-behavior: none;
-  background: transparent;
-  padding: 0.55rem 0.7rem max(0.55rem, env(safe-area-inset-bottom));
+  background: var(--color-bg);
+  padding: 0;
   flex-direction: column;
   display: flex;
   position: fixed;
@@ -356,7 +392,7 @@ body:before {
   content: "";
   position: absolute;
   inset: 0;
-  background: color-mix(in oklab, #07040a 58%, transparent);
+  background: var(--color-bg);
   pointer-events: none;
 }
 .player-stage-sheet {
@@ -367,14 +403,10 @@ body:before {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  border-radius: 1.35rem;
-  border: 1px solid color-mix(in oklab, var(--color-gold) 42%, var(--color-line));
-  background:
-    radial-gradient(ellipse 80% 50% at 18% 40%, color-mix(in oklab, var(--color-gold) 16%, transparent), transparent 60%),
-    var(--color-bg);
-  box-shadow:
-    0 28px 70px #000000c0,
-    inset 0 1px 0 #ffffff14;
+  border-radius: 0;
+  border: 0;
+  background: var(--color-bg);
+  box-shadow: none;
 }
 .player-stage-sheet.is-rose {
   border-color: color-mix(in oklab, #e8a8b0 55%, #c4a574);
@@ -538,17 +570,16 @@ body:before {
 .player-sliver {
   z-index: 40;
   height: 2.75rem;
+  width: 100%;
   padding-bottom: env(safe-area-inset-bottom);
   cursor: pointer;
-  background: transparent;
+  background: var(--color-bg);
   border: 0;
+  border-top: 1px solid var(--color-line);
   justify-content: center;
   align-items: flex-end;
   display: flex;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: relative;
 }
 .player-sliver-rail {
   background: var(--color-bg-elevated);
@@ -1270,7 +1301,7 @@ body:has(.player-stage) .desk-chat {
   --rose-blush: #e8a8b0;
   background: #1a140f;
   border-top-color: color-mix(in oklab, var(--rose-sand) 55%, transparent);
-  box-shadow: 0 -18px 44px #00000080;
+  box-shadow: none;
   color: var(--rose-petal);
 }
 .rose-title {
@@ -1507,7 +1538,7 @@ body:has(.player-stage) .desk-chat {
   --color-subtle: #8a7b6a;
   --color-gold: #8d6b2f;
   --color-line: #2c241c1f;
-  min-height: calc(100dvh - 3.5rem);
+  min-height: 0;
 }
 .shrimp-ornaments {
   pointer-events: none;

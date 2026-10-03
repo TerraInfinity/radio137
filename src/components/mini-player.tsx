@@ -581,7 +581,7 @@ export function MiniPlayer() {
   }
 
   return (
-    <div className={cn("player-dock fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur-sm", shell)}>
+    <div className={cn("player-dock z-40 border-t border-line bg-bg pb-[max(0.4rem,env(safe-area-inset-bottom))]", shell)}>
       {skin === "rose" ? <RoseRiteOrnament /> : null}
       <div className="mx-auto max-w-6xl px-3 pt-1 sm:px-4">
         <div className="flex items-center gap-1">
