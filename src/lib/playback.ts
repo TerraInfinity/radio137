@@ -93,8 +93,34 @@ export function joinDuration(track: Track): number {
 
 function hashSlug(slug: string): number {
   let n = 0;
-  for (let i = 0; i < slug.length; i++) n = (n * 31 + slug.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < slug.length; i++) n = (n * 33 + slug.charCodeAt(i)) >>> 0;
   return n;
+}
+
+function mix(seed: number) {
+  let n = seed >>> 0;
+  return () => {
+    n = (Math.imul(n, 1664525) + 1013904223) >>> 0;
+    return n / 4294967296;
+  };
+}
+
+/**
+ * Shared station order. Same slug and same six-hour block ⇒ same shuffle for every listener.
+ * Rose stays in rite order. Albums never call this.
+ */
+export function stationProgram<T extends { id: string }>(tracks: T[], slug = "", now = Date.now()): T[] {
+  if (tracks.length < 2 || slug === "rose") return tracks;
+  const block = Math.floor(now / (6 * 60 * 60 * 1000));
+  const rand = mix((hashSlug(slug || "station") ^ Math.imul(block + 1, 0x9e3779b1)) >>> 0);
+  const next = [...tracks];
+  for (let i = next.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const swap = next[i];
+    next[i] = next[j];
+    next[j] = swap;
+  }
+  return next;
 }
 
 export type Playhead = { track: Track; index: number; offsetSec: number };
@@ -104,17 +130,18 @@ export type Playhead = { track: Track; index: number; offsetSec: number };
  * Uses published slot lengths so one person's measured MP3 cannot spin the wheel.
  */
 export function liveCursor(tracks: Track[], now = Date.now(), slug = ""): Playhead | null {
-  if (tracks.length === 0) return null;
-  const total = tracks.reduce((sum, track) => sum + slotDuration(track), 0);
-  if (total <= 0) return { track: tracks[0], index: 0, offsetSec: 0 };
+  const program = stationProgram(tracks, slug, now);
+  if (program.length === 0) return null;
+  const total = program.reduce((sum, track) => sum + slotDuration(track), 0);
+  if (total <= 0) return { track: program[0], index: 0, offsetSec: 0 };
   const day = Math.floor(now / 1000) + (hashSlug(slug) % 3600);
   let cursor = ((day % total) + total) % total;
-  for (let i = 0; i < tracks.length; i++) {
-    const dur = slotDuration(tracks[i]);
-    if (cursor < dur) return { track: tracks[i], index: i, offsetSec: cursor };
+  for (let i = 0; i < program.length; i++) {
+    const dur = slotDuration(program[i]);
+    if (cursor < dur) return { track: program[i], index: i, offsetSec: cursor };
     cursor -= dur;
   }
-  return { track: tracks[0], index: 0, offsetSec: 0 };
+  return { track: program[0], index: 0, offsetSec: 0 };
 }
 
 /**
@@ -131,7 +158,8 @@ export function resolveLivePlayhead(
 ): Playhead | null {
   const clock = liveCursor(tracks, now, slug);
   if (!clock) return null;
-  return realizePlayhead(tracks, clock.index, clock.offsetSec, avoidId);
+  const program = stationProgram(tracks, slug, now);
+  return realizePlayhead(program, clock.index, clock.offsetSec, avoidId);
 }
 
 export function realizePlayhead(

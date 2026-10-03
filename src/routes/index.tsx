@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { CoverArt } from "@/components/cover-art";
 import { DialSearch } from "@/components/dial-search";
 import { FeatureBoard } from "@/components/feature-board";
+import { RadioHomeSet } from "@/components/radio-home-set";
 import { useSetShrimp } from "@/components/shrimp-context";
 import { publicChannels } from "@/lib/catalog";
 import { experienceFromChannel } from "@/lib/experiences";
@@ -42,6 +43,7 @@ function Home() {
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Welcome to the Light Ages</p>
       <h1 className="mt-2 font-display text-5xl font-semibold tracking-tight">Radio</h1>
       <p className="mt-3 max-w-prose text-muted">Featured rites and stations, and whatever is on the air. The full directories stay in their lanes.</p>
+      <RadioHomeSet />
       <div className="mt-8 max-w-3xl">
         <DialSearch
           catalog={catalog.channels.length ? catalog : { ...catalog, channels }}

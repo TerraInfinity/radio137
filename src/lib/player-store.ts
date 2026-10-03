@@ -103,6 +103,7 @@ let loadLock: Promise<void> | null = null;
 let engineBound = false;
 let justEndedId: string | null = null;
 let userPaused = false;
+let listenChosen = false;
 let holdAtEnd = false;
 const viewed = new Set<string>();
 const recents: string[] = [];
@@ -128,6 +129,7 @@ function persist() {
     favorites: s.favorites,
     shuffleBySlug: s.shuffleBySlug,
     listenMode: s.listenMode,
+    listenChosen,
     roseRite: s.roseRite,
   });
   noteRosePlace(s);
@@ -631,7 +633,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   shuffle: false,
   shuffleBySlug: {},
   cutGroups: [],
-  listenMode: "ondemand",
+  listenMode: "stream",
   listenModeSession: null,
   buffering: false,
   deckHint: "",
@@ -643,6 +645,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     bindEngine();
     const p = loadPersisted();
     userPaused = !p.autoplay;
+    listenChosen = p.listenChosen;
     const identity = p.identityName ? { id: `guest:${p.identityName.toLowerCase()}`, name: p.identityName } : null;
     const landing =
       typeof window !== "undefined" && isLandingLocation(window.location.pathname, window.location.search);
@@ -1018,9 +1021,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           return true;
         };
         if (kind === "live") {
-          const nxt = pickNext(channel, playable, current?.id);
-          if (await hold(nxt)) return;
-          if (nxt) await loadTrack(slug, nxt, 0, play, set, 0, "flow");
+          const head = resolveLivePlayhead(playable, Date.now(), slug, current?.id ?? justEndedId);
+          if (await hold(head?.track)) return;
+          if (head) await loadTrack(slug, head.track, head.offsetSec, play, set, 0, "join");
           return;
         }
         if (!mixing && kind === "fixed") {
@@ -1120,6 +1123,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   setListenMode: (value) => {
+    listenChosen = true;
     set({ listenMode: value, listenModeSession: null });
     persist();
     const slug = get().channelSlug;
@@ -1151,6 +1155,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const playable = getPlayableTracks(channel);
     if (playable.length === 0) return;
     set({ listenMode: "stream", listenModeSession: null });
+    listenChosen = true;
     persist();
     const play = !userPaused && (get().status === "playing" || get().autoplay);
     userPaused = false;

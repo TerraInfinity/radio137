@@ -21,6 +21,7 @@ export type Persisted = {
   favorites: string[];
   shuffleBySlug: Record<string, boolean>;
   listenMode: ListenMode;
+  listenChosen: boolean;
   roseRite: boolean;
 };
 
@@ -40,7 +41,8 @@ const defaults: Persisted = {
   liked: [],
   favorites: [],
   shuffleBySlug: {},
-  listenMode: "ondemand",
+  listenMode: "stream",
+  listenChosen: false,
   roseRite: false,
 };
 
@@ -65,7 +67,8 @@ export function loadPersisted(): Persisted {
       volume: Number.isFinite(parsed.volume) ? Math.min(1, Math.max(0, Number(parsed.volume))) : 0.85,
       muted: Boolean(parsed.muted),
       playerHidden: Boolean(parsed.playerHidden),
-      listenMode: parseListenMode(parsed.listenMode) ?? "ondemand",
+      listenMode: parsed.listenChosen ? parseListenMode(parsed.listenMode) ?? "stream" : "stream",
+      listenChosen: parsed.listenChosen === true,
       roseRite: parsed.roseRite === true,
     };
   } catch {

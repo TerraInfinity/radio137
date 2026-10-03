@@ -1863,6 +1863,88 @@ body:has(.player-stage) .desk-chat {
     inset 0 0 0 1px #ff4fa3;
   mask-image: linear-gradient(#000 0 12%, transparent 28% 72%, #000 88%);
 }
+.radio-set {
+  position: relative;
+  margin-top: 1.5rem;
+  overflow: hidden;
+  height: min(42vw, 320px);
+  min-height: 200px;
+  border-radius: 1.25rem;
+  background: #07060d;
+  box-shadow: var(--shadow-filigree);
+}
+.radio-set-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 42%;
+}
+.radio-set-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #07060de6 0%, #07060d88 38%, transparent 68%);
+}
+.radio-set-read {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+  max-width: 28rem;
+  padding: 1.1rem 1.2rem 1.15rem;
+}
+.radio-set-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #e7c98a;
+}
+.radio-set-lamp {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #8a7a62;
+  box-shadow: inset 0 0 0 1px #00000088;
+}
+.radio-set.is-live .radio-set-lamp {
+  background: #ffb35a;
+  box-shadow: 0 0 10px #ffb35acc;
+  animation: shrimp-lamp 1.8s ease-in-out infinite;
+}
+.radio-set-title {
+  margin-top: 0.35rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.4vw, 2rem);
+  line-height: 1.15;
+  color: #f6f1e6;
+}
+.radio-set-station {
+  margin-top: 0.2rem;
+  font-size: 0.9rem;
+  color: #d9c7a2;
+}
+.radio-set-knob {
+  margin-top: 0.75rem;
+  width: 4.5rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  background: #f4efe4;
+  color: #1a140c;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+@media (prefers-reduced-motion: reduce) {
+  .radio-set.is-live .radio-set-lamp { animation: none; }
+}
 .album-card {
   display: block;
   overflow: hidden;
