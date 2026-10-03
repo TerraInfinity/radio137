@@ -26,6 +26,7 @@ function StationsPage() {
         <div className="shrimp-rule pb-4">
           <OnAirLamp />
           <p className="mt-4 font-glaum text-3xl italic text-fg sm:text-4xl">You are listening to Glåüm Radio.</p>
+          <p className="mt-2 font-glaum text-lg text-muted">The Many Hands are holding the frequency.</p>
         </div>
         <h1 className="mt-6 font-glaum text-5xl font-medium tracking-tight">Official Glaum Frequency</h1>
         <p className="mt-3 max-w-prose text-muted">One station. The broadcast stays where it is.</p>

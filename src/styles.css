@@ -1521,23 +1521,27 @@ body:has(.player-stage) .desk-chat {
   50% { transform: rotate(7deg) translateY(-1px); }
 }
 .shrimp-header {
-  background: #f6f0e4e6;
-  border-bottom-color: #8d6b2f55;
-  color: #2c241c;
+  background: #fff6fbe6;
+  border-bottom-color: #d239f855;
+  color: #2a1836;
 }
 .shrimp-main {
   position: relative;
   background:
-    linear-gradient(180deg, #f7f1e6 0%, #f3eadc 40%, #efe4d4 100%);
-  color: #2c241c;
-  --color-bg: #f6f0e4;
-  --color-bg-elevated: #fffaf2;
-  --color-bg-subtle: #efe6d6;
-  --color-fg: #2c241c;
-  --color-muted: #6b5e50;
-  --color-subtle: #8a7b6a;
-  --color-gold: #8d6b2f;
-  --color-line: #2c241c1f;
+    radial-gradient(circle at 8% 12%, #ffd6ea 0 90px, transparent 140px),
+    radial-gradient(circle at 88% 8%, #e7c6ff 0 110px, transparent 170px),
+    radial-gradient(circle at 78% 86%, #ffb3d1aa 0 80px, transparent 130px),
+    radial-gradient(circle at 14% 80%, #d239f828 0 120px, transparent 180px),
+    linear-gradient(180deg, #fffafd 0%, #f6e8ff 48%, #ffe9f3 100%);
+  color: #2a1836;
+  --color-bg: #fff7fb;
+  --color-bg-elevated: #ffffff;
+  --color-bg-subtle: #f8e7f6;
+  --color-fg: #2a1836;
+  --color-muted: #6d4e86;
+  --color-subtle: #9678aa;
+  --color-gold: #b820d4;
+  --color-line: #d239f82e;
   min-height: 0;
 }
 .shrimp-ornaments {
@@ -1547,39 +1551,71 @@ body:has(.player-stage) .desk-chat {
   inset: 4.5rem 0 8rem;
   overflow: hidden;
 }
-.shrimp-curl {
+.shrimp-dial {
   position: absolute;
-  top: 0.5rem;
-  left: 0.4rem;
-  width: 5.5rem;
-  height: 5.5rem;
-  fill: none;
-  stroke: #8d6b2f;
-  stroke-width: 1.2;
-  opacity: 0.55;
-  animation: shrimp-ebb 9s ease-in-out infinite alternate;
-}
-.shrimp-speck {
-  position: absolute;
-  width: 5px;
-  height: 5px;
+  top: 8%;
+  right: 6%;
+  width: 7.5rem;
+  height: 7.5rem;
   border-radius: 999px;
-  background: #c9a36a;
-  animation: shrimp-speck 7s ease-in-out infinite;
+  border: 1px dashed #c8a84899;
+  box-shadow: inset 0 0 0 10px #d239f814, inset 0 0 0 11px #c8a84855;
+  animation: shrimp-dial 28s linear infinite;
 }
-.speck-a { top: 18%; right: 8%; }
-.speck-b { top: 46%; left: 6%; animation-delay: -2s; }
-.speck-c { bottom: 22%; right: 18%; animation-delay: -4s; }
+.shrimp-dial::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 12%;
+  width: 2px;
+  height: 38%;
+  background: #b820d4;
+  transform-origin: bottom center;
+}
+.shrimp-bubble {
+  position: absolute;
+  border-radius: 999px;
+  background: radial-gradient(circle at 32% 30%, #fff 0 28%, #ffd0ea 46%, #e7c6ffcc 68%, transparent 72%);
+  animation: shrimp-rise 16s linear infinite;
+}
+.bubble-a { width: 54px; height: 54px; left: 8%; bottom: -10%; animation-duration: 18s; }
+.bubble-b { width: 28px; height: 28px; left: 22%; bottom: -20%; animation-duration: 13s; animation-delay: -4s; }
+.bubble-c { width: 40px; height: 40px; right: 18%; bottom: -12%; animation-duration: 20s; animation-delay: -7s; }
+.bubble-d { width: 18px; height: 18px; right: 8%; bottom: -16%; animation-duration: 11s; animation-delay: -2s; }
+.shrimp-hand {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  fill: #ffd6ea;
+  stroke: #b820d4;
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+  opacity: 0.72;
+  animation: shrimp-ebb 8s ease-in-out infinite alternate;
+}
+.hand-a { top: 12%; left: 4%; width: 34px; height: 34px; }
+.hand-b { top: 28%; right: 7%; transform: rotate(18deg); animation-delay: -2s; }
+.hand-c { top: 48%; left: 2%; width: 22px; height: 22px; transform: rotate(-24deg); animation-delay: -4s; }
+.hand-d { bottom: 28%; right: 5%; width: 36px; height: 36px; transform: rotate(12deg); animation-delay: -1s; }
+.hand-e { bottom: 16%; left: 10%; width: 24px; height: 24px; transform: rotate(-8deg); animation-delay: -6s; }
+.hand-f { top: 18%; left: 28%; width: 18px; height: 18px; opacity: 0.45; animation-delay: -3s; }
+.hand-g { bottom: 36%; left: 18%; width: 20px; height: 20px; transform: rotate(30deg); animation-delay: -5s; }
+.hand-h { top: 62%; right: 22%; width: 16px; height: 16px; opacity: 0.4; animation-delay: -7s; }
 @keyframes shrimp-ebb {
-  from { opacity: 0.2; transform: rotate(-6deg); }
-  to { opacity: 0.6; transform: rotate(4deg); }
+  from { opacity: 0.28; }
+  to { opacity: 0.8; }
 }
-@keyframes shrimp-speck {
-  0%, 100% { opacity: 0.05; }
-  50% { opacity: 0.55; }
+@keyframes shrimp-rise {
+  from { transform: translateY(0) scale(1); opacity: 0; }
+  12% { opacity: 0.8; }
+  to { transform: translateY(-78vh) scale(1.08); opacity: 0; }
+}
+@keyframes shrimp-dial {
+  to { transform: rotate(360deg); }
 }
 .shrimp-rule {
-  border-bottom: 1px solid #8d6b2f88;
+  border-bottom: 1px solid #c8a848;
+  box-shadow: 0 1px 0 #d239f855;
 }
 .on-air-lamp {
   display: inline-flex;
@@ -1589,14 +1625,19 @@ body:has(.player-stage) .desk-chat {
   font-size: 10px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #8d6b2f;
+  color: #b820d4;
 }
 .on-air-dot {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: #c45c28;
-  box-shadow: 0 0 8px #c45c2888;
+  background: #ff8fa3;
+  box-shadow: 0 0 10px #d239f8cc;
+  animation: shrimp-lamp 1.8s ease-in-out infinite;
+}
+@keyframes shrimp-lamp {
+  0%, 100% { opacity: 0.55; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); }
 }
 .album-card {
   display: block;
@@ -1607,7 +1648,16 @@ body:has(.player-stage) .desk-chat {
   color: inherit;
 }
 .album-stage.is-shrimp .album-player {
-  background: #fffaf2;
+  background: #fff;
+}
+.satire-card {
+  display: block;
+  margin-top: 0.6rem;
+  padding: 0.9rem 1rem 1rem;
+  border-radius: 1.1rem;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #d239f855, 0 10px 24px #b820d422;
+  color: #2a1836;
 }
 .satire-rail {
   display: none;
@@ -1616,15 +1666,6 @@ body:has(.player-stage) .desk-chat {
   margin: 0 auto;
   width: min(36rem, calc(100% - 2rem));
   padding-bottom: 1rem;
-}
-.satire-card {
-  display: block;
-  margin-top: 0.6rem;
-  padding: 0.9rem 1rem 1rem;
-  border-radius: 0.8rem;
-  background: #fffaf2;
-  box-shadow: inset 0 0 0 1px #8d6b2f55;
-  color: inherit;
 }
 @media (min-width: 1280px) {
   .satire-rail {
@@ -1645,10 +1686,12 @@ body:has(.player-stage) .desk-chat {
   .shrimp-mark.is-in,
   .shrimp-mark.is-out,
   .shrimp-mark.is-live,
-  .shrimp-curl,
-  .shrimp-speck {
+  .shrimp-hand,
+  .shrimp-bubble,
+  .shrimp-dial,
+  .on-air-dot {
     animation: none;
   }
-  .shrimp-curl { opacity: 0.4; }
-  .shrimp-speck { opacity: 0.25; }
+  .shrimp-hand { opacity: 0.45; }
+  .shrimp-bubble { opacity: 0.35; }
 }
