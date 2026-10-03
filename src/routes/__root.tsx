@@ -1,12 +1,27 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { ShrimpProvider } from "@/components/shrimp-context";
 import { RadioShell } from "@/components/radio-shell";
+import { shrimpForVisit } from "@/lib/shrimpify";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Radio";
 
 export const Route = createRootRoute({
+  loader: async () => {
+    if (typeof document !== "undefined") {
+      return { shrimp: shrimpForVisit(window.location.hostname, document.cookie) };
+    }
+    try {
+      const { getRequest } = await import("@tanstack/react-start/server");
+      const request = getRequest();
+      const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
+      return { shrimp: shrimpForVisit(host, request.headers.get("cookie") || "") };
+    } catch {
+      return { shrimp: false };
+    }
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -29,20 +44,27 @@ export const Route = createRootRoute({
       },
     ],
   }),
-  component: () => (
-    <html lang="en" suppressHydrationWarning>
+  component: Root,
+});
+
+function Root() {
+  const { shrimp } = Route.useLoaderData();
+  return (
+    <html lang="en" data-shrimp={shrimp ? "1" : "0"} suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
       <body>
         <PreviewHostBridge />
         <AuthProvider>
-          <RadioShell>
-            <Outlet />
-          </RadioShell>
+          <ShrimpProvider initial={shrimp}>
+            <RadioShell>
+              <Outlet />
+            </RadioShell>
+          </ShrimpProvider>
         </AuthProvider>
         <Scripts />
       </body>
     </html>
-  ),
-});
+  );
+}

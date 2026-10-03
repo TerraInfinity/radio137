@@ -11,6 +11,9 @@ import { ShareLink } from "@/components/share-link";
 import { StationChat } from "@/components/station-chat";
 import { StationPlaylist } from "@/components/station-playlist";
 import { StationVisual } from "@/components/station-visual";
+import { OnAirLamp } from "@/components/shrimp-ornaments";
+import { useShrimp } from "@/components/shrimp-context";
+import { GLAUM_STATION } from "@/lib/shrimpify";
 import { experienceForStation, experienceFromChannel } from "@/lib/experiences";
 import { offerFor } from "@/lib/device-sync";
 import { getPlayableTracks, kindHint, kindLabel, normalizeKind, stationSkin } from "@/lib/catalog";
@@ -51,6 +54,7 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
   const statusLabel = !channel.enabled ? "Off air" : playable.length === 0 ? "Empty desk" : here ? status : kindHint(kind);
   const tags = (channel.tags ?? []).filter((tag) => !tag.startsWith("sync.v1.") && !tag.startsWith("xp.v1.") && !tag.startsWith("look.v1.") && !tag.startsWith("scene.v1."));
   const syncOn = offerFor(channel).enabled;
+  const shrimp = useShrimp();
 
   useEffect(() => {
     if (!ready || !catalogReady || !channel.enabled || playable.length === 0) return;
@@ -67,7 +71,8 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
         {tags[0] ? ` · ${tags[0]}` : ""}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-3">
-        <h1 className={cn("font-display text-4xl font-semibold tracking-tight", skin === "glaum" && "glaum-title")}>{channel.name}</h1>
+        <h1 className={cn("font-display text-4xl font-semibold tracking-tight", skin === "glaum" && "glaum-title", shrimp && channel.slug === GLAUM_STATION && "font-glaum font-medium")}>{channel.name}</h1>
+        {shrimp && channel.slug === GLAUM_STATION ? <OnAirLamp /> : null}
         <ModePill kind={channel.kind} mode={channel.mode} enabled={channel.enabled} nsfw={channel.nsfw} />
       </div>
       <p className="mt-3 max-w-prose text-muted">{channel.description}</p>

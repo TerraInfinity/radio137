@@ -5,6 +5,8 @@ import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { AuthSlot } from "@/components/auth-slot";
 import { ListenModeLamp } from "@/components/listen-mode-lamp";
 import { TiNetworkMark } from "@/components/ti-network-mark";
+import { ShrimpToggle } from "@/components/shrimp-toggle";
+import { useShrimp } from "@/components/shrimp-context";
 import { getChannel, stationSkin } from "@/lib/catalog";
 import { heldClaim } from "@/lib/claim";
 import { cn } from "@/lib/cn";
@@ -13,6 +15,7 @@ import { usePlayerStore } from "@/lib/player-store";
 
 const links = [
   { to: "/stations", params: undefined, label: "Stations", match: (path: string) => path === "/stations" || path.startsWith("/channel/") },
+  { to: "/albums", params: undefined, label: "Albums", match: (path: string) => path === "/albums" || path.startsWith("/albums/") },
   { to: "/player", params: undefined, label: "Songs", match: (path: string) => path === "/player" || path.startsWith("/player/") || path === "/library" },
   { to: "/experiences", params: undefined, label: "Experiences", match: (path: string) => path.startsWith("/experiences") },
 ] as const;
@@ -31,6 +34,7 @@ export function SiteHeader() {
   const channel = slug ? getChannel(slug) : undefined;
   const onGlaum = Boolean(channel && stationSkin(channel) === "glaum");
   const [open, setOpen] = useState(false);
+  const shrimp = useShrimp();
 
   useEffect(() => {
     setOpen(false);
@@ -75,13 +79,13 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-sm">
+    <header className={cn("sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-sm", shrimp && "shrimp-header")}>
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-1.5 px-3 sm:gap-2 sm:px-4">
         <div className="flex min-w-0 shrink-0 items-center gap-2">
           <TiNetworkMark size={36} />
           <Link to="/" className="min-w-0" onClick={() => setOpen(false)} aria-label="Radio home">
-            <p className={cn("mark-radio font-display text-base font-semibold leading-none tracking-[0.22em] sm:text-lg sm:tracking-[0.28em]", gold)}>
-              Radio
+            <p className={cn("mark-radio font-display text-base font-semibold leading-none tracking-[0.22em] sm:text-lg sm:tracking-[0.28em]", gold, shrimp && "font-glaum tracking-[0.14em]")}>
+              {shrimp ? "Glåüm" : "Radio"}
             </p>
           </Link>
         </div>
@@ -97,6 +101,7 @@ export function SiteHeader() {
         <ListenModeLamp compact />
         <AutoplayLamp compact />
         <AuthSlot />
+        <ShrimpToggle />
         <button
           type="button"
           className="inline-flex size-11 shrink-0 items-center justify-center text-gold lg:hidden"

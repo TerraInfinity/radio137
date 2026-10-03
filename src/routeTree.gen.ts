@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AliasRouteImport } from './routes/$alias'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as AlbumsRouteImport } from './routes/albums'
 import { Route as DeskRouteImport } from './routes/desk'
 import { Route as DeviceSyncRouteImport } from './routes/device-sync'
 import { Route as ExperiencesRouteImport } from './routes/experiences'
@@ -19,6 +20,8 @@ import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LogoutRouteImport } from './routes/logout'
 import { Route as StationsRouteImport } from './routes/stations'
+import { Route as AlbumsIndexRouteImport } from './routes/albums/index'
+import { Route as AlbumsSlugRouteImport } from './routes/albums/$slug'
 import { Route as ChannelSlugRouteImport } from './routes/channel/$slug'
 import { Route as ExperiencesIndexRouteImport } from './routes/experiences/index'
 import { Route as ExperiencesSlugRouteImport } from './routes/experiences/$slug'
@@ -51,6 +54,11 @@ const AliasRoute = AliasRouteImport.update({
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AlbumsRoute = AlbumsRouteImport.update({
+  id: '/albums',
+  path: '/albums',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DeskRoute = DeskRouteImport.update({
@@ -87,6 +95,16 @@ const StationsRoute = StationsRouteImport.update({
   id: '/stations',
   path: '/stations',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AlbumsIndexRoute = AlbumsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AlbumsRoute,
+} as any)
+const AlbumsSlugRoute = AlbumsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => AlbumsRoute,
 } as any)
 const ChannelSlugRoute = ChannelSlugRouteImport.update({
   id: '/channel/$slug',
@@ -183,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
+  '/albums': typeof AlbumsRouteWithChildren
   '/desk': typeof DeskRouteWithChildren
   '/device-sync': typeof DeviceSyncRoute
   '/experiences': typeof ExperiencesRouteWithChildren
@@ -190,11 +209,13 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/stations': typeof StationsRoute
+  '/albums/$slug': typeof AlbumsSlugRoute
   '/channel/$slug': typeof ChannelSlugRoute
   '/experiences/$slug': typeof ExperiencesSlugRoute
   '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
   '/player/$id': typeof PlayerIdRoute
   '/sync/$slug': typeof SyncSlugRouteWithChildren
+  '/albums/': typeof AlbumsIndexRoute
   '/experiences/': typeof ExperiencesIndexRoute
   '/player/': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -219,11 +240,13 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/stations': typeof StationsRoute
+  '/albums/$slug': typeof AlbumsSlugRoute
   '/channel/$slug': typeof ChannelSlugRoute
   '/experiences/$slug': typeof ExperiencesSlugRoute
   '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
   '/player/$id': typeof PlayerIdRoute
   '/sync/$slug': typeof SyncSlugRouteWithChildren
+  '/albums': typeof AlbumsIndexRoute
   '/experiences': typeof ExperiencesIndexRoute
   '/player': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -243,6 +266,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$alias': typeof AliasRoute
   '/about': typeof AboutRoute
+  '/albums': typeof AlbumsRouteWithChildren
   '/desk': typeof DeskRouteWithChildren
   '/device-sync': typeof DeviceSyncRoute
   '/experiences': typeof ExperiencesRouteWithChildren
@@ -250,11 +274,13 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/stations': typeof StationsRoute
+  '/albums/$slug': typeof AlbumsSlugRoute
   '/channel/$slug': typeof ChannelSlugRoute
   '/experiences/$slug': typeof ExperiencesSlugRoute
   '/feeds/rose.xml': typeof FeedsRoseDotxmlRoute
   '/player/$id': typeof PlayerIdRoute
   '/sync/$slug': typeof SyncSlugRouteWithChildren
+  '/albums/': typeof AlbumsIndexRoute
   '/experiences/': typeof ExperiencesIndexRoute
   '/player/': typeof PlayerIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -275,6 +301,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$alias'
     | '/about'
+    | '/albums'
     | '/desk'
     | '/device-sync'
     | '/experiences'
@@ -282,11 +309,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/logout'
     | '/stations'
+    | '/albums/$slug'
     | '/channel/$slug'
     | '/experiences/$slug'
     | '/feeds/rose.xml'
     | '/player/$id'
     | '/sync/$slug'
+    | '/albums/'
     | '/experiences/'
     | '/player/'
     | '/api/auth/$'
@@ -311,11 +340,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/logout'
     | '/stations'
+    | '/albums/$slug'
     | '/channel/$slug'
     | '/experiences/$slug'
     | '/feeds/rose.xml'
     | '/player/$id'
     | '/sync/$slug'
+    | '/albums'
     | '/experiences'
     | '/player'
     | '/api/auth/$'
@@ -334,6 +365,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$alias'
     | '/about'
+    | '/albums'
     | '/desk'
     | '/device-sync'
     | '/experiences'
@@ -341,11 +373,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/logout'
     | '/stations'
+    | '/albums/$slug'
     | '/channel/$slug'
     | '/experiences/$slug'
     | '/feeds/rose.xml'
     | '/player/$id'
     | '/sync/$slug'
+    | '/albums/'
     | '/experiences/'
     | '/player/'
     | '/api/auth/$'
@@ -365,6 +399,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AliasRoute: typeof AliasRoute
   AboutRoute: typeof AboutRoute
+  AlbumsRoute: typeof AlbumsRouteWithChildren
   DeskRoute: typeof DeskRouteWithChildren
   DeviceSyncRoute: typeof DeviceSyncRoute
   ExperiencesRoute: typeof ExperiencesRouteWithChildren
@@ -408,6 +443,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/albums': {
+      id: '/albums'
+      path: '/albums'
+      fullPath: '/albums'
+      preLoaderRoute: typeof AlbumsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/desk': {
@@ -458,6 +500,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/stations'
       preLoaderRoute: typeof StationsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/albums/': {
+      id: '/albums/'
+      path: '/'
+      fullPath: '/albums/'
+      preLoaderRoute: typeof AlbumsIndexRouteImport
+      parentRoute: typeof AlbumsRoute
+    }
+    '/albums/$slug': {
+      id: '/albums/$slug'
+      path: '/$slug'
+      fullPath: '/albums/$slug'
+      preLoaderRoute: typeof AlbumsSlugRouteImport
+      parentRoute: typeof AlbumsRoute
     }
     '/channel/$slug': {
       id: '/channel/$slug'
@@ -588,6 +644,19 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AlbumsRouteChildren {
+  AlbumsSlugRoute: typeof AlbumsSlugRoute
+  AlbumsIndexRoute: typeof AlbumsIndexRoute
+}
+
+const AlbumsRouteChildren: AlbumsRouteChildren = {
+  AlbumsSlugRoute: AlbumsSlugRoute,
+  AlbumsIndexRoute: AlbumsIndexRoute,
+}
+
+const AlbumsRouteWithChildren =
+  AlbumsRoute._addFileChildren(AlbumsRouteChildren)
+
 interface DeskRouteChildren {
   DeskLibraryRoseRoute: typeof DeskLibraryRoseRoute
 }
@@ -630,6 +699,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AliasRoute: AliasRoute,
   AboutRoute: AboutRoute,
+  AlbumsRoute: AlbumsRouteWithChildren,
   DeskRoute: DeskRouteWithChildren,
   DeviceSyncRoute: DeviceSyncRoute,
   ExperiencesRoute: ExperiencesRouteWithChildren,
