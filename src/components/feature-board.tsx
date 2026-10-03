@@ -73,7 +73,7 @@ export function FeatureBoard({ rows }: { rows: DialRow[] }) {
           }
         }}
       >
-        <div className="relative aspect-[4/5] max-h-[78dvh] w-full sm:aspect-[16/9]">
+        <div className="relative h-52 w-full sm:h-60">
           {rows.map((row, i) => (
             <FeatureSlide
               key={`${row.kind}-${row.slug}`}
@@ -102,7 +102,7 @@ export function FeatureBoard({ rows }: { rows: DialRow[] }) {
             >
               <ChevronRight className="size-5" />
             </button>
-            <div className="absolute right-4 bottom-4 z-20 flex gap-1.5" role="tablist" aria-label="Featured slides">
+            <div className="absolute top-3 right-4 z-20 flex gap-1.5" role="tablist" aria-label="Featured slides">
               {rows.map((row, i) => (
                 <button
                   key={`${row.kind}-${row.slug}-dot`}
@@ -138,18 +138,20 @@ function FeatureSlide({ row, active, reduce, onPlay }: { row: DialRow; active: b
         />
         <span className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-black/15" />
       </Link>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end p-5 pr-24 pb-14 sm:p-8 sm:pr-36 sm:pb-16">
-        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold">
-          {row.kind === "experience" ? "Experience" : "Station"}
-          {row.kicker ? ` · ${row.kicker}` : ""}
-        </p>
-        <h2 className="mt-2 max-w-3xl font-display text-4xl font-semibold tracking-tight text-white sm:text-6xl">{row.title}</h2>
-        {row.line ? <p className="mt-2 line-clamp-2 max-w-xl font-glaum text-lg text-gold sm:text-xl">{row.line}</p> : null}
-        <div className="pointer-events-auto mt-5 flex gap-2">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 p-4 sm:p-5">
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gold">
+            {row.kind === "experience" ? "Experience" : "Station"}
+            {row.kicker ? ` · ${row.kicker}` : ""}
+          </p>
+          <h2 className="mt-1 truncate font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">{row.title}</h2>
+          {row.line ? <p className="mt-1 line-clamp-1 max-w-xl text-sm text-white/80">{row.line}</p> : null}
+        </div>
+        <div className="pointer-events-auto flex shrink-0 gap-2">
           <button
             type="button"
             onClick={onPlay}
-            className="inline-flex h-11 items-center gap-2 rounded-md bg-white px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-black"
+            className="inline-flex h-9 items-center gap-2 rounded-md bg-white px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-black"
           >
             <Play className="size-3.5" />
             Play
@@ -157,7 +159,7 @@ function FeatureSlide({ row, active, reduce, onPlay }: { row: DialRow; active: b
           <Link
             to={row.href}
             params={{ slug: row.slug }}
-            className="inline-flex h-11 items-center rounded-md px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-white"
+            className="hidden h-9 items-center rounded-md px-2 font-mono text-[11px] uppercase tracking-[0.14em] text-white sm:inline-flex"
           >
             Open
           </Link>
