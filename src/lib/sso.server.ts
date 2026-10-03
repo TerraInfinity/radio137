@@ -235,12 +235,26 @@ export async function exchangeSsoCode(code: string): Promise<SsoUser> {
   throw new Error("SSO exchange returned no user");
 }
 
+export function quietResumeEnabled(): boolean {
+  return process.env.SSO_QUIET_RESUME === "1";
+}
+
 export function loginLocation(request: Request, next: string): { location: string; nextCookie: string } {
   const origin = publicOrigin(request);
   const safe = safeNext(next);
   const returnTo = consumeReturnTo(origin, safe);
   return {
     location: hubStartUrl(hubOrigin(), returnTo),
+    nextCookie: mintNextCookie(safe, request),
+  };
+}
+
+export function quietLoginLocation(request: Request, next: string): { location: string; nextCookie: string } {
+  const origin = publicOrigin(request);
+  const safe = safeNext(next);
+  const returnTo = consumeReturnTo(origin, safe);
+  return {
+    location: hubStartUrl(hubOrigin(), returnTo, { quiet: true }),
     nextCookie: mintNextCookie(safe, request),
   };
 }

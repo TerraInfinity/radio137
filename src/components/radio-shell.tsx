@@ -10,6 +10,7 @@ import { SatireAd } from "@/components/satire-ads";
 import { ShrimpOrnaments } from "@/components/shrimp-ornaments";
 import { useShrimp } from "@/components/shrimp-context";
 import { SsoCodeCatcher } from "@/components/sso-code-catcher";
+import { SsoQuietResume } from "@/components/sso-quiet-resume";
 import { getChannel, stationSkin } from "@/lib/catalog";
 import { isLandingLocation } from "@/lib/landing";
 import { cn } from "@/lib/cn";
@@ -45,6 +46,7 @@ export function RadioShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="radio-app relative">
       <SsoCodeCatcher />
+      <SsoQuietResume />
       <Atmosphere skin={skin} />
       <LoveLayer />
       <div className={cn("radio-frame relative z-10", shrimp && "shrimp-main")}>

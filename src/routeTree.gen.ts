@@ -37,6 +37,7 @@ import { Route as ApiSsoConsumeRouteImport } from './routes/api/sso/consume'
 import { Route as ApiSsoLoginRouteImport } from './routes/api/sso/login'
 import { Route as ApiSsoLogoutRouteImport } from './routes/api/sso/logout'
 import { Route as ApiSsoMeRouteImport } from './routes/api/sso/me'
+import { Route as ApiSsoQuietRouteImport } from './routes/api/sso/quiet'
 import { Route as DeskLibraryRoseRouteImport } from './routes/desk.library.rose'
 import { Route as SyncSlugAddRouteImport } from './routes/sync/$slug.add'
 import { Route as SyncSlugPlayDotshortcutRouteImport } from './routes/sync/$slug.play[.]shortcut'
@@ -181,6 +182,11 @@ const ApiSsoMeRoute = ApiSsoMeRouteImport.update({
   path: '/api/sso/me',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSsoQuietRoute = ApiSsoQuietRouteImport.update({
+  id: '/api/sso/quiet',
+  path: '/api/sso/quiet',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DeskLibraryRoseRoute = DeskLibraryRoseRouteImport.update({
   id: '/library/rose',
   path: '/library/rose',
@@ -226,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
   '/api/sso/me': typeof ApiSsoMeRoute
+  '/api/sso/quiet': typeof ApiSsoQuietRoute
   '/desk/library/rose': typeof DeskLibraryRoseRoute
   '/sync/$slug/add': typeof SyncSlugAddRoute
   '/sync/$slug/play.shortcut': typeof SyncSlugPlayDotshortcutRoute
@@ -257,6 +264,7 @@ export interface FileRoutesByTo {
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
   '/api/sso/me': typeof ApiSsoMeRoute
+  '/api/sso/quiet': typeof ApiSsoQuietRoute
   '/desk/library/rose': typeof DeskLibraryRoseRoute
   '/sync/$slug/add': typeof SyncSlugAddRoute
   '/sync/$slug/play.shortcut': typeof SyncSlugPlayDotshortcutRoute
@@ -291,6 +299,7 @@ export interface FileRoutesById {
   '/api/sso/login': typeof ApiSsoLoginRoute
   '/api/sso/logout': typeof ApiSsoLogoutRoute
   '/api/sso/me': typeof ApiSsoMeRoute
+  '/api/sso/quiet': typeof ApiSsoQuietRoute
   '/desk/library/rose': typeof DeskLibraryRoseRoute
   '/sync/$slug/add': typeof SyncSlugAddRoute
   '/sync/$slug/play.shortcut': typeof SyncSlugPlayDotshortcutRoute
@@ -326,6 +335,7 @@ export interface FileRouteTypes {
     | '/api/sso/login'
     | '/api/sso/logout'
     | '/api/sso/me'
+    | '/api/sso/quiet'
     | '/desk/library/rose'
     | '/sync/$slug/add'
     | '/sync/$slug/play.shortcut'
@@ -357,6 +367,7 @@ export interface FileRouteTypes {
     | '/api/sso/login'
     | '/api/sso/logout'
     | '/api/sso/me'
+    | '/api/sso/quiet'
     | '/desk/library/rose'
     | '/sync/$slug/add'
     | '/sync/$slug/play.shortcut'
@@ -390,6 +401,7 @@ export interface FileRouteTypes {
     | '/api/sso/login'
     | '/api/sso/logout'
     | '/api/sso/me'
+    | '/api/sso/quiet'
     | '/desk/library/rose'
     | '/sync/$slug/add'
     | '/sync/$slug/play.shortcut'
@@ -420,6 +432,7 @@ export interface RootRouteChildren {
   ApiSsoLoginRoute: typeof ApiSsoLoginRoute
   ApiSsoLogoutRoute: typeof ApiSsoLogoutRoute
   ApiSsoMeRoute: typeof ApiSsoMeRoute
+  ApiSsoQuietRoute: typeof ApiSsoQuietRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -620,6 +633,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSsoMeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/sso/quiet': {
+      id: '/api/sso/quiet'
+      path: '/api/sso/quiet'
+      fullPath: '/api/sso/quiet'
+      preLoaderRoute: typeof ApiSsoQuietRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/desk/library/rose': {
       id: '/desk/library/rose'
       path: '/library/rose'
@@ -720,6 +740,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSsoLoginRoute: ApiSsoLoginRoute,
   ApiSsoLogoutRoute: ApiSsoLogoutRoute,
   ApiSsoMeRoute: ApiSsoMeRoute,
+  ApiSsoQuietRoute: ApiSsoQuietRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -47,4 +47,21 @@ describe("sso helpers", () => {
     assert.ok(start.includes(encodeURIComponent("/api/sso/consume")));
     assert.equal(consumeHandoffHref("abc", "/desk"), "/api/sso/consume?code=abc&next=%2Fdesk");
   });
+
+  it("pins shrimpify hosts to the www origin", () => {
+    assert.equal(publicOriginFromHost("www.shrimpify.ca", "https"), "https://www.shrimpify.ca");
+    assert.equal(publicOriginFromHost("shrimpify.ca", "http"), "https://www.shrimpify.ca");
+    assert.equal(publicOriginFromHost("shrimpify.com", "https"), "https://shrimpify.com");
+  });
+
+  it("adds quiet=1 only when the quiet option is set", () => {
+    const returnTo = consumeReturnTo("https://www.shrimpify.ca", "/");
+    const loud = hubStartUrl("https://www.terrainfinity.ca", returnTo);
+    assert.equal(new URL(loud).searchParams.get("quiet"), null);
+    const quiet = hubStartUrl("https://www.terrainfinity.ca", returnTo, { quiet: true });
+    const url = new URL(quiet);
+    assert.equal(url.origin + url.pathname, "https://www.terrainfinity.ca/api/sso/start");
+    assert.equal(url.searchParams.get("quiet"), "1");
+    assert.equal(url.searchParams.get("returnTo"), "https://www.shrimpify.ca/api/sso/consume?next=%2F");
+  });
 });

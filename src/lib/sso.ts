@@ -43,6 +43,9 @@ export function publicOriginFromHost(hostHeader: string, proto: string): string 
   if (hostname === "radio.cyber-athens.ca" || hostname.endsWith(".radio.cyber-athens.ca")) {
     return "https://radio.cyber-athens.ca";
   }
+  if (hostname === "www.shrimpify.ca" || hostname === "shrimpify.ca") {
+    return "https://www.shrimpify.ca";
+  }
   const scheme = proto.split(",")[0]?.trim() === "https" ? "https" : "http";
   return `${scheme}://${host}`;
 }
@@ -67,9 +70,10 @@ export function consumeReturnTo(origin: string, next = "/"): string {
   return url.toString();
 }
 
-export function hubStartUrl(hub: string, returnTo: string): string {
+export function hubStartUrl(hub: string, returnTo: string, opts?: { quiet?: boolean }): string {
   const url = new URL("/api/sso/start", hub);
   url.searchParams.set("returnTo", returnTo);
+  if (opts?.quiet) url.searchParams.set("quiet", "1");
   return url.toString();
 }
 
