@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { BambiMark } from "@/components/bambi-mark";
 import { Play } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CoverArt } from "@/components/cover-art";
@@ -66,7 +67,7 @@ export function DialList({
                 {row.featured ? " · featured" : ""}
               </p>
               <Link to={row.href} params={{ slug: row.slug }} className="block truncate font-display text-xl font-semibold">
-                {row.title}
+                <BambiMark name={row.title} />
               </Link>
               {row.line ? <p className="truncate text-sm text-muted">{row.line}</p> : null}
             </div>

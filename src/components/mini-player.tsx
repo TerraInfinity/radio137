@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Pointe
 import { Camera, ChevronDown, ChevronUp, Pause, Pencil, Play, Radio, SkipBack, SkipForward, Volume1, Volume2, VolumeX, X } from "lucide-react";
 import { AutoplayLamp } from "@/components/autoplay-lamp";
 import { RenameCutForm } from "@/components/admin-rename";
+import { BambiMark } from "@/components/bambi-mark";
 import { CoverArt } from "@/components/cover-art";
 import { HeroArtSheet } from "@/components/hero-art-sheet";
 import { ListenModeLamp } from "@/components/listen-mode-lamp";
@@ -509,7 +510,7 @@ export function MiniPlayer() {
               <PlayerMastRose pale={pale} />
               <div className="min-w-0">
                 <p className="player-stage-kicker">Now playing</p>
-                <p className={cn("player-stage-mast-name", pale && "is-rose")}>{pale ? "White Rose" : channel.name}</p>
+                <p className={cn("player-stage-mast-name", pale && "is-rose")}>{pale ? "White Rose" : <BambiMark name={channel.name} />}</p>
               </div>
             </div>
             <p className="player-stage-mast-status">{statusLine}</p>

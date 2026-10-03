@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { BambiMark } from "@/components/bambi-mark";
 import { ModePill } from "@/components/mode-pill";
 import { StationVisual } from "@/components/station-visual";
 import { getPlayableTracks, isChannelNsfw, kindHint, stationSkin } from "@/lib/catalog";
@@ -22,7 +23,7 @@ export function ChannelCard({ channel }: { channel: Channel }) {
         <div className="flex items-start justify-between gap-2">
           <h2 className={cn("min-w-0 truncate font-display text-xl font-semibold", skin === "glaum" && "glaum-title")}>
             <Link to="/channel/$slug" params={{ slug: channel.slug }}>
-              {channel.name}
+              <BambiMark name={channel.name} />
             </Link>
           </h2>
           <ModePill kind={channel.kind} mode={channel.mode} enabled={channel.enabled} nsfw={channel.nsfw} />

@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { BambiMark } from "@/components/bambi-mark";
 import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { CoverArt } from "@/components/cover-art";
@@ -144,7 +145,9 @@ function FeatureSlide({ row, active, reduce, onPlay }: { row: DialRow; active: b
             {row.kind === "experience" ? "Experience" : "Station"}
             {row.kicker ? ` · ${row.kicker}` : ""}
           </p>
-          <h2 className="mt-1 truncate font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">{row.title}</h2>
+          <h2 className="mt-1 truncate font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            <BambiMark name={row.title} />
+          </h2>
           {row.line ? <p className="mt-1 line-clamp-1 max-w-xl text-sm text-white/80">{row.line}</p> : null}
         </div>
         <div className="pointer-events-auto flex shrink-0 gap-2">

@@ -190,7 +190,8 @@ export function stationsForRecording(track: Track): Channel[] {
   );
 }
 
-export function stationSkin(channel: Channel): "glaum" | "waheguru" | "buzz" | "rose" | "none" {
+export function stationSkin(channel: Channel): "glaum" | "waheguru" | "buzz" | "rose" | "bambi" | "none" {
+  if (/lady-bambi|bambi.?s elysium/i.test(`${channel.slug} ${channel.name}`)) return "bambi";
   if (channel.skin === "rose" || channel.slug === "rose" || /bad.?wolf|rose opera/i.test(`${channel.slug} ${channel.name}`)) return "rose";
   if (channel.skin === "glaum" || channel.glaumules || /glaum|glåüm|glaom/i.test(channel.slug + channel.name)) return "glaum";
   if (channel.skin === "waheguru" || /waheguru/i.test(channel.slug + channel.name)) return "waheguru";

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "@tanstack/react-router";
+import { BambiMark } from "@/components/bambi-mark";
 import { AdminStationEdit } from "@/components/admin-track-tools";
 import { FoldSection } from "@/components/fold-section";
 import { GlaumWordBooth } from "@/components/glaum-word-booth";
@@ -71,7 +72,9 @@ export function ChannelView({ channel, sharePath }: { channel: Channel; sharePat
         {tags[0] ? ` · ${tags[0]}` : ""}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-3">
-        <h1 className={cn("font-display text-4xl font-semibold tracking-tight", skin === "glaum" && "glaum-title", shrimp && channel.slug === GLAUM_STATION && "font-glaum font-medium")}>{channel.name}</h1>
+        <h1 className={cn("font-display text-4xl font-semibold tracking-tight", skin === "glaum" && "glaum-title", shrimp && channel.slug === GLAUM_STATION && "font-glaum font-medium")}>
+          <BambiMark name={channel.name} ornate />
+        </h1>
         {shrimp && channel.slug === GLAUM_STATION ? <OnAirLamp /> : null}
         <ModePill kind={channel.kind} mode={channel.mode} enabled={channel.enabled} nsfw={channel.nsfw} />
       </div>

@@ -26,8 +26,24 @@ export function StationVisual({
           size === "card" && "station-motion-card",
           size === "hero" && "station-motion-hero",
           skin === "glaum" && "station-glaum",
+          skin === "bambi" && "station-bambi",
         )}
       />
+      {skin === "bambi" ? (
+        <>
+          <div className="station-bambi-lace pointer-events-none absolute inset-0" />
+          <svg className="bambi-cuff pointer-events-none absolute top-3 left-3 w-10" viewBox="0 0 36 18" aria-hidden>
+            <rect x="2" y="3" width="32" height="12" rx="6" />
+            <rect x="15" y="1" width="6" height="7" rx="1" />
+            <circle cx="18" cy="4.2" r="1" />
+          </svg>
+          <svg className="bambi-cuff pointer-events-none absolute right-3 bottom-3 w-10" viewBox="0 0 36 18" aria-hidden>
+            <rect x="2" y="3" width="32" height="12" rx="6" />
+            <rect x="15" y="1" width="6" height="7" rx="1" />
+            <circle cx="18" cy="4.2" r="1" />
+          </svg>
+        </>
+      ) : null}
       {skin === "glaum" ? (
         <>
           <div className="station-glaum-sequins pointer-events-none absolute inset-0" />
