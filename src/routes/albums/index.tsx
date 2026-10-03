@@ -16,7 +16,7 @@ function AlbumsIndex() {
         Albums
       </h1>
       <p className="mt-3 max-w-prose text-muted">
-        Sets from Azeirf. They play here, in the frame. Nothing in this lane is locked.
+        Sets and albums from Azeirf on SoundCloud. Playlists count too. They play here, in the frame.
       </p>
       <ul className="mt-8 grid gap-4 sm:grid-cols-2">
         {ALBUMS.map((album) => (
