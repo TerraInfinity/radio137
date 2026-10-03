@@ -81,9 +81,9 @@ export function ShrimpOrnaments() {
         let y = 24 + index * 70;
         for (let tryNo = 0; tryNo < 14; tryNo += 1) {
           const gutter = Math.random() < 0.72;
-          x = gutter ? (Math.random() < 0.5 ? 6 : host.width - 70) : Math.random() * Math.max(8, host.width - 70);
+          x = gutter ? (Math.random() < 0.5 ? 6 : host.width - 48) : Math.random() * Math.max(8, host.width - 48);
           y = 8 + Math.random() * Math.max(8, host.height - 90);
-          if (!hits(x, y, 64, 76, boxes)) break;
+          if (!hits(x, y, 40, 48, boxes)) break;
         }
         hand.style.left = `${x}px`;
         hand.style.top = `${y}px`;
@@ -112,8 +112,8 @@ export function ShrimpOrnaments() {
     const swim = () => {
       if (!document.hidden) {
         const host = root.getBoundingClientRect();
-        const w = 92;
-        const h = 42;
+        const w = 64;
+        const h = 30;
         if (x < 2 || x > host.width - w) vx = Math.abs(vx) * (x < 2 ? 1 : -1);
         if (y < 2 || y > host.height - h) vy = Math.abs(vy) * (y < 2 ? 1 : -1);
         const nx = x + vx;

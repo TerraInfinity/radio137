@@ -250,15 +250,45 @@ body:before {
   color: var(--color-subtle);
 }
 .deck-scrub-dock {
-  margin: 0.05rem -0.25rem 0;
+  margin: 0;
 }
 .deck-scrub-dock .deck-scrub-hit {
-  height: 2.75rem;
+  height: 0.7rem;
+}
+.deck-scrub-dock .deck-scrub-track {
+  height: 3px;
+  box-shadow: none;
+}
+.deck-scrub-dock .deck-scrub-thumb {
+  width: 9px;
+  height: 9px;
+  border-width: 0;
 }
 .deck-scrub-dock .deck-scrub-times {
-  margin-top: -0.7rem;
-  padding-bottom: 0.15rem;
-  pointer-events: none;
+  display: none;
+}
+.deck-scrub-dock .deck-scrub-hit:hover .deck-scrub-track,
+.deck-scrub-dock .deck-scrub-hit:focus-visible .deck-scrub-track,
+.deck-scrub-dock .deck-scrub-hit:active .deck-scrub-track {
+  height: 5px;
+}
+.deck-volume-dock {
+  flex: 0 0 auto;
+  width: 7.5rem;
+}
+.deck-volume-dock .deck-volume-hit {
+  height: 1.6rem;
+}
+.deck-volume-dock .deck-volume-track {
+  height: 3px;
+}
+.player-shell-rose .deck-scrub-dock .deck-scrub-track {
+  height: 3px;
+}
+.player-shell-rose .deck-scrub-dock .deck-scrub-thumb {
+  width: 9px;
+  height: 9px;
+  transform: translate(-50%, -50%) rotate(0deg);
 }
 .deck-volume {
   display: flex;
@@ -324,7 +354,7 @@ body:before {
 }
 .deck-volume-dock {
   flex: 0 0 auto;
-  width: 11.5rem;
+  width: 7.5rem;
 }
 @media (max-width: 767px) {
   .deck-volume-dock {
@@ -1584,8 +1614,8 @@ body:has(.player-stage) .desk-chat {
 .bubble-d { width: 18px; height: 18px; right: 8%; bottom: -16%; animation-duration: 11s; animation-delay: -2s; }
 .shrimp-hand {
   position: absolute;
-  width: 58px;
-  height: 70px;
+  width: 36px;
+  height: 44px;
   transition: left 3.6s ease, top 3.6s ease;
 }
 .shrimp-hand-svg { width: 100%; height: 100%; overflow: visible; }
@@ -1594,7 +1624,7 @@ body:has(.player-stage) .desk-chat {
 .shrimp-hand .wrist {
   fill: #ffd0e6;
   stroke: #9a2468;
-  stroke-width: 2.4;
+  stroke-width: 1.5;
   stroke-linejoin: round;
 }
 .shrimp-hand .palm { fill: #ffe4f2; }
@@ -1612,8 +1642,8 @@ body:has(.player-stage) .desk-chat {
   position: absolute;
   left: 0;
   top: 0;
-  width: 92px;
-  height: 42px;
+  width: 64px;
+  height: 30px;
   transform-origin: center center;
 }
 .shrimp-swim-svg { width: 100%; height: 100%; overflow: visible; }

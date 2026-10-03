@@ -259,11 +259,11 @@ function VolumeControl({
           event.stopPropagation();
           toggleMute();
         }}
-        className="grid size-11 shrink-0 place-items-center text-gold"
+        className={cn("grid shrink-0 place-items-center text-gold", compact ? "size-9" : "size-11")}
         aria-label={silent ? "Unmute" : "Mute"}
         title={silent ? "Unmute" : "Mute"}
       >
-        <Icon className="size-5" />
+        <Icon className={compact ? "size-4" : "size-5"} />
       </button>
       <div
         ref={hitRef}
@@ -326,34 +326,34 @@ function TransportButtons({
         type="button"
         onClick={() => void prev()}
         title={skipHint || "Previous"}
-        className={cn("grid shrink-0 place-items-center text-gold", large ? "size-14" : "size-11")}
+        className={cn("grid shrink-0 place-items-center text-gold", large ? "size-14" : "size-9")}
         aria-label="Previous"
       >
-        <SkipBack className={large ? "size-7" : "size-5"} />
+        <SkipBack className={large ? "size-7" : "size-4"} />
       </button>
       <button
         type="button"
         onClick={() => void togglePlay()}
         className={cn(
           "grid shrink-0 place-items-center rounded-full bg-fg text-bg",
-          large ? "size-16" : "size-12",
+          large ? "size-16" : "size-10",
         )}
         aria-label={playing ? "Pause" : "Play"}
       >
         {playing ? (
-          <Pause className={large ? "size-7" : "size-6"} />
+          <Pause className={large ? "size-7" : "size-4"} />
         ) : (
-          <Play className={large ? "size-7 ml-0.5" : "size-6 ml-0.5"} />
+          <Play className={large ? "size-7 ml-0.5" : "size-4 ml-0.5"} />
         )}
       </button>
       <button
         type="button"
         onClick={() => void next("user")}
         title={skipHint || "Next"}
-        className={cn("grid shrink-0 place-items-center text-gold", large ? "size-14" : "size-11")}
+        className={cn("grid shrink-0 place-items-center text-gold", large ? "size-14" : "size-9")}
         aria-label="Next"
       >
-        <SkipForward className={large ? "size-7" : "size-5"} />
+        <SkipForward className={large ? "size-7" : "size-4"} />
       </button>
     </div>
   );
@@ -581,62 +581,56 @@ export function MiniPlayer() {
   }
 
   return (
-    <div className={cn("player-dock z-40 border-t border-line bg-bg pb-[max(0.4rem,env(safe-area-inset-bottom))]", shell)}>
+    <div className={cn("player-dock z-40 border-t border-line bg-bg pb-[max(0.15rem,env(safe-area-inset-bottom))]", shell)}>
       {skin === "rose" ? <RoseRiteOrnament /> : null}
-      <div className="mx-auto max-w-6xl px-3 pt-1 sm:px-4">
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setPlayerCollapsed(false)}
-            className="grid size-11 shrink-0 place-items-center text-gold"
-            aria-label="Expand player"
-            title="Expand player"
-          >
-            <ChevronUp className="size-5" />
-          </button>
-          <div className="min-w-0 flex-1">
-            <Scrubber currentTime={currentTime} duration={duration} compact health={skin === "rose"} />
-          </div>
-          <button
-            type="button"
-            onClick={() => setPlayerHidden(true)}
-            className="grid size-11 shrink-0 place-items-center text-subtle hover:text-fg"
-            aria-label="Hide player"
-            title="Hide player"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-        <div className="flex items-center gap-1 sm:gap-2">
-          <button
-            type="button"
-            onClick={() => setPlayerCollapsed(false)}
-            className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-            aria-label="Expand player"
-          >
-            <CoverArt src={still || poster || art} poster={poster} alt="" className="size-12 shrink-0 overflow-hidden rounded-md" motion="still" />
-            <span className="min-w-0 flex-1 overflow-hidden">
-              <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
-                {track.artist ? `${track.artist} · ` : ""}
-                {statusLine}
-              </span>
+      <Scrubber currentTime={currentTime} duration={duration} compact health={skin === "rose"} />
+      <div className="mx-auto flex max-w-6xl items-center gap-1 px-2 sm:gap-2 sm:px-4">
+        <button
+          type="button"
+          onClick={() => setPlayerCollapsed(false)}
+          className="grid size-9 shrink-0 place-items-center text-gold"
+          aria-label="Expand player"
+          title="Expand player"
+        >
+          <ChevronUp className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setPlayerCollapsed(false)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          aria-label="Expand player"
+        >
+          <CoverArt src={still || poster || art} poster={poster} alt="" className="size-9 shrink-0 overflow-hidden rounded-md" motion="still" />
+          <span className="min-w-0 flex-1">
+            <span className={cn("block truncate text-sm leading-tight", skin === "rose" && "rose-title", skin === "glaum" && "glaum-title")}>{track.title}</span>
+            <span className="block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-subtle">
+              {track.artist ? `${track.artist} · ` : ""}
+              {statusLine}
             </span>
+          </span>
+        </button>
+        {overlay ? (
+          <button
+            type="button"
+            onClick={() => void jumpToLive()}
+            className="inline-flex h-9 shrink-0 items-center gap-1 px-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
+            title="Jump to the station clock"
+          >
+            <Radio className="size-3.5" />
+            <span className="hidden sm:inline">Live</span>
           </button>
-          {overlay ? (
-            <button
-              type="button"
-              onClick={() => void jumpToLive()}
-              className="inline-flex h-11 shrink-0 items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-gold"
-              title="Jump to the station clock"
-            >
-              <Radio className="size-3.5" />
-              <span className="hidden sm:inline">Live</span>
-            </button>
-          ) : null}
-          <TransportButtons playing={playing} skipHint={skipHint} />
-          {!ios ? <VolumeControl compact /> : null}
-        </div>
-        <p className={cn("player-collapsed-name", skin === "rose" && "rose-title", skin === "glaum" && "glaum-title")}>{track.title}</p>
+        ) : null}
+        <TransportButtons playing={playing} skipHint={skipHint} />
+        {!ios ? <VolumeControl compact /> : null}
+        <button
+          type="button"
+          onClick={() => setPlayerHidden(true)}
+          className="grid size-9 shrink-0 place-items-center text-subtle hover:text-fg"
+          aria-label="Hide player"
+          title="Hide player"
+        >
+          <X className="size-4" />
+        </button>
       </div>
       {artSheet}
     </div>
