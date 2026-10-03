@@ -13,14 +13,8 @@ export const Route = createRootRoute({
     if (typeof document !== "undefined") {
       return { shrimp: shrimpForVisit(window.location.hostname, document.cookie) };
     }
-    try {
-      const { getRequest } = await import("@tanstack/react-start/server");
-      const request = getRequest();
-      const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
-      return { shrimp: shrimpForVisit(host, request.headers.get("cookie") || "") };
-    } catch {
-      return { shrimp: false };
-    }
+    const { readShrimpVisit } = await import("@/lib/shrimp-visit");
+    return readShrimpVisit();
   },
   head: () => ({
     meta: [
