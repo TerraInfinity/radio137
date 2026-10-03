@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "@/lib/cn";
-import { useSetShrimp } from "@/components/shrimp-context";
+import { useSetShrimp, useShrimp } from "@/components/shrimp-context";
 
 export function ShrimpToggle() {
+  const shrimp = useShrimp();
   const setShrimp = useSetShrimp();
   const navigate = useNavigate();
   const [motion, setMotion] = useState("");
@@ -14,16 +15,18 @@ export function ShrimpToggle() {
       setMotion("in");
       window.setTimeout(() => setMotion(""), 520);
     }
-    setShrimp(true);
-    void navigate({ to: "/stations" });
+    const next = !shrimp;
+    setShrimp(next);
+    void navigate({ to: next ? "/stations" : "/" });
   }
 
   return (
     <button
       type="button"
       onClick={press}
-      aria-label="Shrimpify"
-      title="Shrimpify"
+      aria-pressed={shrimp}
+      aria-label={shrimp ? "Back to Radio" : "Shrimpify"}
+      title={shrimp ? "Back to Radio" : "Shrimpify"}
       className="inline-flex size-11 shrink-0 items-center justify-center"
     >
       <svg viewBox="0 0 32 32" className={cn("shrimp-mark is-live", motion && "is-in")} aria-hidden>
