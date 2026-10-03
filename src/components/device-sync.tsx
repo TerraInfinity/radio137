@@ -156,10 +156,10 @@ export function DeviceSync({
         {iphone ? null : (
           <div className="mt-8 w-44">
             <Qr value={pageQr} />
-            <p className="mt-2 text-sm text-muted">Scan with the phone. It opens this page, not Podcasts.</p>
+            <p className="mt-2 text-sm text-muted">Scan with the phone. It opens this page, not Podcasts. That step does not always land.</p>
           </div>
         )}
-        <p className="mt-6 text-sm text-muted">After it is in Podcasts, say “Hey Siri, {say}”. The Watch copies the show from the phone while it charges.</p>
+        <p className="mt-6 text-sm text-muted">After it is in Podcasts, say “Hey Siri, {say}”. The Watch copies the show from the phone while it charges. This may not work yet. Living in the future should get smoother.</p>
       </section>
 
       <details className="mt-10">
