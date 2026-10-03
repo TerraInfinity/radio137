@@ -1,29 +1,32 @@
 import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { cn } from "@/lib/cn";
-import { useShrimp, useShrimpToggle } from "@/components/shrimp-context";
+import { useSetShrimp } from "@/components/shrimp-context";
 
 export function ShrimpToggle() {
-  const on = useShrimp();
-  const toggle = useShrimpToggle();
-  const [motion, setMotion] = useState<"" | "in" | "out">("");
+  const setShrimp = useSetShrimp();
+  const navigate = useNavigate();
+  const [motion, setMotion] = useState("");
 
   function press() {
     const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!reduce) setMotion(on ? "out" : "in");
-    toggle();
-    if (!reduce) window.setTimeout(() => setMotion(""), 520);
+    if (!reduce) {
+      setMotion("in");
+      window.setTimeout(() => setMotion(""), 520);
+    }
+    setShrimp(true);
+    void navigate({ to: "/stations" });
   }
 
   return (
     <button
       type="button"
       onClick={press}
-      aria-pressed={on}
-      aria-label={on ? "Glåüm Radio" : "Shrimpify"}
-      title={on ? "Glåüm Radio" : "Shrimpify"}
+      aria-label="Shrimpify"
+      title="Shrimpify"
       className="inline-flex size-11 shrink-0 items-center justify-center"
     >
-      <svg viewBox="0 0 32 32" className={cn("shrimp-mark", on && "is-live", motion && `is-${motion}`)} aria-hidden>
+      <svg viewBox="0 0 32 32" className={cn("shrimp-mark is-live", motion && "is-in")} aria-hidden>
         <path className="shrimp-fan" d="M5.2 18.6c.2 2.4 2.2 3.6 3.8 2.6" />
         <path className="shrimp-fan" d="M5.6 21.4c1.2 2 3.4 2.2 4.4.6" />
         <path className="shrimp-body" d="M9.2 20.8c.4-5.6 5.2-9.4 10.6-8.4 3.6.6 6 3.6 5.2 6.6-.8 3.4-4.8 5.4-8.2 4.2-2-.7-3.4-2.2-3.6-2.2" />

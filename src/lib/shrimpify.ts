@@ -14,11 +14,12 @@ export function shrimpFromCookie(cookie: string): boolean | null {
   return match[1] === "1";
 }
 
-/** First paint: this host's cookie if the guest already chose, otherwise the hostname. */
-export function shrimpForVisit(host: string, cookie: string): boolean {
-  const saved = shrimpFromCookie(cookie);
-  if (saved !== null) return saved;
-  return hostWantsShrimp(host);
+/** First paint. Home is always full Radio. The station set is the Shrimpify screen. */
+export function shrimpForVisit(host: string, cookie: string, path = "/"): boolean {
+  const clean = (path.split("?")[0] || "/").replace(/\/$/, "") || "/";
+  if (clean === "/") return false;
+  if (hostWantsShrimp(host) && (clean === "/stations" || clean.startsWith("/channel/"))) return true;
+  return shrimpFromCookie(cookie) === true;
 }
 
 export function writeShrimpCookie(on: boolean) {

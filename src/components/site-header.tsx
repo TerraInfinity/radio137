@@ -6,7 +6,7 @@ import { AuthSlot } from "@/components/auth-slot";
 import { ListenModeLamp } from "@/components/listen-mode-lamp";
 import { TiNetworkMark } from "@/components/ti-network-mark";
 import { ShrimpToggle } from "@/components/shrimp-toggle";
-import { useShrimp } from "@/components/shrimp-context";
+import { useShrimp, useSetShrimp } from "@/components/shrimp-context";
 import { getChannel, stationSkin } from "@/lib/catalog";
 import { heldClaim } from "@/lib/claim";
 import { cn } from "@/lib/cn";
@@ -35,6 +35,7 @@ export function SiteHeader() {
   const onGlaum = Boolean(channel && stationSkin(channel) === "glaum");
   const [open, setOpen] = useState(false);
   const shrimp = useShrimp();
+  const setShrimp = useSetShrimp();
 
   useEffect(() => {
     setOpen(false);
@@ -83,7 +84,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-1.5 px-3 sm:gap-2 sm:px-4">
         <div className="flex min-w-0 shrink-0 items-center gap-2">
           <TiNetworkMark size={36} />
-          <Link to="/" className="min-w-0" onClick={() => setOpen(false)} aria-label="Radio home">
+          <Link to="/" className="min-w-0" onClick={() => { setOpen(false); setShrimp(false); }} aria-label="Radio home">
             <p className={cn("mark-radio font-display text-base font-semibold leading-none tracking-[0.22em] sm:text-lg sm:tracking-[0.28em]", gold, shrimp && "font-glaum tracking-[0.14em]")}>
               {shrimp ? "Glåüm" : "Radio"}
             </p>

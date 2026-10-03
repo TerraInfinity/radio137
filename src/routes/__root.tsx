@@ -11,7 +11,7 @@ const APP_NAME = "Radio";
 export const Route = createRootRoute({
   loader: async () => {
     if (typeof document !== "undefined") {
-      return { shrimp: shrimpForVisit(window.location.hostname, document.cookie) };
+      return { shrimp: shrimpForVisit(window.location.hostname, document.cookie, window.location.pathname) };
     }
     const { readShrimpVisit } = await import("@/lib/shrimp-visit");
     return readShrimpVisit();

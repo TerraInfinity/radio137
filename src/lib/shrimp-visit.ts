@@ -7,7 +7,8 @@ export const readShrimpVisit = createServerFn({ method: "GET" }).handler(async (
     const { getRequest } = await import("@tanstack/react-start/server");
     const request = getRequest();
     const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
-    return { shrimp: shrimpForVisit(host, request.headers.get("cookie") || "") };
+    const path = new URL(request.url).pathname;
+    return { shrimp: shrimpForVisit(host, request.headers.get("cookie") || "", path) };
   } catch {
     return { shrimp: false };
   }

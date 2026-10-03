@@ -1,28 +1,25 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import { writeShrimpCookie } from "@/lib/shrimpify";
 
-const ShrimpContext = createContext<{ on: boolean; toggle: () => void }>({
+const ShrimpContext = createContext<{ on: boolean; setShrimp: (next: boolean) => void }>({
   on: false,
-  toggle: () => undefined,
+  setShrimp: () => undefined,
 });
 
 export function ShrimpProvider({ initial, children }: { initial: boolean; children: React.ReactNode }) {
   const [on, setOn] = useState(initial);
-  function toggle() {
-    setOn((value) => {
-      const next = !value;
-      writeShrimpCookie(next);
-      if (typeof document !== "undefined") document.documentElement.dataset.shrimp = next ? "1" : "0";
-      return next;
-    });
-  }
-  return <ShrimpContext.Provider value={{ on, toggle }}>{children}</ShrimpContext.Provider>;
+  const setShrimp = useCallback((next: boolean) => {
+    writeShrimpCookie(next);
+    if (typeof document !== "undefined") document.documentElement.dataset.shrimp = next ? "1" : "0";
+    setOn(next);
+  }, []);
+  return <ShrimpContext.Provider value={{ on, setShrimp }}>{children}</ShrimpContext.Provider>;
 }
 
 export function useShrimp(): boolean {
   return useContext(ShrimpContext).on;
 }
 
-export function useShrimpToggle(): () => void {
-  return useContext(ShrimpContext).toggle;
+export function useSetShrimp(): (next: boolean) => void {
+  return useContext(ShrimpContext).setShrimp;
 }
