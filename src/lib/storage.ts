@@ -1,5 +1,6 @@
 import type { ListenMode } from "@/lib/listen-mode";
 import { parseListenMode } from "@/lib/listen-mode";
+import { parseDirectoryView, type DirectoryView } from "@/lib/directory-search";
 
 const KEY = "radio.persist.v4";
 const LEGACY = "radio.persist.v3";
@@ -24,6 +25,7 @@ export type Persisted = {
   listenMode: ListenMode;
   listenChosen: boolean;
   roseRite: boolean;
+  directoryView: DirectoryView | null;
 };
 
 const defaults: Persisted = {
@@ -46,6 +48,7 @@ const defaults: Persisted = {
   listenMode: "stream",
   listenChosen: false,
   roseRite: false,
+  directoryView: null,
 };
 
 export function loadPersisted(): Persisted {
@@ -73,6 +76,7 @@ export function loadPersisted(): Persisted {
       listenMode: parsed.listenChosen ? parseListenMode(parsed.listenMode) ?? "stream" : "stream",
       listenChosen: parsed.listenChosen === true,
       roseRite: parsed.roseRite === true,
+      directoryView: parseDirectoryView(parsed.directoryView),
     };
   } catch {
     return defaults;

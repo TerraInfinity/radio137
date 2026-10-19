@@ -6,6 +6,8 @@ import { CoverArt } from "@/components/cover-art";
 import { usePlayerStore } from "@/lib/player-store";
 import { isLoopingVisual, stationVisualSrc } from "@/lib/media";
 import type { DialRow } from "@/components/dial-list";
+import { cn } from "@/lib/cn";
+import { GLAUM_STATION } from "@/lib/shrimpify";
 
 export function FeatureBoard({ rows }: { rows: DialRow[] }) {
   const tuneIn = usePlayerStore((s) => s.tuneIn);
@@ -132,6 +134,36 @@ export function FeatureBoard({ rows }: { rows: DialRow[] }) {
 function FeatureSlide({ row, active, reduce, onPlay, isCurrent = false, isPlaying = false }: { row: DialRow; active: boolean; reduce: boolean; onPlay: () => void; isCurrent?: boolean; isPlaying?: boolean }) {
   const src = row.channel ? stationVisualSrc(row.channel) : row.cover;
   const poster = row.cover && !isLoopingVisual(row.cover) ? row.cover : row.channel?.cover;
+  const track = usePlayerStore((s) => s.track);
+  if (row.kind === "station" && row.slug === GLAUM_STATION) {
+    return (
+      <article className={active ? "absolute inset-0" : "pointer-events-none absolute inset-0 opacity-0"} aria-hidden={!active}>
+        <div className={cn("feature-station", isPlaying && "is-live")}>
+          <Link to={row.href} params={{ slug: row.slug }} aria-label={`Open ${row.title}`} className="feature-station-art">
+            <CoverArt src={src || poster} poster={poster} alt="" fit="cover" motion={active && !reduce ? "loop" : "still"} className="absolute inset-0 size-full" />
+          </Link>
+          <div className="feature-station-copy">
+            <p className="feature-station-kicker">
+              <span className="feature-station-lamp" aria-hidden />
+              {isPlaying ? "On the air" : "Station"} · Live
+            </p>
+            <h2 className="feature-station-name">Glåüm</h2>
+            <p className="truncate font-mono text-[10px] uppercase tracking-[0.14em] text-[#e7c98a]">Official Glaum Frequency</p>
+            <p className="mt-1 line-clamp-2 text-sm text-[#fff6d8]/85">{isPlaying && track ? track.title : row.line}</p>
+            <div className="mt-3 flex items-center gap-2">
+              <button type="button" onClick={onPlay} className="feature-station-play">
+                {isPlaying ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+                {isPlaying ? "Pause" : "Play"}
+              </button>
+              <Link to={row.href} params={{ slug: row.slug }} className="inline-flex h-9 items-center px-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[#fff6d8]">
+                Open
+              </Link>
+            </div>
+          </div>
+        </div>
+      </article>
+    );
+  }
   return (
     <article className={active ? "absolute inset-0" : "pointer-events-none absolute inset-0 opacity-0"} aria-hidden={!active}>
       <Link to={row.href} params={{ slug: row.slug }} aria-label={`Open ${row.title}`} className="absolute inset-0">

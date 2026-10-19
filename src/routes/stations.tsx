@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
-import { DialList } from "@/components/dial-list";
+import { DialList, StationCards, type DialRow } from "@/components/dial-list";
+import { DirectoryBrowse } from "@/components/directory-browse";
 import { GlaumRadioSet } from "@/components/glaum-radio-set";
 import { useSetShrimp, useShrimp } from "@/components/shrimp-context";
 import { publicChannels } from "@/lib/catalog";
@@ -12,6 +13,19 @@ export const Route = createFileRoute("/stations")({
   component: StationsPage,
   head: () => ({ meta: [{ title: "Stations · Radio" }] }),
 });
+
+function dialFields(row: DialRow) {
+  return {
+    title: row.title,
+    kicker: row.kicker,
+    line: row.line,
+    category: row.channel?.category,
+    tags: row.channel?.tags,
+    energy: row.channel?.energy,
+    kind: row.channel?.kind,
+    mode: row.channel?.mode,
+  };
+}
 
 function StationsPage() {
   const catalog = usePlayerStore((s) => s.catalog);
@@ -31,11 +45,11 @@ function StationsPage() {
     );
   }
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 pb-52">
+    <div className="mx-auto max-w-5xl px-4 py-10 pb-52">
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-gold">Lane</p>
       <h1 className="mt-2 font-display text-5xl font-semibold tracking-tight">Stations</h1>
       <p className="mt-3 max-w-prose text-muted">Desks and frequencies. Experiences live in their own lane.</p>
-      <DialList title="Stations" rows={rows} collapsed={8} />
+      <DirectoryBrowse label="stations" defaultView="list" items={rows} fields={dialFields} collapsed={8} render={(shown, view) => (view === "cards" ? <StationCards rows={shown} /> : <DialList rows={shown} />)} />
     </div>
   );
 }

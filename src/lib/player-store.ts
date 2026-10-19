@@ -135,6 +135,7 @@ function persist() {
     listenMode: s.listenMode,
     listenChosen,
     roseRite: s.roseRite,
+    directoryView: prev.directoryView ?? null,
   });
   noteRosePlace(s);
 }

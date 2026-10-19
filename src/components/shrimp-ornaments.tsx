@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-/** Margin decoration only. It never takes clicks. */
+/** Margin decoration. The page still receives clicks; only the shrimp and hands do. */
 
 const HANDS = [0, 1, 2, 3, 4];
 
@@ -42,7 +42,7 @@ function CuteShrimp() {
 type Box = { l: number; t: number; r: number; b: number };
 type Gesture = "rest" | "wave" | "beckon";
 type Hand = {
-  el: HTMLDivElement;
+  el: HTMLButtonElement;
   fingers: SVGGElement | null;
   x: number;
   y: number;
@@ -53,6 +53,7 @@ type Hand = {
   gesture: Gesture;
   until: number;
   next: number;
+  pokedAt: number;
 };
 
 function hits(x: number, y: number, w: number, h: number, boxes: Box[]) {
@@ -72,8 +73,10 @@ function openSpot(width: number, height: number, boxes: Box[]) {
 
 export function ShrimpOrnaments() {
   const rootRef = useRef<HTMLDivElement>(null);
-  const shrimpRef = useRef<HTMLDivElement>(null);
-  const handsRef = useRef<Array<HTMLDivElement | null>>([]);
+  const shrimpRef = useRef<HTMLButtonElement>(null);
+  const handsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const handPokes = useRef<number[]>([]);
+  const shrimpPoke = useRef(0);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -96,6 +99,7 @@ export function ShrimpOrnaments() {
           gesture: "rest" as Gesture,
           until: 0,
           next: 1800 + index * 900,
+          pokedAt: 0,
         },
       ];
     });
@@ -162,8 +166,12 @@ export function ShrimpOrnaments() {
 
     let x = 20;
     let y = 36;
-    let vx = 0.85;
-    let vy = 0.28;
+    let heading = Math.random() * Math.PI * 2;
+    let speed = 0.78;
+    let wander = 0.2;
+    let wanderUntil = 0;
+    let spinUntil = 0;
+    let lastShrimpPoke = 0;
     let raf = 0;
     let greeted = -1;
     const swim = (now: number) => {
@@ -171,22 +179,50 @@ export function ShrimpOrnaments() {
         const host = root.getBoundingClientRect();
         const w = 64;
         const h = 30;
-        if (x < 2 || x > host.width - w) vx = Math.abs(vx) * (x < 2 ? 1 : -1);
-        if (y < 2 || y > host.height - h) vy = Math.abs(vy) * (y < 2 ? 1 : -1);
+        if (shrimpPoke.current > lastShrimpPoke) {
+          lastShrimpPoke = shrimpPoke.current;
+          heading += Math.PI * (0.55 + Math.random() * 0.9);
+          speed = 2.7;
+          spinUntil = now + 720;
+          shrimp.classList.add("is-startled");
+          const nearestHand = hands.reduce<{ hand: Hand; dist: number } | null>((best, hand) => {
+            const dist = Math.hypot(x + 32 - (hand.x + 18), y + 15 - (hand.y + 22));
+            return !best || dist < best.dist ? { hand, dist } : best;
+          }, null);
+          if (nearestHand && nearestHand.dist < 220) {
+            nearestHand.hand.gesture = "wave";
+            nearestHand.hand.until = now + 1100;
+            nearestHand.hand.el.classList.add("is-poked");
+          }
+        }
+        if (now > spinUntil) shrimp.classList.remove("is-startled");
+        if (now > wanderUntil) {
+          wander = (Math.random() - 0.5) * 1.1;
+          wanderUntil = now + 800 + Math.random() * 1400;
+        }
+        heading += wander * 0.035;
+        speed += (0.82 - speed) * 0.018;
+        const margin = 36;
+        if (x < margin) heading = Math.atan2(Math.sin(heading), Math.abs(Math.cos(heading)));
+        if (x > host.width - w - margin) heading = Math.atan2(Math.sin(heading), -Math.abs(Math.cos(heading)));
+        if (y < margin) heading = Math.atan2(Math.abs(Math.sin(heading)), Math.cos(heading));
+        if (y > host.height - h - margin) heading = Math.atan2(-Math.abs(Math.sin(heading)), Math.cos(heading));
+        const vx = Math.cos(heading) * speed;
+        const vy = Math.sin(heading) * speed * 0.7;
         const nx = x + vx;
         const ny = y + vy;
         const hit = boxes.find((box) => nx < box.r && nx + w > box.l && ny < box.b && ny + h > box.t);
         if (hit) {
           const dx = nx + w / 2 - (hit.l + hit.r) / 2;
           const dy = ny + h / 2 - (hit.t + hit.b) / 2;
-          const len = Math.hypot(dx, dy) || 1;
-          vx = (dx / len) * 1.05;
-          vy = (dy / len) * 1.05;
+          heading = Math.atan2(dy, dx);
+          speed = Math.max(speed, 1.15);
         } else {
           x = nx;
           y = ny;
         }
-        shrimp.style.transform = `translate(${x}px, ${y}px) scaleX(${vx >= 0 ? 1 : -1}) rotate(${vy * 14}deg)`;
+        const spin = now < spinUntil ? Math.sin((spinUntil - now) / 70) * 32 : vy * 12;
+        shrimp.style.transform = `translate(${x}px, ${y}px) scaleX(${Math.cos(heading) >= 0 ? 1 : -1}) rotate(${spin}deg)`;
 
         let nearest = -1;
         let nearestDist = 150;
@@ -196,7 +232,17 @@ export function ShrimpOrnaments() {
             nearest = index;
             nearestDist = dist;
           }
-          if (now > hand.next) {
+          const poke = handPokes.current[index] ?? 0;
+          if (poke > hand.pokedAt) {
+            hand.pokedAt = poke;
+            hand.gesture = Math.random() < 0.5 ? "wave" : "beckon";
+            hand.until = now + 1500;
+            const spot = openSpot(host.width, host.height, boxes);
+            hand.tx = spot.x;
+            hand.ty = spot.y;
+            hand.el.classList.add("is-poked");
+          }
+          if (now > hand.next && now > hand.until) {
             hand.gesture = Math.random() < 0.55 ? "wave" : "beckon";
             hand.until = now + 1100 + Math.random() * 500;
             hand.next = now + 4200 + Math.random() * 5200;
@@ -204,8 +250,10 @@ export function ShrimpOrnaments() {
             hand.tx = spot.x;
             hand.ty = spot.y;
           }
-          hand.x += (hand.tx - hand.x) * 0.02;
-          hand.y += (hand.ty - hand.y) * 0.02;
+          const ease = now < hand.until && hand.pokedAt > 0 && now - hand.pokedAt < 1500 ? 0.085 : 0.03;
+          hand.x += (hand.tx - hand.x) * ease;
+          hand.y += (hand.ty - hand.y) * ease;
+          if (now > hand.until) hand.el.classList.remove("is-poked");
         });
         if (nearest >= 0 && nearest !== greeted && nearestDist < 130) {
           const hand = hands[nearest];
@@ -219,20 +267,23 @@ export function ShrimpOrnaments() {
 
         hands.forEach((hand) => {
           const active = now < hand.until;
-          const bob = Math.sin(now / 980 + hand.phase) * 3.5;
-          const sway = Math.sin(now / 1600 + hand.phase) * 5;
+          const poked = now - hand.pokedAt < 1500;
+          const bob = Math.sin(now / 780 + hand.phase) * (poked ? 7 : 4.5);
+          const sway = Math.sin(now / 1300 + hand.phase) * (poked ? 12 : 7);
+          const driftX = Math.sin(now / 1500 + hand.phase) * 8;
+          const driftY = Math.sin(now / 1100 + hand.phase) * Math.cos(now / 1500 + hand.phase) * 6;
           const toward = Math.atan2(y + 15 - (hand.y + 30), x + 32 - (hand.x + 18)) * (180 / Math.PI);
-          const lean = nearestDist < 180 && hands[nearest] === hand ? toward * 0.08 : 0;
-          let finger = sway * 0.15;
+          const lean = nearestDist < 180 && hands[nearest] === hand ? toward * 0.12 : 0;
+          let finger = sway * 0.2;
           let curl = 1;
-          if (active && hand.gesture === "wave") finger = Math.sin(now / 130) * 18;
+          if (active && hand.gesture === "wave") finger = Math.sin(now / (poked ? 90 : 130)) * (poked ? 26 : 18);
           if (active && hand.gesture === "beckon") {
-            finger = -10 + Math.sin(now / 200) * 8;
-            curl = 0.82 + Math.sin(now / 200) * 0.08;
+            finger = -12 + Math.sin(now / 180) * 12;
+            curl = 0.78 + Math.sin(now / 180) * 0.12;
           }
           if (hand.fingers) hand.fingers.style.transform = `rotate(${finger}deg) scaleY(${curl})`;
           const face = x + 32 > hand.x ? 1 : -1;
-          hand.el.style.transform = `translate(${hand.x}px, ${hand.y + bob}px) rotate(${sway + lean}deg) scaleX(${face})`;
+          hand.el.style.transform = `translate(${hand.x + driftX}px, ${hand.y + bob + driftY}px) rotate(${sway + lean}deg) scaleX(${face})`;
         });
       }
       raf = window.requestAnimationFrame(swim);
@@ -245,26 +296,47 @@ export function ShrimpOrnaments() {
   }, []);
 
   return (
-    <div ref={rootRef} className="shrimp-ornaments" aria-hidden>
-      <span className="shrimp-dial" />
-      <span className="shrimp-bubble bubble-a" />
-      <span className="shrimp-bubble bubble-b" />
-      <span className="shrimp-bubble bubble-c" />
-      <span className="shrimp-bubble bubble-d" />
+    <div ref={rootRef} className="shrimp-ornaments">
+      <span className="shrimp-dial" aria-hidden />
+      <span className="shrimp-bubble bubble-a" aria-hidden />
+      <span className="shrimp-bubble bubble-b" aria-hidden />
+      <span className="shrimp-bubble bubble-c" aria-hidden />
+      <span className="shrimp-bubble bubble-d" aria-hidden />
       {HANDS.map((id) => (
-        <div
+        <button
           key={id}
+          type="button"
           className="shrimp-hand"
+          aria-label="Wave"
           ref={(node) => {
             handsRef.current[id] = node;
           }}
+          onClick={(event) => {
+            handPokes.current[id] = performance.now();
+            if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+              event.currentTarget.classList.add("is-poked");
+              window.setTimeout(() => event.currentTarget.classList.remove("is-poked"), 700);
+            }
+          }}
         >
           <OpenHand />
-        </div>
+        </button>
       ))}
-      <div ref={shrimpRef} className="shrimp-swimmer">
+      <button
+        ref={shrimpRef}
+        type="button"
+        className="shrimp-swimmer"
+        aria-label="Startle the shrimp"
+        onClick={(event) => {
+          shrimpPoke.current = performance.now();
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            event.currentTarget.classList.add("is-startled");
+            window.setTimeout(() => event.currentTarget.classList.remove("is-startled"), 700);
+          }
+        }}
+      >
         <CuteShrimp />
-      </div>
+      </button>
     </div>
   );
 }

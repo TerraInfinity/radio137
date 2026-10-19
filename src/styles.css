@@ -1620,9 +1620,22 @@ body:has(.player-stage) .desk-chat {
   position: absolute;
   left: 0;
   top: 0;
-  width: 36px;
-  height: 44px;
+  width: 44px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: none;
   transform-origin: 50% 88%;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.shrimp-hand.is-poked {
+  filter: drop-shadow(0 0 7px #ff8fd0);
+}
+.shrimp-hand:focus-visible,
+.shrimp-swimmer:focus-visible {
+  outline: 2px solid #c8a848;
+  outline-offset: 2px;
 }
 .shrimp-fingers { transform-origin: 40px 68px; transform-box: fill-box; }
 .shrimp-hand-svg { width: 100%; height: 100%; overflow: visible; }
@@ -1641,9 +1654,20 @@ body:has(.player-stage) .desk-chat {
   position: absolute;
   left: 0;
   top: 0;
-  width: 64px;
-  height: 30px;
+  width: 72px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
   transform-origin: center center;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.shrimp-swimmer.is-startled {
+  filter: drop-shadow(0 0 8px #ffd0ea);
+}
+.shrimp-swimmer.is-startled .shrimp-tail {
+  animation-duration: 0.22s;
 }
 .shrimp-swim-svg { width: 100%; height: 100%; overflow: visible; }
 .shrimp-swim-body { fill: #ff8fa3; stroke: #9a2468; stroke-width: 1.6; stroke-linejoin: round; }
@@ -1862,6 +1886,83 @@ body:has(.player-stage) .desk-chat {
     inset 0 0 0 8px #ff2d9533,
     inset 0 0 0 1px #ff4fa3;
   mask-image: linear-gradient(#000 0 12%, transparent 28% 72%, #000 88%);
+}
+.feature-station {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 36%) 1fr;
+  height: 100%;
+  background: #1b1024;
+}
+.feature-station-art {
+  position: relative;
+  display: block;
+  height: 100%;
+  overflow: hidden;
+}
+.feature-station-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 55%, #1b1024);
+  pointer-events: none;
+}
+.feature-station-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0.9rem 3.4rem 0.95rem 0.2rem;
+  background:
+    radial-gradient(circle at 100% 0%, #e7c6ff40, transparent 46%),
+    linear-gradient(180deg, #3a204c, #1b1024 70%);
+}
+.feature-station-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #e7c98a;
+}
+.feature-station-lamp {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #8a7a62;
+  box-shadow: inset 0 0 0 1px #0006;
+}
+.feature-station.is-live .feature-station-lamp {
+  background: #ffb35a;
+  box-shadow: 0 0 10px #ffb35acc;
+  animation: shrimp-lamp 1.8s ease-in-out infinite;
+}
+.feature-station-name {
+  margin-top: 0.15rem;
+  font-family: var(--font-glaum);
+  font-size: clamp(2rem, 5vw, 3.1rem);
+  font-style: italic;
+  line-height: 0.9;
+  color: #fff6d8;
+}
+.feature-station-play {
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid #c8a848;
+  background: radial-gradient(circle at 35% 30%, #fff, #ffd6ea 46%, #d239f8);
+  padding: 0 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #2a1836;
+}
+@media (prefers-reduced-motion: reduce) {
+  .feature-station.is-live .feature-station-lamp { animation: none; }
 }
 .album-card {
   display: block;
