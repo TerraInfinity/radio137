@@ -10,7 +10,7 @@
   "channels": [
     {
       "slug": "default",
-      "name": "Default",
+      "name": "GLaDOS",
       "energy": "intro clock",
       "mode": "live",
       "kind": "live",
@@ -974,7 +974,7 @@
         "featured"
       ],
       "category": "Intro",
-      "featured": true,
+      "featured": false,
       "claimable": true,
       "skin": "none",
       "loveBubbles": false,
@@ -3719,7 +3719,7 @@
         "spiritual"
       ],
       "category": "Frequency",
-      "featured": true,
+      "featured": false,
       "claimable": true,
       "skin": "none",
       "loveBubbles": false,
@@ -4008,7 +4008,7 @@
         "shabad"
       ],
       "category": "Frequency",
-      "featured": true,
+      "featured": false,
       "claimable": true,
       "skin": "none",
       "loveBubbles": false,
@@ -6035,7 +6035,7 @@
         "empire"
       ],
       "category": "Frequency",
-      "featured": true,
+      "featured": false,
       "claimable": true,
       "skin": "none",
       "loveBubbles": false,
@@ -9815,7 +9815,7 @@
         "sacred"
       ],
       "category": "Frequency",
-      "featured": true,
+      "featured": false,
       "claimable": true,
       "skin": "none",
       "loveBubbles": false,

@@ -26,3 +26,20 @@ export function writeShrimpCookie(on: boolean) {
   if (typeof document === "undefined") return;
   document.cookie = `${SHRIMP_COOKIE}=${on ? "1" : "0"}; Path=/; Max-Age=31536000; SameSite=Lax`;
 }
+
+export function isRadioHost(host: string): boolean {
+  const name = host.toLowerCase().split(",")[0].trim().replace(/:\d+$/, "").replace(/\.$/, "");
+  return name === "radio.terrainfinity.ca" || name === "radio.cyber-athens.ca";
+}
+
+export type FaceSwitchTarget = { kind: "external"; url: string } | { kind: "in-app"; to: "/" | "/stations" };
+
+/** The shrimp toggle is the only face switch. Production faces cross domains; localhost/preview stays in-app. */
+export function faceSwitchTarget(host: string, turningOn: boolean): FaceSwitchTarget {
+  if (turningOn) {
+    if (isRadioHost(host)) return { kind: "external", url: "https://www.shrimpify.ca/" };
+    return { kind: "in-app", to: "/stations" };
+  }
+  if (hostWantsShrimp(host)) return { kind: "external", url: "https://radio.terrainfinity.ca/" };
+  return { kind: "in-app", to: "/" };
+}

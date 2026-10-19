@@ -319,6 +319,7 @@ function TransportButtons({
   large?: boolean;
 }) {
   const togglePlay = usePlayerStore((s) => s.togglePlay);
+  const needsTap = usePlayerStore((s) => s.needsTap);
   const next = usePlayerStore((s) => s.next);
   const prev = usePlayerStore((s) => s.prev);
   return (
@@ -339,7 +340,8 @@ function TransportButtons({
           "grid shrink-0 place-items-center rounded-full bg-fg text-bg",
           large ? "size-16" : "size-10",
         )}
-        aria-label={playing ? "Pause" : "Play"}
+        aria-label={playing ? "Pause" : needsTap ? "Tap to listen" : "Play"}
+        title={playing ? "Pause" : needsTap ? "Tap to listen" : "Play"}
       >
         {playing ? (
           <Pause className={large ? "size-7" : "size-4"} />
@@ -371,6 +373,7 @@ export function MiniPlayer() {
   const buffering = usePlayerStore((s) => s.buffering);
   const deckHint = usePlayerStore((s) => s.deckHint);
   const elsewhere = usePlayerStore((s) => s.elsewhere);
+  const needsTap = usePlayerStore((s) => s.needsTap);
   const listenMode = usePlayerStore((s) => s.listenModeSession ?? s.listenMode);
   const setPlayerCollapsed = usePlayerStore((s) => s.setPlayerCollapsed);
   const setPlayerHidden = usePlayerStore((s) => s.setPlayerHidden);
@@ -413,9 +416,11 @@ export function MiniPlayer() {
       ? "Buffering…"
       : elsewhere
         ? "Playing in another tab"
-        : deckHint
-          ? deckHint
-          : overlay
+        : needsTap
+          ? "Tap to listen"
+          : deckHint
+            ? deckHint
+            : overlay
             ? "On demand"
             : liveSync
               ? "Live"

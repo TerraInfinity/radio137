@@ -24,6 +24,7 @@ export function pickWelcome(
 ): string {
   if (history && rows.some((row) => row.enabled && row.slug === history)) return history;
   const open = rows.filter((row) => row.enabled);
+  if (open.some((row) => row.slug === fallback)) return fallback;
   const featured = open.filter((row) => row.featured).sort((a, b) => b.weight - a.weight || a.slug.localeCompare(b.slug));
   if (featured[0]) return featured[0].slug;
   const ranked = [...open].sort((a, b) => b.weight - a.weight || a.slug.localeCompare(b.slug));

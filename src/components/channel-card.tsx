@@ -5,11 +5,18 @@ import { StationVisual } from "@/components/station-visual";
 import { getPlayableTracks, isChannelNsfw, kindHint, stationSkin } from "@/lib/catalog";
 import { cn } from "@/lib/cn";
 import { experienceFromChannel } from "@/lib/experiences";
+import { Pause, Play } from "lucide-react";
 import { usePlayerStore } from "@/lib/player-store";
 import type { Channel } from "@/lib/types";
 
 export function ChannelCard({ channel }: { channel: Channel }) {
   const tuneIn = usePlayerStore((s) => s.tuneIn);
+  const togglePlay = usePlayerStore((s) => s.togglePlay);
+  const channelSlug = usePlayerStore((s) => s.channelSlug);
+  const status = usePlayerStore((s) => s.status);
+  const currentTrack = usePlayerStore((s) => s.track);
+  const isCurrent = Boolean(currentTrack) && channelSlug === channel.slug;
+  const isPlaying = isCurrent && status === "playing";
   const locked = isChannelNsfw(channel) || !channel.enabled;
   const playable = getPlayableTracks(channel);
   const skin = stationSkin(channel);
@@ -36,11 +43,14 @@ export function ChannelCard({ channel }: { channel: Channel }) {
           <button
             type="button"
             disabled={locked || playable.length === 0}
-            onClick={() => void tuneIn(channel.slug, { forcePlay: true })}
-            className="inline-flex h-11 items-center rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg disabled:opacity-60"
+            onClick={() => void (isCurrent ? togglePlay() : tuneIn(channel.slug, { forcePlay: true }))}
+            aria-label={isCurrent ? `${isPlaying ? "Pause" : "Play"} ${channel.name}` : `Play ${channel.name}`}
+            className="inline-flex h-11 items-center gap-2 rounded-md bg-fg px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bg disabled:opacity-60"
           >
-            Play
+            {isCurrent && isPlaying ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+            {isCurrent ? (isPlaying ? "Pause" : "Play") : "Play"}
           </button>
+          {isCurrent ? <span className="inline-flex h-11 items-center text-xs text-gold" aria-live="off">{isPlaying ? "Playing now" : "Paused"}</span> : null}
           <Link to="/channel/$slug" params={{ slug: channel.slug }} className="inline-flex h-11 items-center px-2 font-mono text-[11px] uppercase tracking-[0.14em] text-gold">
             Open
           </Link>

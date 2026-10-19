@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { BambiMark } from "@/components/bambi-mark";
-import { ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { CoverArt } from "@/components/cover-art";
 import { usePlayerStore } from "@/lib/player-store";
@@ -9,6 +9,10 @@ import type { DialRow } from "@/components/dial-list";
 
 export function FeatureBoard({ rows }: { rows: DialRow[] }) {
   const tuneIn = usePlayerStore((s) => s.tuneIn);
+  const togglePlay = usePlayerStore((s) => s.togglePlay);
+  const channelSlug = usePlayerStore((s) => s.channelSlug);
+  const status = usePlayerStore((s) => s.status);
+  const currentTrack = usePlayerStore((s) => s.track);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [reduce, setReduce] = useState(false);
@@ -81,7 +85,9 @@ export function FeatureBoard({ rows }: { rows: DialRow[] }) {
               row={row}
               active={i === safe}
               reduce={reduce}
-              onPlay={() => void tuneIn(row.stationSlug, { forcePlay: true })}
+              isCurrent={Boolean(currentTrack) && row.stationSlug === channelSlug}
+              isPlaying={Boolean(currentTrack) && row.stationSlug === channelSlug && status === "playing"}
+              onPlay={() => void (Boolean(currentTrack) && row.stationSlug === channelSlug ? togglePlay() : tuneIn(row.stationSlug, { forcePlay: true }))}
             />
           ))}
         </div>
@@ -123,7 +129,7 @@ export function FeatureBoard({ rows }: { rows: DialRow[] }) {
   );
 }
 
-function FeatureSlide({ row, active, reduce, onPlay }: { row: DialRow; active: boolean; reduce: boolean; onPlay: () => void }) {
+function FeatureSlide({ row, active, reduce, onPlay, isCurrent = false, isPlaying = false }: { row: DialRow; active: boolean; reduce: boolean; onPlay: () => void; isCurrent?: boolean; isPlaying?: boolean }) {
   const src = row.channel ? stationVisualSrc(row.channel) : row.cover;
   const poster = row.cover && !isLoopingVisual(row.cover) ? row.cover : row.channel?.cover;
   return (
@@ -156,8 +162,8 @@ function FeatureSlide({ row, active, reduce, onPlay }: { row: DialRow; active: b
             onClick={onPlay}
             className="inline-flex h-9 items-center gap-2 rounded-md bg-white px-3 font-mono text-[11px] uppercase tracking-[0.14em] text-black"
           >
-            <Play className="size-3.5" />
-            Play
+            {isCurrent && isPlaying ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+            {isCurrent && isPlaying ? "Pause" : "Play"}
           </button>
           <Link
             to={row.href}

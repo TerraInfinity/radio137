@@ -3,6 +3,7 @@ import { getPlayableTracks, isChannelNsfw } from "@/lib/catalog";
 import { experienceFromChannel, listExperiences } from "@/lib/experiences";
 import { listensFor, scoreFeature } from "@/lib/feature-weight";
 import { GLAUM_STATION } from "@/lib/shrimpify";
+import { selectHomeFeatured } from "@/lib/home-start";
 import type { Channel } from "@/lib/types";
 
 function weightOf(channel: Channel, index: number, total: number, views: Record<string, number>, experience: boolean): number {
@@ -63,8 +64,5 @@ export function experienceRows(channels: Channel[], views: Record<string, number
 }
 
 export function homeFeatured(channels: Channel[], views: Record<string, number>): DialRow[] {
-  const experiences = experienceRows(channels, views).filter((row) => row.featured);
-  const taken = new Set(experiences.map((row) => row.stationSlug));
-  const stations = stationRows(channels, views).filter((row) => (row.featured || row.slug === GLAUM_STATION) && !taken.has(row.slug));
-  return [...experiences, ...stations].sort((a, b) => b.weight - a.weight || a.title.localeCompare(b.title));
+  return selectHomeFeatured(experienceRows(channels, views), stationRows(channels, views));
 }

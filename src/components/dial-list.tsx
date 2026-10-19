@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { BambiMark } from "@/components/bambi-mark";
-import { Play } from "lucide-react";
+import { Pause, Play } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CoverArt } from "@/components/cover-art";
 import { usePlayerStore } from "@/lib/player-store";
+import { cn } from "@/lib/cn";
 import type { Channel } from "@/lib/types";
 
 export type DialRow = {
@@ -30,6 +31,10 @@ export function DialList({
   collapsed?: number;
 }) {
   const tuneIn = usePlayerStore((s) => s.tuneIn);
+  const togglePlay = usePlayerStore((s) => s.togglePlay);
+  const channelSlug = usePlayerStore((s) => s.channelSlug);
+  const status = usePlayerStore((s) => s.status);
+  const currentTrack = usePlayerStore((s) => s.track);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const filtered = useMemo(() => {
@@ -56,8 +61,11 @@ export function DialList({
         />
       </div>
       <ul className="mt-4 divide-y divide-line overflow-hidden rounded-2xl bg-bg-elevated shadow-[var(--shadow-filigree)]">
-        {shown.map((row) => (
-          <li key={`${row.kind}-${row.slug}`} className="flex items-center gap-3 px-3 py-2.5">
+        {shown.map((row) => {
+          const isCurrent = Boolean(currentTrack) && row.stationSlug === channelSlug;
+          const isPlaying = isCurrent && status === "playing";
+          return (
+          <li key={`${row.kind}-${row.slug}`} className={cn("flex items-center gap-3 px-3 py-2.5", isCurrent && "bg-white/5")}>
             <Link to={row.href} params={{ slug: row.slug }} className="relative size-14 shrink-0 overflow-hidden rounded-lg">
               <CoverArt src={row.cover || "/covers/ember-frequency.jpg"} alt="" className="size-full" />
             </Link>
@@ -70,17 +78,26 @@ export function DialList({
                 <BambiMark name={row.title} />
               </Link>
               {row.line ? <p className="truncate text-sm text-muted">{row.line}</p> : null}
+              {isCurrent ? (
+                <p className="mt-0.5 flex items-center gap-2 text-xs text-gold" aria-live="off" aria-label={`${isPlaying ? "Playing now" : "Paused"}: ${row.title}`}>
+                  <span className={cn("vu-meter", isPlaying && "vu-meter-on")} aria-hidden>
+                    {Array.from({ length: 5 }, (_, i) => (<span key={i} style={{ animationDelay: `${i * 0.07}s` }} />))}
+                  </span>
+                  {isPlaying ? "Playing now" : status === "loading" ? "Tuning…" : "Paused"}
+                </p>
+              ) : null}
             </div>
             <button
               type="button"
-              aria-label={`Play ${row.title}`}
-              onClick={() => void tuneIn(row.stationSlug, { forcePlay: true })}
+              aria-label={isCurrent ? `${isPlaying ? "Pause" : "Play"} ${row.title}` : `Play ${row.title}`}
+              onClick={() => void (isCurrent ? togglePlay() : tuneIn(row.stationSlug, { forcePlay: true }))}
               className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-fg text-bg"
             >
-              <Play className="size-4" />
+              {isCurrent && isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
             </button>
           </li>
-        ))}
+          );
+        })}
       </ul>
       {more > 0 || (open && filtered.length > collapsed) ? (
         <button

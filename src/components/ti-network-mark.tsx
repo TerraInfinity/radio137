@@ -15,7 +15,7 @@ function hasFineHover() {
   return typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 }
 
-export function TiNetworkMark({ size = 48, className }: { size?: number; className?: string }) {
+export function TiNetworkMark({ size = 48, className, plate = false }: { size?: number; className?: string; plate?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const holdRef = useRef(0);
   const suppressClick = useRef(false);
@@ -58,6 +58,9 @@ export function TiNetworkMark({ size = 48, className }: { size?: number; classNa
         height: size,
         flexShrink: 0,
         overflow: "hidden",
+        ...(plate
+          ? { background: "#2a1836", borderRadius: 10, boxShadow: "inset 0 0 0 1px rgba(255, 209, 236, 0.45)" }
+          : null),
       }}
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
@@ -89,9 +92,9 @@ export function TiNetworkMark({ size = 48, className }: { size?: number; classNa
         draggable={false}
         style={{
           position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
+          inset: plate ? 3 : 0,
+          width: plate ? "calc(100% - 6px)" : "100%",
+          height: plate ? "calc(100% - 6px)" : "100%",
           objectFit: "contain",
           pointerEvents: "none",
           opacity: playing ? 0 : 1,
@@ -113,9 +116,9 @@ export function TiNetworkMark({ size = 48, className }: { size?: number; classNa
         loop={false}
         style={{
           position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
+          inset: plate ? 3 : 0,
+          width: plate ? "calc(100% - 6px)" : "100%",
+          height: plate ? "calc(100% - 6px)" : "100%",
           objectFit: "contain",
           pointerEvents: "none",
           opacity: playing ? 1 : 0,

@@ -23,3 +23,11 @@ test("welcome uses history, otherwise the heaviest featured station", () => {
   assert.equal(pickWelcome(rows, null, "default"), "rose");
   assert.equal(pickWelcome([], null, "default"), "default");
 });
+
+test("welcome lands a fresh listener on defaultSlug when it is available", () => {
+  const rows = [
+    { slug: "default", enabled: true, featured: false, weight: 10 },
+    { slug: "rose", enabled: true, featured: true, weight: 900 },
+  ];
+  assert.equal(pickWelcome(rows, null, "default"), "default");
+});

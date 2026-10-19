@@ -25,6 +25,7 @@ import { claimPlaybackSession, deckIsStalled, displayAsleep } from "@/lib/displa
 import { forgetCachedAudio, hasCachedAudio, pinCachedAudio, playableSrc, rememberAudio, shouldHoldAutoAdvance, dataSaverOn, warmTrackSrc } from "@/lib/audio-cache";
 import { mediaUrl } from "@/lib/media";
 import { loadPersisted, savePersisted } from "@/lib/storage";
+import { pickHomeStartSlug } from "@/lib/home-start";
 import { playbackLock, thisTabOwnsClock, type PlaybackPeer } from "@/lib/playback-lock";
 import { isLandingLocation } from "@/lib/landing";
 import { armRoseUnload, saveRosePlace } from "@/lib/rose-place";
@@ -46,6 +47,8 @@ type PlayerState = {
   lastSlug: string | null;
   lastTrackId: string | null;
   lastOffsetSec: number;
+  lastPlayedAt: number | null;
+  needsTap: boolean;
   visited: boolean;
   gateOpen: boolean;
   playerCollapsed: boolean;
@@ -117,6 +120,7 @@ function persist() {
     lastSlug: ownsClock ? s.lastSlug : prev.lastSlug,
     lastTrackId: ownsClock ? (s.track?.id ?? s.lastTrackId) : prev.lastTrackId,
     lastOffsetSec: ownsClock ? (s.track ? s.currentTime : s.lastOffsetSec) : prev.lastOffsetSec,
+    lastPlayedAt: ownsClock && s.status === "playing" && s.track ? Date.now() : prev.lastPlayedAt,
     visited: s.visited,
     playerCollapsed: s.playerCollapsed,
     playerHidden: s.playerHidden,
@@ -332,7 +336,7 @@ function bindEngine() {
       radioEngine.want(true);
       takeSpeaker();
       if (s.status === "paused" || s.status === "loading") {
-        usePlayerStore.setState({ status: "playing", buffering: false, elsewhere: null });
+        usePlayerStore.setState({ status: "playing", buffering: false, elsewhere: null, needsTap: false, lastPlayedAt: Date.now() });
       }
       syncMediaSession();
     },
@@ -571,6 +575,8 @@ async function loadTrack(
     lastTrackId: track.id,
     lastOffsetSec: result.currentTime,
     lastSlug: slug,
+    lastPlayedAt: playing ? Date.now() : usePlayerStore.getState().lastPlayedAt,
+    needsTap: playing ? false : play ? true : usePlayerStore.getState().needsTap,
   });
   persist();
   if (playing) usePlayerStore.getState().bumpView(track.id);
@@ -618,6 +624,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   lastSlug: null,
   lastTrackId: null,
   lastOffsetSec: 0,
+  lastPlayedAt: null,
+  needsTap: false,
   visited: false,
   gateOpen: false,
   playerCollapsed: true,
@@ -650,19 +658,22 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const landing =
       typeof window !== "undefined" && isLandingLocation(window.location.pathname, window.location.search);
     const showGate = landing && !p.visited;
+    // Homepage auto-start supersedes EnterGate on "/": the MiniPlayer's "Tap to listen" is the one tap there.
+    const homeAutoStart = typeof window !== "undefined" && window.location.pathname === "/";
     const visited = p.visited || !landing;
     set({
       autoplay: p.autoplay,
       lastSlug: p.lastSlug,
       lastTrackId: p.lastTrackId,
       lastOffsetSec: p.lastOffsetSec,
+      lastPlayedAt: p.lastPlayedAt,
       visited,
       playerCollapsed: p.playerCollapsed,
       playerHidden: p.playerHidden,
       volume: p.volume,
       muted: p.muted,
       identity,
-      gateOpen: showGate,
+      gateOpen: showGate && !homeAutoStart,
       ready: true,
       points: p.points,
       glaumules: p.glaumules,
@@ -694,13 +705,38 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         set({ catalogReady: true });
         const s = get();
         if (typeof window === "undefined") return;
-        if (!s.visited || s.gateOpen || !s.lastSlug || s.track) return;
+        if (s.track) return;
         if (pageCuesPlayback(window.location.pathname)) return;
         const peer = playbackLock.otherLeader();
         if (peer) {
           userPaused = true;
           set({ elsewhere: peer });
+          if (window.location.pathname === "/") return;
         }
+        if (window.location.pathname === "/") {
+          const playableSlugs = get()
+            .catalog.channels.filter((channel) => channel.enabled && !isChannelNsfw(channel) && getPlayableTracks(channel).length > 0)
+            .map((channel) => channel.slug);
+          const candidate = pickHomeStartSlug({
+            lastSlug: s.lastSlug,
+            lastPlayedAt: s.lastPlayedAt,
+            now: Date.now(),
+            playableSlugs,
+            defaultSlug: get().catalog.defaultSlug,
+          });
+          if (!candidate) return;
+          if (!s.autoplay) {
+            void get()
+              .tuneIn(candidate, { play: false })
+              .then(() => {
+                if (get().track && get().status !== "playing") set({ needsTap: true });
+              });
+          } else {
+            void get().tuneIn(candidate);
+          }
+          return;
+        }
+        if (!s.visited || s.gateOpen || !s.lastSlug) return;
         void get().tuneIn(s.lastSlug);
       });
     if (typeof window !== "undefined") {
@@ -832,7 +868,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         userPaused = false;
         takeSpeaker();
         const ok = await radioEngine.resume();
-        set({ status: ok ? "playing" : "paused", elsewhere: ok ? null : get().elsewhere });
+        set({ status: ok ? "playing" : "paused", elsewhere: ok ? null : get().elsewhere, needsTap: !ok });
         flushMediaSession();
       }
       return;
@@ -909,7 +945,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     radioEngine.want(false);
     radioEngine.pause();
     playbackLock.release();
-    set({ status: "paused", elsewhere: null, buffering: false });
+    set({ status: "paused", elsewhere: null, buffering: false, needsTap: false });
     flushMediaSession();
   },
 
@@ -926,7 +962,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       radioEngine.want(false);
       radioEngine.pause();
       playbackLock.release();
-      set({ status: "paused", elsewhere: null, buffering: false });
+      set({ status: "paused", elsewhere: null, buffering: false, needsTap: false });
       flushMediaSession();
       return;
     }
@@ -956,6 +992,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       set({
         status: ok ? "playing" : "paused",
         buffering: false,
+        needsTap: !ok,
         currentTime: heard > 0 ? heard : state.currentTime,
         elsewhere: ok ? null : get().elsewhere,
       });

@@ -36,6 +36,8 @@ export function SiteHeader() {
   const onGlaum = Boolean(channel && stationSkin(channel) === "glaum");
   const [open, setOpen] = useState(false);
   const shrimp = useShrimp();
+  const onShrimpHost = typeof window !== "undefined" && hostWantsShrimp(window.location.hostname);
+  const shrimpFace = shrimp || onShrimpHost;
   const setShrimp = useSetShrimp();
 
   useEffect(() => {
@@ -84,10 +86,15 @@ export function SiteHeader() {
     <header className={cn("sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-sm", shrimp && "shrimp-header")}>
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-1.5 px-3 sm:gap-2 sm:px-4">
         <div className="flex min-w-0 shrink-0 items-center gap-2">
-          <TiNetworkMark size={36} />
-          <Link to="/" className="min-w-0" onClick={() => { setOpen(false); if (typeof window === "undefined" || !hostWantsShrimp(window.location.hostname)) setShrimp(false); }} aria-label="Radio home">
+          <TiNetworkMark size={36} plate={shrimp} />
+          <Link
+            to={shrimpFace ? "/stations" : "/"}
+            className="min-w-0"
+            onClick={() => { setOpen(false); if (!shrimpFace) setShrimp(false); }}
+            aria-label={shrimpFace ? "Glåüm home" : "Radio home"}
+          >
             <p className={cn("mark-radio font-display text-base font-semibold leading-none tracking-[0.22em] sm:text-lg sm:tracking-[0.28em]", gold, shrimp && "font-glaum tracking-[0.14em]")}>
-              {shrimp ? "Glåüm" : "Radio"}
+              {shrimpFace ? "Glåüm" : "Radio"}
             </p>
           </Link>
         </div>

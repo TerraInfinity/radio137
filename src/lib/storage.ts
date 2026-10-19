@@ -9,6 +9,7 @@ export type Persisted = {
   lastSlug: string | null;
   lastTrackId: string | null;
   lastOffsetSec: number;
+  lastPlayedAt: number | null;
   visited: boolean;
   playerCollapsed: boolean;
   playerHidden: boolean;
@@ -30,6 +31,7 @@ const defaults: Persisted = {
   lastSlug: null,
   lastTrackId: null,
   lastOffsetSec: 0,
+  lastPlayedAt: null,
   visited: false,
   playerCollapsed: true,
   playerHidden: false,
@@ -64,6 +66,7 @@ export function loadPersisted(): Persisted {
       glaumules: Number.isFinite(parsed.glaumules) ? Number(parsed.glaumules) : 0,
       lastTrackId: typeof parsed.lastTrackId === "string" && parsed.lastTrackId ? parsed.lastTrackId : null,
       lastOffsetSec: Number.isFinite(parsed.lastOffsetSec) ? Math.max(0, Number(parsed.lastOffsetSec)) : 0,
+      lastPlayedAt: Number.isFinite(parsed.lastPlayedAt) && Number(parsed.lastPlayedAt) > 0 ? Number(parsed.lastPlayedAt) : null,
       volume: Number.isFinite(parsed.volume) ? Math.min(1, Math.max(0, Number(parsed.volume))) : 0.85,
       muted: Boolean(parsed.muted),
       playerHidden: Boolean(parsed.playerHidden),

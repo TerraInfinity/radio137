@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hostWantsShrimp, shrimpForVisit } from "./shrimpify.ts";
+import { faceSwitchTarget, hostWantsShrimp, isRadioHost, shrimpForVisit } from "./shrimpify.ts";
 
 test("home is full Radio, and the station set is Shrimpify", () => {
   assert.equal(shrimpForVisit("shrimpify.com", "", "/"), false);
@@ -16,4 +16,16 @@ test("home is full Radio, and the station set is Shrimpify", () => {
   assert.equal(hostWantsShrimp("www.shrimpify.ca"), true);
   assert.equal(hostWantsShrimp("shrimpify.ca"), true);
   assert.equal(hostWantsShrimp("radio.terrainfinity.ca"), false);
+});
+
+test("shrimp toggle crosses production domains and stays in-app on localhost/preview", () => {
+  assert.deepEqual(faceSwitchTarget("www.shrimpify.ca", false), { kind: "external", url: "https://radio.terrainfinity.ca/" });
+  assert.deepEqual(faceSwitchTarget("shrimpify.ca", false), { kind: "external", url: "https://radio.terrainfinity.ca/" });
+  assert.deepEqual(faceSwitchTarget("radio.terrainfinity.ca", true), { kind: "external", url: "https://www.shrimpify.ca/" });
+  assert.deepEqual(faceSwitchTarget("radio.cyber-athens.ca", true), { kind: "external", url: "https://www.shrimpify.ca/" });
+  assert.deepEqual(faceSwitchTarget("radio.terrainfinity.ca", false), { kind: "in-app", to: "/" });
+  assert.deepEqual(faceSwitchTarget("localhost", true), { kind: "in-app", to: "/stations" });
+  assert.deepEqual(faceSwitchTarget("localhost", false), { kind: "in-app", to: "/" });
+  assert.equal(isRadioHost("radio.cyber-athens.ca"), true);
+  assert.equal(isRadioHost("www.shrimpify.ca"), false);
 });
