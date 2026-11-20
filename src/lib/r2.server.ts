@@ -65,6 +65,12 @@ function cleanKey(key: string): string {
   return cleaned;
 }
 
+function radioKey(key: string): string {
+  const cleaned = cleanKey(key);
+  if (!cleaned.startsWith("radio/")) throw new Error("That key is outside the radio library");
+  return cleaned;
+}
+
 export async function listR2Prefix(prefix: string, maxKeys = 2500): Promise<R2Object[]> {
   const cleaned = prefix.replace(/^\/+/, "");
   const out: R2Object[] = [];
@@ -90,12 +96,12 @@ export async function listR2Prefix(prefix: string, maxKeys = 2500): Promise<R2Ob
 }
 
 export async function deleteR2Key(key: string): Promise<void> {
-  await client().send(new DeleteObjectCommand({ Bucket: bucket(), Key: cleanKey(key) }));
+  await client().send(new DeleteObjectCommand({ Bucket: bucket(), Key: radioKey(key) }));
 }
 
 export async function copyR2Key(from: string, to: string): Promise<R2Object> {
-  const source = cleanKey(from);
-  const dest = cleanKey(to);
+  const source = radioKey(from);
+  const dest = radioKey(to);
   if (source === dest) return { key: dest, size: 0, url: publicUrlForKey(dest) };
   await client().send(
     new CopyObjectCommand({
@@ -125,7 +131,7 @@ export function sanitizeUploadName(name: string): string {
 }
 
 export async function putR2Object(key: string, body: Uint8Array, contentType: string): Promise<R2Object> {
-  const cleaned = cleanKey(key);
+  const cleaned = radioKey(key);
   await client().send(
     new PutObjectCommand({
       Bucket: bucket(),
@@ -139,7 +145,7 @@ export async function putR2Object(key: string, body: Uint8Array, contentType: st
 }
 
 export async function presignR2Put(key: string, contentType: string, expiresIn = 600): Promise<R2Object & { putUrl: string }> {
-  const cleaned = cleanKey(key);
+  const cleaned = radioKey(key);
   await ensureR2PutCors();
   const putUrl = await getSignedUrl(
     client(),
