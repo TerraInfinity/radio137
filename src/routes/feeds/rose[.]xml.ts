@@ -18,7 +18,7 @@ export const Route = createFileRoute("/feeds/rose.xml")({
         const origin = new URL(request.url).origin;
         const headers = {
           "content-type": "application/rss+xml; charset=utf-8",
-          "cache-control": "public, max-age=300",
+          "cache-control": "public, max-age=300, s-maxage=3600",
           "access-control-allow-origin": "*",
         };
         let facts: Record<string, RoseFeedFact> = {};

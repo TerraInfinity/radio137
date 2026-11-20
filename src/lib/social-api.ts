@@ -32,8 +32,11 @@ export const postStationChat = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ context, data }) => {
-    const { assertSameSiteRequest } = await import("@/lib/auth/isolation.server");
+    const { assertSameSiteRequest, requestClientKey } = await import("@/lib/auth/isolation.server");
     assertSameSiteRequest();
+    const { allowSpend } = await import("@/lib/spend-limit");
+    const who = context.user?.id || requestClientKey();
+    if (!allowSpend(`chat:${who}`, 8, 60_000)) throw new Error("Slow down a moment.");
     const author = (context.user?.name || context.user?.email || data.author).trim().slice(0, 24);
     const body = data.body.trim().slice(0, 280);
     if (!author || !body) throw new Error("Need a handle and a line.");
@@ -43,8 +46,15 @@ export const postStationChat = createServerFn({ method: "POST" })
   });
 
 export const bumpTrackView = createServerFn({ method: "POST" })
-  .validator((input: unknown) => z.object({ trackId: z.string().min(1) }).parse(input))
+  .validator((input: unknown) => z.object({ trackId: z.string().min(1).max(120) }).parse(input))
   .handler(async ({ data }) => {
+    const { assertSameSiteRequest, requestClientKey } = await import("@/lib/auth/isolation.server");
+    assertSameSiteRequest();
+    if (!/^[\w:.-]+$/.test(data.trackId)) return { trackId: data.trackId, views: 0, likes: 0 };
+    const { allowSpend } = await import("@/lib/spend-limit");
+    if (!allowSpend(`view:${requestClientKey()}:${data.trackId}`, 1, 30_000)) {
+      return { trackId: data.trackId, views: 0, likes: 0 };
+    }
     const { bumpView } = await import("@/lib/social.server");
     return bumpView(data.trackId);
   });
@@ -52,8 +62,12 @@ export const bumpTrackView = createServerFn({ method: "POST" })
 export const bumpTrackLike = createServerFn({ method: "POST" })
   .validator((input: unknown) => z.object({ trackId: z.string().min(1), liked: z.boolean() }).parse(input))
   .handler(async ({ data }) => {
-    const { assertSameSiteRequest } = await import("@/lib/auth/isolation.server");
+    const { assertSameSiteRequest, requestClientKey } = await import("@/lib/auth/isolation.server");
     assertSameSiteRequest();
+    const { allowSpend } = await import("@/lib/spend-limit");
+    if (!allowSpend(`like:${requestClientKey()}:${data.trackId}`, 6, 60_000)) {
+      return { trackId: data.trackId, views: 0, likes: 0 };
+    }
     const { bumpLike } = await import("@/lib/social.server");
     return bumpLike(data.trackId, data.liked);
   });

@@ -578,6 +578,9 @@ export const moveR2Object = createServerFn({ method: "POST" })
   .validator((input: unknown) => z.object({ from: z.string().min(1), to: z.string().min(1) }).parse(input))
   .handler(async ({ data }) => {
     const { moveR2Key } = await import("@/lib/r2.server");
+    for (const key of [data.from, data.to]) {
+      if (!key.replace(/^\/+/, "").startsWith("radio/") || key.includes("..")) throw new Error("That key is outside the radio library");
+    }
     const object = await moveR2Key(data.from, data.to);
     return { ok: true as const, object };
   });
@@ -587,14 +590,21 @@ export const deleteR2Object = createServerFn({ method: "POST" })
   .validator((input: unknown) => z.object({ key: z.string().min(1) }).parse(input))
   .handler(async ({ data }) => {
     const { deleteR2Key } = await import("@/lib/r2.server");
+    if (!data.key.replace(/^\/+/, "").startsWith("radio/") || data.key.includes("..")) throw new Error("That key is outside the radio library");
     await deleteR2Key(data.key);
     return { ok: true as const };
   });
 
 export const listCutGroups = createServerFn({ method: "GET" }).handler(async () => {
+  const now = Date.now();
+  if (cutGroupCache && now - cutGroupCache.at < 30_000) return cutGroupCache.payload;
   const { listCutGroups: list } = await import("@/lib/cuts.server");
-  return { groups: await list() };
+  const payload = { groups: await list() };
+  cutGroupCache = { at: now, payload };
+  return payload;
 });
+
+let cutGroupCache: { at: number; payload: { groups: import("@/lib/cuts").CutGroup[] } } | null = null;
 
 export const mergeStationCuts = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
@@ -715,6 +725,7 @@ export const mintDeskUpload = createServerFn({ method: "POST" })
     const { defaultPrefixForSlug, presignR2Put, r2Configured, sanitizeUploadName } = await import("@/lib/r2.server");
     const { MEDIA_MAX_IMAGE, MEDIA_MAX_VIDEO } = await import("@/lib/media");
     if (!r2Configured()) throw new Error("R2 keys are not set");
+    if (!/^[a-z0-9][a-z0-9-]{0,80}$/i.test(data.slug)) throw new Error("Bad station");
     const name = sanitizeUploadName(data.filename);
     const type = (data.contentType || "").toLowerCase();
     const size = data.size ?? 0;

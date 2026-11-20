@@ -33,6 +33,8 @@ export const Route = createFileRoute("/api/media/download")({
         }
         const src = mediaUrl(hit.track.audioUrl);
         if (!src) return Response.json({ error: "No file" }, { status: 404 });
+        const { allowedMediaUrl } = await import("@/lib/media-host");
+        if (!allowedMediaUrl(src)) return Response.json({ error: "No file" }, { status: 404 });
         return Response.redirect(src, 302);
       },
     },

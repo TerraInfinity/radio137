@@ -608,8 +608,10 @@ function isRoseMp3(url: string): boolean {
 }
 
 async function readRemoteAudio(url: string): Promise<Uint8Array> {
-  if (!/^https:\/\//i.test(url)) throw new Error("Audio URL must be https");
-  const response = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(60_000) });
+  const { allowedMediaUrl } = await import("@/lib/media-host");
+  if (!allowedMediaUrl(url)) throw new Error("That audio file is not on the station host");
+  const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(60_000) });
+  if (response.status >= 300 && response.status < 400) throw new Error("The audio host redirected. Refusing to follow it.");
   if (!response.ok) throw new Error(`Could not read the audio (${response.status})`);
   const length = Number(response.headers.get("content-length") || "0");
   if (length > MAX_AUDIO) throw new Error("That file is over 80 MB");
@@ -703,6 +705,7 @@ export async function stageSongMp3(input: { channelSlug: string; trackId: string
   const folder = slash >= 0 ? from.slice(0, slash) : `radio/${input.channelSlug}`;
   const base = (slash >= 0 ? from.slice(slash + 1) : sanitizeUploadName(source.title)).replace(/\.[a-z0-9]{2,5}$/i, "") || "track";
   const key = `${folder}/${base}.mp3`;
+  if (!key.startsWith("radio/") || key.includes("..")) throw new Error("That key is outside the radio library");
   const signed = await presignR2Put(key, "audio/mpeg", 3600);
   return { putUrl: signed.putUrl, url: signed.url, key: signed.key };
 }
@@ -716,6 +719,10 @@ export async function commitSongMp3(
   const channel = catalog.channels.find((item) => item.slug === input.channelSlug);
   const source = channel?.tracks.find((item) => item.id === input.trackId);
   if (!source) throw new Error("That song is not in the catalog");
+  const { allowedMediaUrl } = await import("@/lib/media-host");
+  if (!allowedMediaUrl(input.url)) throw new Error("That file is not on the station host");
+  const storedKey = input.key.replace(/^\/+/, "");
+  if (!storedKey.startsWith("radio/") || storedKey.includes("..")) throw new Error("That key is outside the radio library");
   const { sameSongTitle } = await import("@/lib/rose-rite");
   const durationSec = input.durationSec && input.durationSec > 1 ? Math.round(input.durationSec) : undefined;
   let updated = 0;
@@ -727,7 +734,7 @@ export async function commitSongMp3(
         channelSlug: desk.slug,
         trackId: item.id,
         audioUrl: input.url,
-        r2Key: input.key,
+        r2Key: storedKey,
         ...(durationSec ? { durationSec } : {}),
       });
       updated += 1;

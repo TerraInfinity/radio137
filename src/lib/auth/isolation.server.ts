@@ -50,3 +50,11 @@ export function assertSameSiteRequest(): void {
   if (isTopLevelGet) return;
   throw new CrossSiteRequestError();
 }
+
+/** First forwarded address, for rate limits. Not an identity. */
+export function requestClientKey(): string {
+  const request = getRequest();
+  if (!request) return "unknown";
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+  return forwarded.slice(0, 80);
+}

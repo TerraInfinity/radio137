@@ -59,6 +59,10 @@ export const directRoseLook = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const apiKey = process.env.XAI_API_KEY;
     if (!apiKey) return { ok: false as const, error: "Grok is not available in this environment." };
+    const { allowSpend } = await import("@/lib/spend-limit");
+    if (!allowSpend("rose-grok", 20, 60 * 60 * 1000)) {
+      return { ok: false as const, error: "Grok is paused for a while so this does not run up a bill." };
+    }
     const current = normalizeLook(data.look as RoseLook);
     const history = (data.history ?? []).slice(-8).map((item) => ({
       role: item.role,

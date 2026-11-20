@@ -115,6 +115,7 @@ export async function moveR2Key(from: string, to: string): Promise<R2Object> {
 }
 
 export function defaultPrefixForSlug(slug: string): string {
+  if (!/^[a-z0-9][a-z0-9-]{0,80}$/i.test(slug)) throw new Error("Bad station");
   return `radio/${slug}/`;
 }
 
